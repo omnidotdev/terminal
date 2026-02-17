@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.omni.Terminal</id>
+  <content_rating type="oars-1.1" />
+
+  <name>Omni Terminal</name>
+  <summary>GPU-accelerated terminal emulator powered by WebGPU</summary>
+
+  <description>
+    <p>Omni Terminal is a GPU-accelerated terminal emulator built to run everywhere. It is designed to be fast and efficient, with a focus on performance and usability.</p>
+    <p>Omni Terminal is built using the latest technologies, including Rust and WebGPU, to provide a modern and responsive user experience. It supports a wide range of features, including split panes, tabs, and customizable themes.</p>
+    <p>Omni Terminal is open source and available for Windows, macOS, and Linux.</p>
+  </description>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#b9a5d3</color>
+    <color type="primary" scheme_preference="dark">#2c1e3e</color>
+  </branding>
+
+  <project_license>MIT</project_license>
+  <metadata_license>CC0-1.0</metadata_license>
+
+  <launchable type="desktop-id">dev.omni.Terminal.desktop</launchable>
+
+  <url type="homepage">https://terminal.omni.dev/</url>
+  <url type="help">https://docs.omni.dev/armory/omni-terminal</url>
+  <url type="bugtracker">https://github.com/omnidotdev/terminal/issues</url>
+
+  <developer id="dev.omni">
+    <name>Omni LLC</name>
+    <url type="homepage">https://omni.dev/</url>
+  </developer>
+
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+  </recommends>
+
+  <keywords>
+    <keyword>hardware accelerated</keyword>
+    <keyword>gpu terminal emulator</keyword>
+    <keyword>webgpu supported</keyword>
+    <keyword>fast terminal emulator</keyword>
+    <keyword>true color terminal</keyword>
+  </keywords>
+</component>

@@ -1,0 +1,111 @@
+[package]
+name = "omni-terminal"
+description = "Omni Terminal is a GPU-accelerated terminal emulator built to run everywhere."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+readme.workspace = true
+
+[[bin]]
+name = "omni-terminal"
+path = "src/main.rs"
+
+[dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "registry"] }
+wgpu = { workspace = true }
+terminal-backend = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+criterion = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+bitflags = { workspace = true }
+futures = { workspace = true }
+corcovado = { workspace = true }
+regex = { workspace = true }
+raw-window-handle = { workspace = true }
+clap = { version = "4.5.42", features = ["derive"] }
+dirs = "6.0.0"
+notify = "8.2.0"
+rustc-hash = { workspace = true }
+image_rs = { workspace = true }
+libc = { workspace = true }
+parking_lot = { workspace = true }
+serde = { workspace = true }
+teletypewriter = { workspace = true }
+unicode-width = { workspace = true }
+copa = { workspace = true }
+url = { workspace = true }
+smallvec = { workspace = true }
+terminal-window = { workspace = true }
+lru = "0.16.0"
+
+[target.'cfg(all(not(target_os = "macos"), not(target_os = "windows")))'.dependencies]
+cpal = { version = "0.15", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+ahash = { version = "0.8.11", default-features = false, features = ["std"] }
+dunce = "1.0.5"
+tinyvec = { version = "1.8.1", features = ["alloc"] }
+windows-sys = { version = "0.60.2", features = [
+    "Win32_System_Console",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_WindowsProgramming",
+    "Win32_System_IO",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Diagnostics_Debug",
+]}
+
+[features]
+default = ["wayland", "x11"]
+audio = ["cpal"]
+x11 = [
+    "terminal-backend/x11",
+    "terminal-window/x11"
+]
+wayland = [
+    "terminal-backend/wayland",
+    "terminal-window/wayland",
+    "terminal-window/wayland-dlopen",
+]
+
+# "terminal-window/wayland-csd-adwaita-crossfont",
+
+[package.metadata.deb]
+name = "omni-terminal"
+maintainer = "Omni LLC <hello@omni.dev>"
+copyright = "Omni LLC"
+depends = "$auto"
+section = "admin"
+priority = "optional"
+assets = [
+    ["../../target/release/omni-terminal", "usr/local/bin/", "755"],
+    ["../../misc/omni-terminal.desktop", "usr/share/applications/", "644"],
+    ["../../misc/omni-terminal.terminfo", "usr/share/info/", "644"],
+    ["../../misc/logo.svg", "usr/share/icons/hicolor/scalable/apps/omni-terminal.svg", "644"],
+    ["../../README.md", "usr/share/doc/omni-terminal/", "644"],
+    ["../../LICENSE", "usr/share/doc/omni-terminal/", "664"]
+]
+extended-description = """\
+Omni Terminal is a GPU-accelerated terminal emulator built to run everywhere.
+The supported platforms currently consist of BSD, Linux, macOS and Windows."""
+
+[[bench]]
+name = "renderer_bench"
+harness = false

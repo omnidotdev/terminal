@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+TryExec=omni-terminal
+Exec=omni-terminal
+Icon=omni-terminal
+Terminal=false
+Categories=System;TerminalEmulator;
+
+Name=Omni Terminal
+GenericName=Terminal
+Comment=A GPU-accelerated terminal emulator powered by WebGPU
+StartupWMClass=Omni Terminal
+Actions=New;
+
+[Desktop Action New]
+Name=New Terminal
+Exec=omni-terminal

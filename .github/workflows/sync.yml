@@ -1,0 +1,54 @@
+name: Sync
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  validate:
+    name: Validate
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-dev libxkbcommon-dev
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Sync version
+        run: bun scripts/syncVersion.ts
+
+      - name: Check version sync
+        run: |
+          if ! git diff --exit-code Cargo.toml; then
+            echo "Error: Cargo.toml version is out of sync with package.json"
+            echo "Run 'bun scripts/syncVersion.ts' to fix"
+            exit 1
+          fi
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --exclude omni-terminal-android --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --exclude omni-terminal-android
+
+      - name: Build
+        run: cargo build --release --workspace --exclude omni-terminal-android

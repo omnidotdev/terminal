@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Omni Terminal</string>
+    <string name="connect">Connect</string>
+    <string name="server_url">Server URL</string>
+    <string name="server_url_hint">e.g. 192.168.1.100:3000</string>
+    <string name="connecting">Connecting&#8230;</string>
+    <string name="error_empty_url">Enter a server address</string>
+    <string name="error_load_failed">Failed to load terminal</string>
+    <string name="local_shell">Local Shell</string>
+    <string name="setup_storage">Setup Storage</string>
+    <string name="bootstrap_title">Setting up</string>
+    <string name="bootstrap_extracting">Setting up terminal environment…</string>
+    <string name="bootstrap_failed">Bootstrap failed: %1$s</string>
+    <string name="storage_created">Storage symlinks created in ~/storage/</string>
+    <string name="storage_denied">Storage permission denied</string>
+    <string name="new_session">New Session</string>
+    <string name="remote_connection">Remote Connection</string>
+    <string name="notification_channel_name">Terminal Sessions</string>
+    <string name="notification_channel_description">Keeps terminal sessions alive in the background</string>
+    <string name="notification_title">Terminal running</string>
+    <string name="notification_text_one">1 active session</string>
+    <string name="notification_text_many">%1$d active sessions</string>
+    <string name="arch_install_prompt">Install Arch Linux for a full dev environment?</string>
+    <string name="arch_install_size">~170MB download</string>
+    <string name="arch_install_button">Install</string>
+    <string name="arch_install_button_full">Install Arch Linux</string>
+    <string name="arch_not_now">Not now</string>
+    <string name="arch_remove">Remove Arch Linux</string>
+    <string name="arch_remove_confirm">This will delete the Arch Linux rootfs</string>
+    <string name="arch_removed">Arch Linux removed</string>
+    <string name="arch_installing">Installing Arch Linux ARM...</string>
+    <string name="arch_install_done">Arch Linux installed. New shells will use it</string>
+    <string name="arch_install_failed">Installation failed: %1$s</string>
+    <string name="settings">Settings</string>
+    <string name="font_size">Font Size</string>
+    <string name="theme">Theme</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_solarized">Solarized Dark</string>
+    <string name="theme_light">Light</string>
+</resources>

@@ -1,0 +1,25 @@
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ansi;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod batch_utf8;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod batched_parser;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod clipboard;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod config;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod crosswords;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod error;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod event;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod performer;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod selection;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod simd_utf8;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use sugarloaf;

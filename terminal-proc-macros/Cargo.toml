@@ -1,0 +1,15 @@
+[package]
+authors = ["Omni LLC <team@omni.dev>"]
+description = "Omni Terminal proc macros"
+repository = { workspace = true }
+name = "terminal-proc-macros"
+license = "MIT"
+version = { workspace = true }
+edition = { workspace = true }
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.88"
+quote = "1.0.37"

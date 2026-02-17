@@ -1,0 +1,6 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- O circle -->
+  <circle cx="39" cy="50" r="20" stroke="currentColor" stroke-width="4.5" fill="none"/>
+  <!-- > chevron (bottom-aligned with O) -->
+  <polyline points="68,52 81,61 68,70" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

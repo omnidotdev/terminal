@@ -1,0 +1,59 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+   <Package
+      Name="Omni Terminal"
+      UpgradeCode="87c21c74-dbd5-4584-89d5-46d9cd0c40a8"
+      Language="1033"
+      Codepage="1252"
+      Version="{{ .Version }}"
+      Manufacturer="Omni LLC"
+      InstallerVersion="200">
+
+      <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+      <WixVariable Id="WixUILicenseRtf" Value=".\misc\windows\License.rtf" />
+      <Icon Id="OmniTerminalIcon" SourceFile=".\misc\windows\omni-terminal.ico" />
+      <Property Id="APPRODUCTICON" Value="OmniTerminalIcon" />
+      <MediaTemplate EmbedCab="yes" />
+      <ui:WixUI Id="WixUI_Minimal" />
+      <Feature Id="ProductFeature" Title="ConsoleApp" Level="1">
+         <ComponentRef Id="OmniTerminalExe" />
+         <ComponentRef Id="OmniTerminalShortcut" />
+         <ComponentRef Id="ModifyPathEnv" />
+         <ComponentRef Id="ContextMenu" />
+      </Feature>
+      <!-- Application binaries -->
+      <DirectoryRef Id="OmniTerminalProgramFiles">
+         <Component Id="OmniTerminalExe">
+            <File Id="OmniTerminalExeFile" Source="{{ .Binary }}.exe" Name="omni-terminal.exe" KeyPath="yes" />
+         </Component>
+      </DirectoryRef>
+      <DirectoryRef Id="OmniTerminalProgramMenu">
+         <!-- Application shortcut -->
+         <Component Id="OmniTerminalShortcut" Guid="aa36e61a-23cd-4383-b744-2f78e912f0dc">
+            <Shortcut Id="OmniTerminalShortcutFile" Name="Omni Terminal" Description="A GPU-accelerated terminal emulator" Target="[OmniTerminalProgramFiles]omni-terminal.exe" Icon="OmniTerminalIcon" />
+            <RemoveFolder Id="OmniTerminalProgramMenu" On="uninstall" />
+            <RegistryValue Root="HKCU" Key="Software\Microsoft\OmniTerminal" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+         </Component>
+      </DirectoryRef>
+      <DirectoryRef Id="OmniTerminalProgramFiles">
+         <!-- Add to PATH -->
+         <Component Id="ModifyPathEnv" Guid="edf0b679-9eb6-46f7-a5d1-5160f30acb34" KeyPath="yes">
+            <Environment Id="PathEnv" Value="[OmniTerminalProgramFiles]" Name="PATH" Permanent="no" Part="first" Action="set" System="yes" />
+         </Component>
+      </DirectoryRef>
+      <StandardDirectory Id="ProgramFiles64Folder">
+         <Directory Id="OmniTerminalProgramFiles" Name="Omni Terminal" />
+      </StandardDirectory>
+      <StandardDirectory Id="ProgramMenuFolder">
+         <Directory Id="OmniTerminalProgramMenu" Name="Omni Terminal" />
+      </StandardDirectory>
+      <!-- Add context menu -->
+      <Component Id="ContextMenu" Guid="449f9121-f7b9-41fe-82da-52349ea8ff91" Directory="TARGETDIR">
+         <RegistryKey Root="HKCU" Key="Software\Classes\Directory\Background\shell\Open Omni Terminal here\command">
+            <RegistryValue Type="string" Value='[OmniTerminalProgramFiles]omni-terminal.exe --working-dir "%v"' KeyPath="yes" />
+         </RegistryKey>
+         <RegistryKey Root="HKCU" Key="Software\Classes\Directory\Background\shell\Open Omni Terminal here">
+            <RegistryValue Type="string" Name="Icon" Value="[OmniTerminalProgramFiles]omni-terminal.exe" />
+         </RegistryKey>
+      </Component>
+   </Package>
+</Wix>

@@ -1,0 +1,766 @@
+package dev.omnidotdev.terminal
+
+import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.util.DisplayMetrics
+import android.view.GestureDetector
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
+import android.view.SurfaceHolder
+import android.view.View
+import android.view.ViewGroup.LayoutParams
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.preference.PreferenceManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+
+class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
+    private lateinit var root: FrameLayout
+    private lateinit var surfaceView: TerminalSurfaceView
+    private lateinit var toolbar: LinearLayout
+    private lateinit var tabBar: LinearLayout
+    private lateinit var tabContainer: LinearLayout
+    private lateinit var scrollIndicator: View
+    private lateinit var scaleDetector: ScaleGestureDetector
+    private lateinit var gestureDetector: GestureDetector
+    private var initialized = false
+    private var scaleFactor = 1.0f
+    private var serverUrl: String? = null
+    private val renderHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val renderRunnable = object : Runnable {
+        override fun run() {
+            if (initialized) {
+                NativeTerminal.render()
+                updateScrollIndicator()
+                reapExitedSessions()
+                renderHandler.postDelayed(this, 16) // ~60fps
+            }
+        }
+    }
+    private var serviceStarted = false
+    private var selecting = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Draw edge-to-edge behind system bars
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // Hide navigation bar, keep status bar visible
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.navigationBars())
+
+        root = FrameLayout(this)
+        root.setBackgroundColor(0xFF0D0D1A.toInt())
+
+        // Vertical container: tab bar + surface + toolbar
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // Tab bar
+        tabBar = createTabBar()
+        container.addView(tabBar, LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            LayoutParams.WRAP_CONTENT,
+        ))
+
+        // Terminal surface
+        surfaceView = TerminalSurfaceView(this)
+        surfaceView.holder.addCallback(this)
+        container.addView(surfaceView, LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            0,
+            1f,
+        ))
+
+        // Toolbar
+        toolbar = createToolbar()
+        container.addView(toolbar, LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            LayoutParams.WRAP_CONTENT,
+        ))
+
+        root.addView(container, FrameLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            LayoutParams.MATCH_PARENT,
+        ))
+
+        scrollIndicator = View(this).apply {
+            setBackgroundColor(0x66FFFFFF.toInt())
+            visibility = View.GONE
+        }
+        root.addView(scrollIndicator, FrameLayout.LayoutParams(
+            4,
+            40,
+            Gravity.END,
+        ))
+
+        setContentView(root)
+
+        // Handle system bars, display cutout, and keyboard insets
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, windowInsets ->
+            val systemInsets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            val imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
+            val imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime())
+
+            // Bottom: keyboard height (if visible) or 0
+            val bottomPadding = if (imeVisible) imeInsets.bottom else 0
+            view.setPadding(systemInsets.left, systemInsets.top, systemInsets.right, bottomPadding)
+
+            // Toolbar: pad for nav bar when keyboard is hidden
+            val toolbarBottom = if (imeVisible) 4 else 4 + systemInsets.bottom
+            toolbar.setPadding(8, 4, 8, toolbarBottom)
+
+            windowInsets
+        }
+
+        scaleDetector = ScaleGestureDetector(this, PinchListener())
+        gestureDetector = GestureDetector(this, ScrollListener())
+    }
+
+    private fun createTabBar(): LinearLayout {
+        val density = resources.displayMetrics.density
+        val hPad = (2 * density).toInt() // Match terminal PADDING_DP
+        val vPad = (6 * density).toInt()
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(0xDD141414.toInt())
+            setPadding(hPad, vPad, hPad, vPad)
+        }
+
+        val scroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        tabContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        scroll.addView(tabContainer)
+        bar.addView(scroll)
+
+        // "+" button to add new session
+        bar.addView(createTabButton("+") {
+            showNewSessionDialog()
+        })
+
+        return bar
+    }
+
+    private fun refreshTabBar() {
+        tabContainer.removeAllViews()
+        val count = NativeTerminal.getSessionCount()
+        val active = NativeTerminal.getActiveSession()
+
+        for (i in 0 until count) {
+            val label = NativeTerminal.getSessionLabel(i)
+            val tab = createTabButton(label) {
+                NativeTerminal.switchSession(i)
+                refreshTabBar()
+            }
+
+            if (i == active) {
+                tab.setBackgroundResource(R.drawable.btn_terminal_active)
+                tab.setTextColor(0xFFFFFFFF.toInt())
+            }
+
+            // Long-press to close
+            tab.setOnLongClickListener {
+                closeSessionAt(i)
+                true
+            }
+
+            tabContainer.addView(tab)
+        }
+    }
+
+    private fun createTabButton(label: String, onClick: () -> Unit): TextView {
+        val density = resources.displayMetrics.density
+        val hPad = (10 * density).toInt()
+        val vPad = (6 * density).toInt()
+        val margin = (3 * density).toInt()
+        return TextView(this).apply {
+            text = label
+            setTextColor(0xFFE5E5E5.toInt())
+            setBackgroundResource(R.drawable.btn_terminal)
+            setPadding(hPad, vPad, hPad, vPad)
+            textSize = 13f
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
+            ).apply { setMargins(margin, 0, margin, 0) }
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun showNewSessionDialog() {
+        val items = arrayOf(
+            getString(R.string.local_shell),
+            getString(R.string.remote_connection),
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.new_session)
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> createLocalSession()
+                    1 -> showRemoteUrlDialog()
+                }
+            }
+            .show()
+    }
+
+    private fun createLocalSession() {
+        if (!BootstrapInstaller.isInstalled(this)) {
+            val dialog = AlertDialog.Builder(this)
+                .setTitle(R.string.bootstrap_title)
+                .setMessage(R.string.bootstrap_extracting)
+                .setCancelable(false)
+                .create()
+            dialog.show()
+
+            Thread {
+                try {
+                    BootstrapInstaller.install(this) { status ->
+                        runOnUiThread { dialog.setMessage(status) }
+                    }
+                    runOnUiThread {
+                        dialog.dismiss()
+                        connectLocalOrProot()
+                        refreshTabBar()
+                        startTerminalService()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        dialog.dismiss()
+                        android.widget.Toast.makeText(
+                            this,
+                            getString(R.string.bootstrap_failed, e.message),
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            }.start()
+            return
+        }
+        connectLocalOrProot()
+        refreshTabBar()
+        startTerminalService()
+    }
+
+    private fun showRemoteUrlDialog() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.server_url_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_URI
+            setPadding(48, 24, 48, 24)
+        }
+
+        // Pre-fill with last used URL
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        input.setText(prefs.getString(ConnectActivity.PREF_SERVER_URL, ""))
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.remote_connection)
+            .setView(input)
+            .setPositiveButton(R.string.connect) { _, _ ->
+                val raw = input.text?.toString()?.trim().orEmpty()
+                if (raw.isNotEmpty()) {
+                    val wsUrl = ConnectActivity.normalizeWsUrl(raw)
+                    prefs.edit().putString(ConnectActivity.PREF_SERVER_URL, raw).apply()
+                    NativeTerminal.connect(wsUrl)
+                    refreshTabBar()
+                    startTerminalService()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun connectLocalOrProot() {
+        val nativeLibDir = applicationInfo.nativeLibraryDir
+        if (ProotEnvironment.isInstalled(this)) {
+            NativeTerminal.connectLocalProot(
+                filesDir.absolutePath,
+                ProotEnvironment.rootfsPath(this),
+                "$nativeLibDir/libproot.so",
+                nativeLibDir,
+            )
+        } else {
+            NativeTerminal.connectLocal(filesDir.absolutePath, nativeLibDir)
+        }
+    }
+
+    private fun closeSessionAt(index: Int) {
+        val remaining = NativeTerminal.closeSession(index)
+        if (remaining == 0) {
+            finish()
+        } else {
+            refreshTabBar()
+            updateTerminalService()
+        }
+    }
+
+    /** Close sessions whose backing process has exited (e.g. user typed `exit`). */
+    private fun reapExitedSessions() {
+        val count = NativeTerminal.getSessionCount()
+        // Iterate in reverse so removal indices stay valid
+        for (i in (count - 1) downTo 0) {
+            if (!NativeTerminal.isSessionAlive(i)) {
+                // Keep exited session visible so user can read error output
+                closeSessionAt(i)
+                return // finish() may have been called; re-check next frame
+            }
+        }
+    }
+
+    private fun startTerminalService() {
+        if (serviceStarted) return
+        val count = NativeTerminal.getSessionCount()
+        if (count <= 0) return
+
+        val intent = Intent(this, TerminalService::class.java).apply {
+            putExtra(TerminalService.EXTRA_SESSION_COUNT, count)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+        serviceStarted = true
+    }
+
+    private fun updateTerminalService() {
+        if (!serviceStarted) return
+        val count = NativeTerminal.getSessionCount()
+        if (count <= 0) {
+            stopTerminalService()
+            return
+        }
+        val intent = Intent(this, TerminalService::class.java).apply {
+            putExtra(TerminalService.EXTRA_SESSION_COUNT, count)
+        }
+        startService(intent)
+    }
+
+    private fun stopTerminalService() {
+        if (!serviceStarted) return
+        stopService(Intent(this, TerminalService::class.java))
+        serviceStarted = false
+    }
+
+    private fun installArchLinux() {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.arch_installing)
+            .setMessage("Starting...")
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
+        Thread {
+            try {
+                ProotEnvironment.install(this) { status, _ ->
+                    runOnUiThread { dialog.setMessage(status) }
+                }
+                runOnUiThread {
+                    dialog.dismiss()
+                    android.widget.Toast.makeText(this, R.string.arch_install_done, android.widget.Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    dialog.dismiss()
+                    android.widget.Toast.makeText(
+                        this,
+                        getString(R.string.arch_install_failed, e.message),
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun createToolbar(): LinearLayout {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(0xDD141414.toInt())
+            setPadding(8, 4, 8, 4)
+        }
+
+        val scroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+        }
+
+        val inner = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        // Modifier keys (toggleable)
+        inner.addView(createToggleButton("ESC") {
+            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ESCAPE)
+        })
+        inner.addView(createToggleButton("TAB") {
+            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_TAB)
+        })
+        inner.addView(createModifierButton("CTRL") { pressed ->
+            surfaceView.ctrlDown = pressed
+        })
+        inner.addView(createModifierButton("ALT") { pressed ->
+            surfaceView.altDown = pressed
+        })
+
+        inner.addView(createSeparator())
+
+        // Arrow keys
+        inner.addView(createActionButton("\u2190") {
+            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_LEFT)
+        })
+        inner.addView(createActionButton("\u2191") {
+            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_UP)
+        })
+        inner.addView(createActionButton("\u2193") {
+            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_DOWN)
+        })
+        inner.addView(createActionButton("\u2192") {
+            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_RIGHT)
+        })
+
+        inner.addView(createSeparator())
+
+        // Common symbols
+        inner.addView(createActionButton("/") { NativeTerminal.sendKey("/") })
+        inner.addView(createActionButton("-") { NativeTerminal.sendKey("-") })
+        inner.addView(createActionButton("|") { NativeTerminal.sendKey("|") })
+        inner.addView(createActionButton("~") { NativeTerminal.sendKey("~") })
+
+        inner.addView(createSeparator())
+
+        // Disconnect / back
+        inner.addView(createActionButton("\u2716") { finish() })
+
+        // Settings
+        inner.addView(createActionButton("\u2699") { showSettingsDialog() })
+
+        scroll.addView(inner)
+        bar.addView(scroll)
+        return bar
+    }
+
+    private fun createActionButton(label: String, onClick: () -> Unit): TextView {
+        return TextView(this).apply {
+            text = label
+            setTextColor(0xFFE5E5E5.toInt())
+            setBackgroundResource(R.drawable.btn_terminal)
+            setPadding(24, 16, 24, 16)
+            textSize = 14f
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
+            ).apply { setMargins(4, 0, 4, 0) }
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun createToggleButton(label: String, onClick: () -> Unit): TextView {
+        return createActionButton(label, onClick)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun createModifierButton(label: String, onToggle: (Boolean) -> Unit): TextView {
+        return TextView(this).apply {
+            text = label
+            setTextColor(0xFFE5E5E5.toInt())
+            setBackgroundResource(R.drawable.btn_terminal)
+            setPadding(24, 16, 24, 16)
+            textSize = 14f
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
+            ).apply { setMargins(4, 0, 4, 0) }
+
+            var active = false
+            setOnClickListener {
+                active = !active
+                if (active) {
+                    setBackgroundResource(R.drawable.btn_terminal_active)
+                    setTextColor(0xFFFFFFFF.toInt())
+                } else {
+                    setBackgroundResource(R.drawable.btn_terminal)
+                    setTextColor(0xFFE5E5E5.toInt())
+                }
+                onToggle(active)
+            }
+        }
+    }
+
+    private fun createSeparator(): View {
+        return View(this).apply {
+            setBackgroundColor(0xFF2A2A2A.toInt())
+            layoutParams = LinearLayout.LayoutParams(2, LayoutParams.MATCH_PARENT).apply {
+                setMargins(8, 8, 8, 8)
+            }
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        surfaceView.setOnTouchListener { _, event ->
+            scaleDetector.onTouchEvent(event)
+            gestureDetector.onTouchEvent(event)
+            if (event.action == MotionEvent.ACTION_UP) {
+                if (selecting) {
+                    selecting = false
+                    val text = NativeTerminal.getSelectedText()
+                    if (text.isNotEmpty()) {
+                        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("terminal", text))
+                        android.widget.Toast.makeText(this, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    NativeTerminal.selectionClear()
+                } else if (!scaleDetector.isInProgress) {
+                    surfaceView.showKeyboard()
+                }
+            }
+            true
+        }
+    }
+
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        windowManager.defaultDisplay.getRealMetrics(metrics)
+        val scale = metrics.density
+
+        if (!initialized) {
+            NativeTerminal.init(holder.surface, width, height, scale)
+            initialized = true
+
+            // Apply saved font size
+            val savedFontSize = TerminalPreferences.getFontSize(this)
+            if (savedFontSize != TerminalPreferences.DEFAULT_FONT_SIZE) {
+                NativeTerminal.setFontSize(savedFontSize)
+            }
+
+            // Apply saved theme
+            val theme = TerminalPreferences.getTheme(this)
+            applyTheme(theme)
+
+            // Create first session based on intent mode
+            val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
+            if (mode == "local") {
+                connectLocalOrProot()
+            } else {
+                serverUrl = intent.getStringExtra(ConnectActivity.EXTRA_SERVER_URL)
+                if (serverUrl != null) {
+                    NativeTerminal.connect(serverUrl!!)
+                }
+            }
+
+            refreshTabBar()
+            startTerminalService()
+
+            // Start render loop to poll output
+            renderHandler.post(renderRunnable)
+
+            surfaceView.showKeyboard()
+        } else {
+            NativeTerminal.resize(width, height, scale)
+        }
+    }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) {
+        if (initialized) {
+            NativeTerminal.destroy()
+            initialized = false
+        }
+    }
+
+    override fun onDestroy() {
+        stopTerminalService()
+        renderHandler.removeCallbacks(renderRunnable)
+        if (initialized) {
+            NativeTerminal.destroy()
+            initialized = false
+        }
+        super.onDestroy()
+    }
+
+    private fun updateScrollIndicator() {
+        val offset = NativeTerminal.getScrollOffset()
+        val max = NativeTerminal.getScrollMax()
+        if (offset == 0 || max == 0) {
+            scrollIndicator.visibility = View.GONE
+            return
+        }
+        scrollIndicator.visibility = View.VISIBLE
+
+        val surfaceHeight = surfaceView.height
+        val indicatorHeight = (surfaceHeight * surfaceView.height / (surfaceHeight + max * 20)).coerceAtLeast(20)
+        val position = ((max - offset).toFloat() / max * (surfaceHeight - indicatorHeight)).toInt()
+
+        val params = scrollIndicator.layoutParams as FrameLayout.LayoutParams
+        params.height = indicatorHeight
+        params.topMargin = position + tabBar.height
+        params.gravity = Gravity.END
+        scrollIndicator.layoutParams = params
+    }
+
+    private fun pixelToCell(x: Float, y: Float): Pair<Int, Int> {
+        val cellW = NativeTerminal.getCellWidth()
+        val cellH = NativeTerminal.getCellHeight()
+        val offsetX = NativeTerminal.getGridOffsetX()
+        val col = if (cellW > 0) ((x - offsetX) / cellW).toInt().coerceAtLeast(0) else 0
+        val row = if (cellH > 0) (y / cellH).toInt().coerceAtLeast(0) else 0
+        return Pair(col, row)
+    }
+
+    private fun showSettingsDialog() {
+        val items = mutableListOf<String>()
+        val actions = mutableListOf<() -> Unit>()
+
+        // Theme
+        items.add(getString(R.string.theme))
+        actions.add { showThemeDialog() }
+
+        // Arch Linux install/remove
+        if (ProotEnvironment.isInstalled(this)) {
+            items.add(getString(R.string.arch_remove))
+            actions.add {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.arch_remove)
+                    .setMessage(R.string.arch_remove_confirm)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        ProotEnvironment.remove(this)
+                        android.widget.Toast.makeText(this, R.string.arch_removed, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        } else {
+            items.add(getString(R.string.arch_install_button_full))
+            actions.add { installArchLinux() }
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings)
+            .setItems(items.toTypedArray()) { _, which -> actions[which]() }
+            .show()
+    }
+
+    private fun showThemeDialog() {
+        val currentTheme = TerminalPreferences.getTheme(this)
+
+        val themes = arrayOf(
+            getString(R.string.theme_dark),
+            getString(R.string.theme_solarized),
+            getString(R.string.theme_light),
+        )
+        val themeValues = arrayOf("dark", "solarized", "light")
+        val selectedTheme = themeValues.indexOf(currentTheme).coerceAtLeast(0)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.theme)
+            .setSingleChoiceItems(themes, selectedTheme) { _, which ->
+                val theme = themeValues[which]
+                TerminalPreferences.setTheme(this, theme)
+                applyTheme(theme)
+            }
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun applyTheme(theme: String) {
+        when (theme) {
+            "dark" -> {
+                NativeTerminal.setBackgroundColor(0.05f, 0.05f, 0.1f)
+                root.setBackgroundColor(0xFF0D0D1A.toInt())
+            }
+            "solarized" -> {
+                NativeTerminal.setBackgroundColor(0.0f, 0.169f, 0.212f)
+                root.setBackgroundColor(0xFF002B36.toInt())
+            }
+            "light" -> {
+                NativeTerminal.setBackgroundColor(0.99f, 0.96f, 0.89f)
+                root.setBackgroundColor(0xFFFDF6E3.toInt())
+            }
+        }
+    }
+
+    private inner class PinchListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+            scaleFactor *= detector.scaleFactor
+            if (scaleFactor > 1.15f) {
+                NativeTerminal.setFontAction(2)
+                scaleFactor = 1.0f
+                TerminalPreferences.setFontSize(this@NativeTerminalActivity, NativeTerminal.getFontSize())
+            } else if (scaleFactor < 0.85f) {
+                NativeTerminal.setFontAction(1)
+                scaleFactor = 1.0f
+                TerminalPreferences.setFontSize(this@NativeTerminalActivity, NativeTerminal.getFontSize())
+            }
+            return true
+        }
+    }
+
+    private inner class ScrollListener : GestureDetector.SimpleOnGestureListener() {
+        private var accumulatedScroll = 0f
+
+        override fun onDown(e: MotionEvent): Boolean {
+            accumulatedScroll = 0f
+            return true
+        }
+
+        override fun onLongPress(e: MotionEvent) {
+            selecting = true
+            val (col, row) = pixelToCell(e.x, e.y)
+            NativeTerminal.selectionBegin(col, row)
+            surfaceView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        }
+
+        override fun onScroll(
+            e1: MotionEvent?,
+            e2: MotionEvent,
+            distanceX: Float,
+            distanceY: Float,
+        ): Boolean {
+            if (scaleDetector.isInProgress) return false
+
+            if (selecting) {
+                val (col, row) = pixelToCell(e2.x, e2.y)
+                NativeTerminal.selectionUpdate(col, row)
+                return true
+            }
+
+            // Convert pixel distance to lines (font_size=18 * line_height=1.2 * density)
+            val lineHeight = 18f * 1.2f * resources.displayMetrics.density
+            accumulatedScroll -= distanceY
+
+            val lines = (accumulatedScroll / lineHeight).toInt()
+            if (lines != 0) {
+                accumulatedScroll -= lines * lineHeight
+                val (col, row) = pixelToCell(e2.x, e2.y)
+                NativeTerminal.scroll(lines, col, row)
+            }
+            return true
+        }
+    }
+}

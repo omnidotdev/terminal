@@ -1,0 +1,29 @@
+{
+  "name": "@omnidotdev/terminal",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Embeddable WebGPU terminal component powered by WASM",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "bun src/scripts/build.ts",
+    "clean": "rm -rf build node_modules"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/omnidotdev/terminal"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

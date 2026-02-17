@@ -1,0 +1,32 @@
+[package]
+name = "teletypewriter"
+description = "Rust crate to create a pseudoterminal (pty) that emulates a tty. tty stands for TeleTYpewriter."
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+documentation = "https://docs.rs/crate/teletypewriter/latest"
+authors = { workspace = true }
+
+[dependencies]
+libc = { workspace = true }
+dirs = "6.0.0"
+corcovado = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+signal-hook = "0.3.17"
+iovec = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59.0", features = [
+    "Win32_System_Console",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_WindowsProgramming",
+    "Win32_System_IO",
+]}
+miow = "0.6.0"
+parking_lot = { workspace = true }

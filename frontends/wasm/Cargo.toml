@@ -1,0 +1,61 @@
+[package]
+name = "omni-terminal-wasm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+sugarloaf = { workspace = true }
+copa = { workspace = true }
+terminal-emulator = { workspace = true }
+js-sys = "0.3.64"
+wgpu = { workspace = true }
+tracing = { workspace = true }
+log = "0.4"
+uuid = { version = "1", features = ["v4", "js"] }
+web-sys = { version = "0.3.62", features = [
+    "Document",
+    "Node",
+    "NodeList",
+    "Window",
+    "HtmlCanvasElement",
+    "Element",
+    "EventTarget",
+    "WebSocket",
+    "BinaryType",
+    "MessageEvent",
+    "KeyboardEvent",
+    "ClipboardEvent",
+    "CompositionEvent",
+    "DataTransfer",
+    "MouseEvent",
+    "WheelEvent",
+    "ResizeObserver",
+    "ResizeObserverEntry",
+    "ResizeObserverSize",
+    "DomRect",
+    "DomRectReadOnly",
+    "HtmlTextAreaElement",
+    "HtmlDivElement",
+    "CssStyleDeclaration",
+    "HtmlElement",
+    "HtmlSpanElement",
+    "InputEvent",
+    "Navigator",
+    "Clipboard",
+] }
+console_log = { workspace = true }
+wasm-bindgen = { workspace = true }
+console_error_panic_hook = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+raw-window-handle = { workspace = true }
+getrandom = { version = "0.3", features = ["wasm_js"] }

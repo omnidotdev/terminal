@@ -1,0 +1,333 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: Handle release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig-dev libwayland-dev libxkbcommon-dev
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.106
+      - name: Install dependencies
+        run: bun i
+      - name: Create release PR or publish package
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: bun run version && git add Cargo.toml
+          publish: bun release
+          title: "chore(release): version packages"
+          commit: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+      - name: Get version
+        id: version
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: release
+    if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS x86_64
+            target: x86_64-apple-darwin
+            os: macos-13
+          - name: macOS aarch64
+            target: aarch64-apple-darwin
+            os: macos-14
+          - name: Linux x86_64
+            target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - name: Linux aarch64
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+          - name: Windows x86_64
+            target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # macOS
+      - name: Build
+        if: startsWith(matrix.target, 'x86_64-apple-darwin') || startsWith(matrix.target, 'aarch64-apple-darwin')
+        run: cargo build --release -p omni-terminal --target ${{ matrix.target }}
+      - name: Upload macOS binary
+        if: startsWith(matrix.target, 'x86_64-apple-darwin') || startsWith(matrix.target, 'aarch64-apple-darwin')
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-binary-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/omni-terminal
+
+      # Linux x86_64
+      - name: Install system dependencies
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig-dev libwayland-dev libxkbcommon-dev
+      - name: Install cargo-deb
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo install cargo-deb
+      - name: Build (x11)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo build --release -p omni-terminal --no-default-features --features x11
+      - name: Package deb (x11)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo deb -p omni-terminal --no-build --output target/debian/omni-terminal_x11.deb
+      - name: Build (wayland)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo build --release -p omni-terminal --no-default-features --features wayland
+      - name: Package deb (wayland)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo deb -p omni-terminal --no-build --output target/debian/omni-terminal_wayland.deb
+      - name: Build (default features)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo build --release -p omni-terminal
+      - name: Package tarball
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          cd target/release
+          tar -czvf omni-terminal-x86_64-unknown-linux-gnu.tar.gz omni-terminal
+          mv omni-terminal-x86_64-unknown-linux-gnu.tar.gz ../../
+      - name: Upload Linux artifacts
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: |
+            target/debian/omni-terminal_x11.deb
+            target/debian/omni-terminal_wayland.deb
+            omni-terminal-x86_64-unknown-linux-gnu.tar.gz
+
+      # Linux aarch64 (cross-compile)
+      # Built with --no-default-features (no x11/wayland) since cross-compiling
+      # display deps is non-trivial. TODO: use native ARM runner for full build
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+      - name: Build
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: cargo build --release -p omni-terminal --target aarch64-unknown-linux-gnu --no-default-features
+      - name: Package tarball
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          cd target/aarch64-unknown-linux-gnu/release
+          tar -czvf omni-terminal-aarch64-unknown-linux-gnu.tar.gz omni-terminal
+          mv omni-terminal-aarch64-unknown-linux-gnu.tar.gz ../../../
+      - name: Upload Linux aarch64 artifact
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-aarch64
+          path: omni-terminal-aarch64-unknown-linux-gnu.tar.gz
+
+      # Windows
+      - name: Install cargo-wix
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: cargo install cargo-wix
+      - name: Build
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: cargo build --release -p omni-terminal
+      - name: Create MSI
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: cargo wix -p omni-terminal --no-build --nocapture
+      # TODO: uncomment when Windows signing certificate is configured
+      # - name: Sign MSI
+      #   if: matrix.target == 'x86_64-pc-windows-msvc' && env.WINDOWS_CERTIFICATE != ''
+      #   env:
+      #     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      #   run: signtool sign /fd SHA256 /f certificate.pfx target/wix/*.msi
+      - name: Upload Windows artifact
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: target/wix/*.msi
+
+  package-macos:
+    name: Package macOS universal binary
+    needs: [release, build]
+    if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download macOS x86_64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-binary-x86_64-apple-darwin
+          path: macos-x86_64
+      - name: Download macOS aarch64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-binary-aarch64-apple-darwin
+          path: macos-aarch64
+      - name: Create universal binary
+        run: |
+          lipo -create macos-x86_64/omni-terminal macos-aarch64/omni-terminal -output omni-terminal
+          chmod +x omni-terminal
+      - name: Bundle app
+        run: |
+          APP="OmniTerminal.app"
+          cp -r misc/osx/OmniTerminal.app "$APP"
+          mkdir -p "$APP/Contents/MacOS"
+          cp omni-terminal "$APP/Contents/MacOS/omni-terminal"
+      - name: Get version
+        id: version
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Patch Info.plist version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PLIST="OmniTerminal.app/Contents/Info.plist"
+          sed -i '' "s/{{.Version}}/${VERSION:-0.0.0}/" "$PLIST"
+          sed -i '' "s/20230528.115631/${{ github.run_number }}/" "$PLIST"
+      # TODO: uncomment when Apple Developer certificate is configured
+      # - name: Codesign
+      #   if: env.APPLE_CERTIFICATE != ''
+      #   env:
+      #     APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      #     APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      #     APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      #   run: codesign --force --deep --sign "$APPLE_TEAM_ID" OmniTerminal.app
+      - name: Install create-dmg
+        run: brew install create-dmg
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          create-dmg \
+            --volname "Omni Terminal" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --app-drop-link 600 185 \
+            "OmniTerminal-v${VERSION:-dev}.dmg" \
+            "OmniTerminal.app"
+          ls OmniTerminal-v*.dmg
+      - name: Package tarball
+        run: tar -czvf omni-terminal-macos-universal.tar.gz omni-terminal
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal
+          path: |
+            OmniTerminal-v*.dmg
+            omni-terminal-macos-universal.tar.gz
+
+  publish:
+    name: Create GitHub Release
+    needs: [release, build, package-macos]
+    if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: List artifacts
+        run: find artifacts -type f | sort
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          files: |
+            artifacts/macos-universal/*
+            artifacts/linux-x86_64/*
+            artifacts/linux-aarch64/*
+            artifacts/windows-x86_64/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update Homebrew tap
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_FILE=$(find artifacts/macos-universal -name '*.dmg' | head -1)
+          SHA256=$(shasum -a 256 "$DMG_FILE" | awk '{print $1}')
+
+          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/omnidotdev/homebrew-tap.git tap
+          cd tap
+
+          mkdir -p Casks
+          cat > Casks/omni-terminal.rb <<EOF
+          cask "omni-terminal" do
+            version "${VERSION}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/omnidotdev/terminal/releases/download/v#{version}/OmniTerminal-v#{version}.dmg"
+            name "Omni Terminal"
+            desc "GPU-accelerated terminal emulator built to run everywhere"
+            homepage "https://terminal.omni.dev"
+
+            app "OmniTerminal.app"
+
+            zap trash: [
+              "~/.config/omni/terminal",
+              "~/Library/Caches/dev.omni.Terminal",
+              "~/Library/Preferences/dev.omni.Terminal.plist",
+            ]
+          end
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/omni-terminal.rb
+          git commit -m "chore: update omni-terminal to v${VERSION}"
+          git push

@@ -1,0 +1,60 @@
+[package]
+name = "corcovado"
+version = { workspace = true }
+license = "MIT"
+edition = "2015"
+authors = ["Omni LLC <team@omni.dev>"]
+description = "Non-blocking IO library"
+documentation.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["io", "async", "non-blocking"]
+categories = ["asynchronous"]
+include = [
+  "Cargo.toml",
+  "src/**/*.rs"
+]
+
+[dependencies]
+tracing = { workspace = true }
+iovec = { workspace = true }
+slab = "0.4.9"
+net2 = "0.2.39"
+cfg-if = "0.1.9"
+
+[target.'cfg(target_os = "fuchsia")'.dependencies]
+fuchsia-zircon = "0.3.2"
+fuchsia-zircon-sys = "0.3.2"
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = "0.42.0"
+miow = "0.5.0"
+windows = { version = "0.42.0", features = [
+  "Win32_Foundation",
+  "Win32_Networking_WinSock",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_IO",
+  "Win32_System_Pipes",
+  "Win32_System_Threading",
+  "Win32_System_WindowsProgramming",
+]}
+
+[dev-dependencies]
+env_logger = { version = "0.4.0", default-features = false }
+tempdir = "0.3.7"
+bytes = "0.3.0"
+criterion = { workspace = true }
+
+[[test]]
+name = "test"
+path = "test/mod.rs"
+
+[[bench]]
+name = "bench_poll"
+path = "benches/bench_poll.rs"
+harness = false

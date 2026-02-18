@@ -2715,7 +2715,7 @@ pub mod test {
     }
 
     #[test]
-    // https://github.com/raphamorim/rio/issues/760
+    // upstream: raphamorim/rio#760
     fn test_split_issue_760() {
         let width = 1200.;
         let height = 800.;

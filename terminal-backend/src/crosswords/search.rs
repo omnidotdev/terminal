@@ -816,14 +816,14 @@ mod tests {
         #[rustfmt::skip]
         let term = mock_term("\
             testing66\r\n\
-            Rio Terminal\n\
+            Omni Terminal\n\
             123\r\n\
-            Rio Terminal\r\n\
+            Omni Terminal\r\n\
             123\
         ");
 
         // Check regex across wrapped and unwrapped lines.
-        let mut regex = RegexSearch::new("Rio.*123").unwrap();
+        let mut regex = RegexSearch::new("Omni.*123").unwrap();
         let start = Pos::new(Line(1), Column(0));
         let end = Pos::new(Line(4), Column(2));
         let match_start = Pos::new(Line(1), Column(0));
@@ -839,14 +839,14 @@ mod tests {
         #[rustfmt::skip]
         let term = mock_term("\
             testing66\r\n\
-            Rio Terminal\n\
+            Omni Terminal\n\
             123\r\n\
-            Rio Terminal\r\n\
+            Omni Terminal\r\n\
             123\
         ");
 
         // Check regex across wrapped and unwrapped lines.
-        let mut regex = RegexSearch::new("Rio.*123").unwrap();
+        let mut regex = RegexSearch::new("Omni.*123").unwrap();
         let start = Pos::new(Line(4), Column(2));
         let end = Pos::new(Line(1), Column(0));
         let match_start = Pos::new(Line(1), Column(0));
@@ -859,25 +859,27 @@ mod tests {
 
     #[test]
     fn nested_regex() {
+        // "Omni -> Omnitermin -> termin" = 28 chars (columns 0-27)
+        // "Omni -> Omnitermin" = 18 chars (columns 0-17)
         #[rustfmt::skip]
         let term = mock_term("\
-            Rio -> Riotermin -> termin\r\n\
+            Omni -> Omnitermin -> termin\r\n\
             termin\
         ");
 
         // Greedy stopped at linebreak.
-        let mut regex = RegexSearch::new("Rio.*termin").unwrap();
+        let mut regex = RegexSearch::new("Omni.*termin").unwrap();
         let start = Pos::new(Line(0), Column(0));
-        let end = Pos::new(Line(0), Column(25));
+        let end = Pos::new(Line(0), Column(27));
         assert_eq!(
             term.regex_search_right(&mut regex, start, end),
             Some(start..=end)
         );
 
         // Greedy stopped at dead state.
-        let mut regex = RegexSearch::new("Rio[^y]*termin").unwrap();
+        let mut regex = RegexSearch::new("Omni[^y]*termin").unwrap();
         let start = Pos::new(Line(0), Column(0));
-        let end = Pos::new(Line(0), Column(15));
+        let end = Pos::new(Line(0), Column(17));
         assert_eq!(
             term.regex_search_right(&mut regex, start, end),
             Some(start..=end)
@@ -955,12 +957,12 @@ mod tests {
 
     #[test]
     fn skip_dead_cell() {
-        let term = mock_term("rioterminal");
+        let term = mock_term("omniterminal");
 
         // Make sure dead state cell is skipped when reversing.
-        let mut regex = RegexSearch::new("rioterm").unwrap();
+        let mut regex = RegexSearch::new("omniterm").unwrap();
         let start = Pos::new(Line(0), Column(0));
-        let end = Pos::new(Line(0), Column(6));
+        let end = Pos::new(Line(0), Column(7));
         assert_eq!(
             term.regex_search_right(&mut regex, start, end),
             Some(start..=end)

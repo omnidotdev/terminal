@@ -2,7 +2,7 @@
 # (sgr removed to fit entry within 1023 bytes)
 # (acsc removed to fit entry within 1023 bytes)
 # (terminfo-only capabilities suppressed to fit entry within 1023 bytes)
-rio:\
+omni-terminal:\
 	:am:hs:km:mi:ms:xn:\
 	:co#80:it#8:li#24:\
 	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\

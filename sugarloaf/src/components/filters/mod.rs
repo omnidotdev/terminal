@@ -207,7 +207,7 @@ impl FiltersBrush {
             let dst_viewport =
                 Viewport::new_render_target_sized_origin(dst_output_view, None).unwrap();
 
-            // Framecount should be added forever: https://github.com/raphamorim/rio/issues/753
+            // Framecount should be added forever (upstream: raphamorim/rio#753)
             self.framecount = self.framecount.wrapping_add(1);
             if let Err(err) = filter.frame(
                 &filter_src_texture,

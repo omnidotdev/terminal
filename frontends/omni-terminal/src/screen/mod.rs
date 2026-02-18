@@ -2585,7 +2585,7 @@ impl Screen<'_> {
         );
         // In case the configuration of blinking cursor is enabled
         // and the terminal also have instructions of blinking enabled
-        // TODO: enable blinking for selection after adding debounce (https://github.com/raphamorim/rio/issues/437)
+        // TODO: enable blinking for selection after adding debounce (upstream: raphamorim/rio#437)
         if self.renderer.config_has_blinking_enabled
             && self.selection_is_empty()
             && self

@@ -75,7 +75,7 @@ impl ApplicationHandler for Application {
         .expect("Sugarloaf instance should be created");
 
         sugarloaf.set_background_image(&sugarloaf::ImageProperties {
-            path: String::from("resources/rio-colors.png"),
+            path: String::from("resources/omni-terminal-colors.png"),
             width: Some(400.),
             height: Some(400.),
             x: 0.,

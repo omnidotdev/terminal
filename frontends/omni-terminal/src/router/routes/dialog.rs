@@ -1,6 +1,14 @@
 use crate::context::grid::ContextDimension;
 use terminal_backend::sugarloaf::{FragmentStyle, Object, Quad, RichText, Sugarloaf};
 
+// Omni brand palette
+const TEAL: [f32; 4] = [0.302, 0.788, 0.690, 1.0];
+const TEAL_MUTED: [f32; 4] = [0.196, 0.549, 0.471, 1.0];
+const TEAL_DARK: [f32; 4] = [0.118, 0.314, 0.275, 1.0];
+const BG: [f32; 4] = [0.051, 0.059, 0.071, 1.0];
+const RED_MUTED: [f32; 4] = [0.706, 0.314, 0.314, 1.0];
+const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+
 #[inline]
 pub fn screen(
     sugarloaf: &mut Sugarloaf,
@@ -9,37 +17,35 @@ pub fn screen(
     confirm_content: &str,
     quit_content: &str,
 ) {
-    let blue = [0.1764706, 0.6039216, 1.0, 1.0];
-    let yellow = [0.9882353, 0.7294118, 0.15686275, 1.0];
-    let red = [1.0, 0.07058824, 0.38039216, 1.0];
-    let black = [0.0, 0.0, 0.0, 1.0];
-
     let layout = sugarloaf.window_size();
 
     let mut objects = Vec::with_capacity(7);
 
+    // Background
     objects.push(Object::Quad(Quad {
         position: [0., 0.0],
-        color: black,
+        color: BG,
         size: [layout.width, layout.height],
         ..Quad::default()
     }));
+
+    // Cascading teal accent bars
     objects.push(Object::Quad(Quad {
         position: [0., 30.0],
-        color: blue,
-        size: [30., layout.height],
+        color: TEAL,
+        size: [15., layout.height],
         ..Quad::default()
     }));
     objects.push(Object::Quad(Quad {
         position: [15., context_dimension.margin.top_y + 60.],
-        color: yellow,
-        size: [30., layout.height],
+        color: TEAL_MUTED,
+        size: [15., layout.height],
         ..Quad::default()
     }));
     objects.push(Object::Quad(Quad {
         position: [30., context_dimension.margin.top_y + 120.],
-        color: red,
-        size: [30., layout.height],
+        color: TEAL_DARK,
+        size: [15., layout.height],
         ..Quad::default()
     }));
 
@@ -65,14 +71,15 @@ pub fn screen(
         lines: None,
     }));
 
+    // Continue action (teal)
     let confirm_line = content.sel(confirm);
     confirm_line
         .clear()
         .add_text(
             &format!(" {confirm_content} "),
             FragmentStyle {
-                color: [0., 0., 0., 1.],
-                background_color: Some(yellow),
+                color: BLACK,
+                background_color: Some(TEAL),
                 ..FragmentStyle::default()
             },
         )
@@ -84,14 +91,15 @@ pub fn screen(
         lines: None,
     }));
 
+    // Quit action (muted red)
     let quit_line = content.sel(quit);
     quit_line
         .clear()
         .add_text(
             &format!(" {quit_content} "),
             FragmentStyle {
-                color: [0., 0., 0., 1.],
-                background_color: Some(red),
+                color: BLACK,
+                background_color: Some(RED_MUTED),
                 ..FragmentStyle::default()
             },
         )

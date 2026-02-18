@@ -2,6 +2,13 @@ use crate::context::grid::ContextDimension;
 use terminal_backend::error::{TerminalError, TerminalErrorLevel};
 use terminal_backend::sugarloaf::{FragmentStyle, Object, Quad, RichText, Sugarloaf};
 
+// Omni brand palette
+const TEAL: [f32; 4] = [0.302, 0.788, 0.690, 1.0];
+const TEAL_MUTED: [f32; 4] = [0.196, 0.549, 0.471, 1.0];
+const TEAL_DARK: [f32; 4] = [0.118, 0.314, 0.275, 1.0];
+const BG: [f32; 4] = [0.051, 0.059, 0.071, 1.0];
+const AMBER: [f32; 4] = [0.706, 0.627, 0.392, 1.0];
+
 pub struct Assistant {
     pub inner: Option<TerminalError>,
 }
@@ -39,81 +46,83 @@ pub fn screen(
     context_dimension: &ContextDimension,
     assistant: &Assistant,
 ) {
-    let blue = [0.1764706, 0.6039216, 1.0, 1.0];
-    let yellow = [0.9882353, 0.7294118, 0.15686275, 1.0];
-    let red = [1.0, 0.07058824, 0.38039216, 1.0];
-    let black = [0.0, 0.0, 0.0, 1.0];
-
     let layout = sugarloaf.window_size();
 
     let mut objects = Vec::with_capacity(7);
 
+    // Background
     objects.push(Object::Quad(Quad {
         position: [0., 0.0],
-        color: black,
+        color: BG,
         size: [
             layout.width / context_dimension.dimension.scale,
             layout.height,
         ],
         ..Quad::default()
     }));
+
+    // Cascading teal accent bars
     objects.push(Object::Quad(Quad {
         position: [0., 30.0],
-        color: blue,
+        color: TEAL,
         size: [15., layout.height],
         ..Quad::default()
     }));
     objects.push(Object::Quad(Quad {
         position: [15., context_dimension.margin.top_y + 60.],
-        color: yellow,
+        color: TEAL_MUTED,
         size: [15., layout.height],
         ..Quad::default()
     }));
     objects.push(Object::Quad(Quad {
         position: [30., context_dimension.margin.top_y + 120.],
-        color: red,
+        color: TEAL_DARK,
         size: [15., layout.height],
         ..Quad::default()
     }));
 
     let heading = sugarloaf.create_temp_rich_text();
-    let paragraph_action = sugarloaf.create_temp_rich_text();
-    let paragraph = sugarloaf.create_temp_rich_text();
+    let action = sugarloaf.create_temp_rich_text();
+    let details = sugarloaf.create_temp_rich_text();
 
     sugarloaf.set_rich_text_font_size(&heading, 28.0);
-    sugarloaf.set_rich_text_font_size(&paragraph_action, 18.0);
-    sugarloaf.set_rich_text_font_size(&paragraph, 14.0);
+    sugarloaf.set_rich_text_font_size(&action, 18.0);
+    sugarloaf.set_rich_text_font_size(&details, 14.0);
 
     let content = sugarloaf.content();
-    let heading_line = content.sel(heading);
-    heading_line
+    content
+        .sel(heading)
         .clear()
-        .add_text("Woops! Omni Terminal got errors", FragmentStyle::default())
+        .add_text(
+            "Omni Terminal encountered an error",
+            FragmentStyle::default(),
+        )
         .build();
 
-    let paragraph_action_line = content.sel(paragraph_action);
-    paragraph_action_line
+    // Amber prompt to signal caution
+    content
+        .sel(action)
         .clear()
         .add_text(
             "> press enter to continue",
             FragmentStyle {
-                color: yellow,
+                color: AMBER,
                 ..FragmentStyle::default()
             },
         )
         .build();
 
     if let Some(report) = &assistant.inner {
-        let paragraph_line = content.sel(paragraph).clear();
+        let details_line = content.sel(details).clear();
 
         for line in report.report.to_string().lines() {
-            paragraph_line.add_text(line, FragmentStyle::default());
+            details_line.add_text(line, FragmentStyle::default());
         }
 
-        paragraph_line.build();
+        details_line.build();
 
         objects.push(Object::RichText(RichText {
-            id: paragraph,
+            id: details,
             position: [70., context_dimension.margin.top_y + 140.],
             lines: None,
         }));
@@ -126,7 +135,7 @@ pub fn screen(
     }));
 
     objects.push(Object::RichText(RichText {
-        id: paragraph_action,
+        id: action,
         position: [70., context_dimension.margin.top_y + 70.],
         lines: None,
     }));

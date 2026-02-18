@@ -166,7 +166,7 @@ async fn run() {
             },
         ];
 
-        let rio = vec![
+        let terminal_text = vec![
             Sugar {
                 content: ' ',
                 foreground_color: [1.0, 1.0, 1.0, 1.0],
@@ -300,7 +300,7 @@ async fn run() {
             Event::RedrawRequested { .. } => {
                 sugarloaf.stack(sugar, styles);
                 sugarloaf.stack(loaf, styles);
-                sugarloaf.stack(rio, styles);
+                sugarloaf.stack(terminal_text, styles);
                 sugarloaf.stack(special, styles);
                 sugarloaf.render();
             }

@@ -76,8 +76,8 @@ pub fn create_title_extra_from_context<T: terminal_backend::event::EventListener
 
 // - `TITLE`: terminal title via OSC sequences for setting terminal title
 // - `PROGRAM`: (e.g `fish`, `zsh`, `bash`, `vim`, etc...)
-// - `ABSOLUTE_PATH`: (e.g `/Users/rapha/Documents/a/rio`)
-// - `CANONICAL_PATH`: (e.g `.../Documents/a/rio`, `~/Documents/a`)
+// - `ABSOLUTE_PATH`: (e.g `/Users/rapha/Documents/a/project`)
+// - `CANONICAL_PATH`: (e.g `.../Documents/a/project`, `~/Documents/a`)
 // - `COLUMNS`: current columns
 // - `LINES`: current lines
 

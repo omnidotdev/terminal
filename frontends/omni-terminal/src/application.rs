@@ -1,4 +1,4 @@
-use crate::event::{ClickState, EventPayload, EventProxy, RioEvent, RioEventType};
+use crate::event::{ClickState, EventPayload, EventProxy, TerminalEvent, TerminalEventType};
 use crate::ime::Preedit;
 use crate::renderer::utils::update_colors_based_on_theme;
 use crate::router::{routes::RoutePath, Router};
@@ -117,7 +117,7 @@ impl Application<'_> {
             // Schedule a render after the bell duration to clear it
             let timer_id =
                 TimerId::new(Topic::Render, route.window.screen.ctx().current_route());
-            let event = EventPayload::new(RioEventType::Rio(RioEvent::Render), window_id);
+            let event = EventPayload::new(TerminalEventType::Terminal(TerminalEvent::Render), window_id);
 
             // Schedule render to clear bell effect after visual bell duration
             self.scheduler.schedule(
@@ -205,7 +205,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
         let timer_id = TimerId::new(Topic::UpdateTitles, 0);
         if !self.scheduler.scheduled(timer_id) {
             self.scheduler.schedule(
-                EventPayload::new(RioEventType::Rio(RioEvent::UpdateTitles), unsafe {
+                EventPayload::new(TerminalEventType::Terminal(TerminalEvent::UpdateTitles), unsafe {
                     terminal_window::window::WindowId::dummy()
                 }),
                 Duration::from_secs(2),
@@ -220,7 +220,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: EventPayload) {
         let window_id = event.window_id;
         match event.payload {
-            RioEventType::Rio(RioEvent::Render) => {
+            TerminalEventType::Terminal(TerminalEvent::Render) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     // Skip rendering for unfocused windows if configured
                     if self.config.renderer.disable_unfocused_render
@@ -245,7 +245,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     route.request_redraw();
                 }
             }
-            RioEventType::Rio(RioEvent::RenderRoute(route_id)) => {
+            TerminalEventType::Terminal(TerminalEvent::RenderRoute(route_id)) => {
                 if self.config.renderer.strategy.is_event_based() {
                     if let Some(route) = self.router.routes.get_mut(&window_id) {
                         // Skip rendering for unfocused windows if configured
@@ -280,7 +280,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                             // We need to wait before rendering again
                             let timer_id = TimerId::new(Topic::RenderRoute, route_id);
                             let event = EventPayload::new(
-                                RioEventType::Rio(RioEvent::Render),
+                                TerminalEventType::Terminal(TerminalEvent::Render),
                                 window_id,
                             );
 
@@ -301,7 +301,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                 }
             }
 
-            RioEventType::Rio(RioEvent::Wakeup(route_id)) => {
+            TerminalEventType::Terminal(TerminalEvent::Wakeup(route_id)) => {
                 if self.config.renderer.strategy.is_event_based() {
                     if let Some(route) = self.router.routes.get_mut(&window_id) {
                         // Skip rendering for unfocused windows if configured
@@ -337,7 +337,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::UpdateGraphics { route_id, queues }) => {
+            TerminalEventType::Terminal(TerminalEvent::UpdateGraphics { route_id, queues }) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     // Process graphics directly in sugarloaf
                     let sugarloaf = &mut route.window.screen.sugarloaf;
@@ -354,10 +354,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     route.schedule_redraw(&mut self.scheduler, route_id);
                 }
             }
-            RioEventType::Rio(RioEvent::PrepareUpdateConfig) => {
+            TerminalEventType::Terminal(TerminalEvent::PrepareUpdateConfig) => {
                 let timer_id = TimerId::new(Topic::UpdateConfig, 0);
                 let event = EventPayload::new(
-                    RioEventType::Rio(RioEvent::UpdateConfig),
+                    TerminalEventType::Terminal(TerminalEvent::UpdateConfig),
                     window_id,
                 );
 
@@ -370,12 +370,12 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     );
                 }
             }
-            RioEventType::Rio(RioEvent::ReportToAssistant(error)) => {
+            TerminalEventType::Terminal(TerminalEvent::ReportToAssistant(error)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.report_error(&error);
                 }
             }
-            RioEventType::Rio(RioEvent::UpdateConfig) => {
+            TerminalEventType::Terminal(TerminalEvent::UpdateConfig) => {
                 let (config, config_error) = match terminal_backend::config::Config::try_load()
                 {
                     Ok(config) => (config, None),
@@ -431,7 +431,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::Exit) => {
+            TerminalEventType::Terminal(TerminalEvent::Exit) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     if cfg!(target_os = "macos") && self.config.confirm_before_quit {
                         route.confirm_quit();
@@ -441,7 +441,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::CloseTerminal(route_id)) => {
+            TerminalEventType::Terminal(TerminalEvent::CloseTerminal(route_id)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     if route
                         .window
@@ -463,12 +463,12 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::CursorBlinkingChange) => {
+            TerminalEventType::Terminal(TerminalEvent::CursorBlinkingChange) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.request_redraw();
                 }
             }
-            RioEventType::Rio(RioEvent::CursorBlinkingChangeOnRoute(route_id)) => {
+            TerminalEventType::Terminal(TerminalEvent::CursorBlinkingChangeOnRoute(route_id)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     if route_id == route.window.screen.ctx().current_route() {
                         // Get cursor position for damage
@@ -504,7 +504,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::Bell) => {
+            TerminalEventType::Terminal(TerminalEvent::Bell) => {
                 // Handle visual bell
                 if self.config.bell.visual {
                     self.handle_visual_bell(window_id);
@@ -515,14 +515,14 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     self.handle_audio_bell();
                 }
             }
-            RioEventType::Rio(RioEvent::PrepareRender(millis)) => {
+            TerminalEventType::Terminal(TerminalEvent::PrepareRender(millis)) => {
                 if let Some(route) = self.router.routes.get(&window_id) {
                     let timer_id = TimerId::new(
                         Topic::Render,
                         route.window.screen.ctx().current_route(),
                     );
                     let event =
-                        EventPayload::new(RioEventType::Rio(RioEvent::Render), window_id);
+                        EventPayload::new(TerminalEventType::Terminal(TerminalEvent::Render), window_id);
 
                     if !self.scheduler.scheduled(timer_id) {
                         self.scheduler.schedule(
@@ -534,10 +534,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::PrepareRenderOnRoute(millis, route_id)) => {
+            TerminalEventType::Terminal(TerminalEvent::PrepareRenderOnRoute(millis, route_id)) => {
                 let timer_id = TimerId::new(Topic::RenderRoute, route_id);
                 let event = EventPayload::new(
-                    RioEventType::Rio(RioEvent::RenderRoute(route_id)),
+                    TerminalEventType::Terminal(TerminalEvent::RenderRoute(route_id)),
                     window_id,
                 );
 
@@ -550,10 +550,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     );
                 }
             }
-            RioEventType::Rio(RioEvent::BlinkCursor(millis, route_id)) => {
+            TerminalEventType::Terminal(TerminalEvent::BlinkCursor(millis, route_id)) => {
                 let timer_id = TimerId::new(Topic::CursorBlinking, route_id);
                 let event = EventPayload::new(
-                    RioEventType::Rio(RioEvent::CursorBlinkingChangeOnRoute(route_id)),
+                    TerminalEventType::Terminal(TerminalEvent::CursorBlinkingChangeOnRoute(route_id)),
                     window_id,
                 );
 
@@ -566,26 +566,26 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     );
                 }
             }
-            RioEventType::Rio(RioEvent::Title(title)) => {
+            TerminalEventType::Terminal(TerminalEvent::Title(title)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.set_window_title(&title);
                 }
             }
-            RioEventType::Rio(RioEvent::TitleWithSubtitle(title, subtitle)) => {
+            TerminalEventType::Terminal(TerminalEvent::TitleWithSubtitle(title, subtitle)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.set_window_title(&title);
                     route.set_window_subtitle(&subtitle);
                 }
             }
-            RioEventType::Rio(RioEvent::UpdateTitles) => {
+            TerminalEventType::Terminal(TerminalEvent::UpdateTitles) => {
                 self.router.update_titles();
             }
-            RioEventType::Rio(RioEvent::MouseCursorDirty) => {
+            TerminalEventType::Terminal(TerminalEvent::MouseCursorDirty) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.window.screen.reset_mouse();
                 }
             }
-            RioEventType::Rio(RioEvent::Scroll(scroll)) => {
+            TerminalEventType::Terminal(TerminalEvent::Scroll(scroll)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     let mut terminal = route
                         .window
@@ -598,7 +598,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     drop(terminal);
                 }
             }
-            RioEventType::Rio(RioEvent::ClipboardLoad(clipboard_type, format)) => {
+            TerminalEventType::Terminal(TerminalEvent::ClipboardLoad(clipboard_type, format)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     if route.window.is_focused {
                         let text = format(
@@ -618,7 +618,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::ClipboardStore(clipboard_type, content)) => {
+            TerminalEventType::Terminal(TerminalEvent::ClipboardStore(clipboard_type, content)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     if route.window.is_focused {
                         self.router
@@ -628,7 +628,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::PtyWrite(text)) => {
+            TerminalEventType::Terminal(TerminalEvent::PtyWrite(text)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route
                         .window
@@ -639,7 +639,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                         .send_bytes(text.into_bytes());
                 }
             }
-            RioEventType::Rio(RioEvent::TextAreaSizeRequest(format)) => {
+            TerminalEventType::Terminal(TerminalEvent::TextAreaSizeRequest(format)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     let dimension =
                         route.window.screen.context_manager.current().dimension;
@@ -654,7 +654,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                         .send_bytes(text.into_bytes());
                 }
             }
-            RioEventType::Rio(RioEvent::ColorRequest(index, format)) => {
+            TerminalEventType::Terminal(TerminalEvent::ColorRequest(index, format)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     let terminal = route
                         .window
@@ -687,7 +687,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                         .send_bytes(format(color).into_bytes());
                 }
             }
-            RioEventType::Rio(RioEvent::CreateWindow) => {
+            TerminalEventType::Terminal(TerminalEvent::CreateWindow) => {
                 self.router.create_window(
                     event_loop,
                     self.event_proxy.clone(),
@@ -697,7 +697,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                 );
             }
             #[cfg(target_os = "macos")]
-            RioEventType::Rio(RioEvent::CreateNativeTab(working_dir_overwrite)) => {
+            TerminalEventType::Terminal(TerminalEvent::CreateNativeTab(working_dir_overwrite)) => {
                 if let Some(route) = self.router.routes.get(&window_id) {
                     // This case happens only for native tabs
                     // every time that a new tab is created through context
@@ -722,7 +722,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     );
                 }
             }
-            RioEventType::Rio(RioEvent::CreateConfigEditor) => {
+            TerminalEventType::Terminal(TerminalEvent::CreateConfigEditor) => {
                 if self.config.navigation.open_config_with_split {
                     self.router.open_config_split(&self.config);
                 } else {
@@ -734,20 +734,20 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                 }
             }
             #[cfg(target_os = "macos")]
-            RioEventType::Rio(RioEvent::CloseWindow) => {
+            TerminalEventType::Terminal(TerminalEvent::CloseWindow) => {
                 self.router.routes.remove(&window_id);
                 if self.router.routes.is_empty() && !self.config.confirm_before_quit {
                     event_loop.exit();
                 }
             }
             #[cfg(target_os = "macos")]
-            RioEventType::Rio(RioEvent::SelectNativeTabByIndex(tab_index)) => {
+            TerminalEventType::Terminal(TerminalEvent::SelectNativeTabByIndex(tab_index)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.window.winit_window.select_tab_at_index(tab_index);
                 }
             }
             #[cfg(target_os = "macos")]
-            RioEventType::Rio(RioEvent::SelectNativeTabLast) => {
+            TerminalEventType::Terminal(TerminalEvent::SelectNativeTabLast) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route
                         .window
@@ -756,31 +756,31 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                 }
             }
             #[cfg(target_os = "macos")]
-            RioEventType::Rio(RioEvent::SelectNativeTabNext) => {
+            TerminalEventType::Terminal(TerminalEvent::SelectNativeTabNext) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.window.winit_window.select_next_tab();
                 }
             }
             #[cfg(target_os = "macos")]
-            RioEventType::Rio(RioEvent::SelectNativeTabPrev) => {
+            TerminalEventType::Terminal(TerminalEvent::SelectNativeTabPrev) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.window.winit_window.select_previous_tab();
                 }
             }
             #[cfg(target_os = "macos")]
-            RioEventType::Rio(RioEvent::Hide) => {
+            TerminalEventType::Terminal(TerminalEvent::Hide) => {
                 event_loop.hide_application();
             }
             #[cfg(target_os = "macos")]
-            RioEventType::Rio(RioEvent::HideOtherApplications) => {
+            TerminalEventType::Terminal(TerminalEvent::HideOtherApplications) => {
                 event_loop.hide_other_applications();
             }
-            RioEventType::Rio(RioEvent::Minimize(set_minimize)) => {
+            TerminalEventType::Terminal(TerminalEvent::Minimize(set_minimize)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.window.winit_window.set_minimized(set_minimize);
                 }
             }
-            RioEventType::Rio(RioEvent::ToggleFullScreen) => {
+            TerminalEventType::Terminal(TerminalEvent::ToggleFullScreen) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     match route.window.winit_window.fullscreen() {
                         None => route
@@ -791,7 +791,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            RioEventType::Rio(RioEvent::ColorChange(route_id, index, color)) => {
+            TerminalEventType::Terminal(TerminalEvent::ColorChange(route_id, index, color)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     let screen = &mut route.window.screen;
                     // Background color is index 1 relative to NamedColor::Foreground

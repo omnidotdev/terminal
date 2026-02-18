@@ -1,4 +1,4 @@
-use crate::event::{EventListener, RioEvent};
+use crate::event::{EventListener, TerminalEvent};
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::time::Duration;
@@ -41,7 +41,7 @@ pub fn configuration_file_updates<
                             "config directory has dispatched an event {event:?}"
                         );
                         event_proxy.send_event(
-                            RioEvent::PrepareUpdateConfig,
+                            TerminalEvent::PrepareUpdateConfig,
                             terminal_backend::event::WindowId::from(0),
                         );
                     }

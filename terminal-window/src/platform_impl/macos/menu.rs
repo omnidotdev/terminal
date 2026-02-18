@@ -114,7 +114,7 @@ pub fn initialize(app: &NSApplication) {
     let create_window_item = menu_item(
         mtm,
         create_window_item_title,
-        Some(sel!(rioCreateWindow:)),
+        Some(sel!(terminalCreateWindow:)),
         Some(KeyEquivalent {
             key: ns_string!("n"),
             masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
@@ -125,7 +125,7 @@ pub fn initialize(app: &NSApplication) {
     let create_tab_item = menu_item(
         mtm,
         create_tab_item_title,
-        Some(sel!(rioCreateTab:)),
+        Some(sel!(terminalCreateTab:)),
         Some(KeyEquivalent {
             key: ns_string!("t"),
             masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
@@ -136,7 +136,7 @@ pub fn initialize(app: &NSApplication) {
     let close_item = menu_item(
         mtm,
         close_item_title,
-        Some(sel!(rioClose:)),
+        Some(sel!(terminalClose:)),
         Some(KeyEquivalent {
             key: ns_string!("w"),
             masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
@@ -147,7 +147,7 @@ pub fn initialize(app: &NSApplication) {
     let create_split_horizontally_item = menu_item(
         mtm,
         create_split_horizontally_item_title,
-        Some(sel!(rioSplitRight:)),
+        Some(sel!(terminalSplitRight:)),
         Some(KeyEquivalent {
             key: ns_string!("d"),
             masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
@@ -158,7 +158,7 @@ pub fn initialize(app: &NSApplication) {
     let create_split_vertical_item = menu_item(
         mtm,
         create_split_vertical_item_title,
-        Some(sel!(rioSplitDown:)),
+        Some(sel!(terminalSplitDown:)),
         Some(KeyEquivalent {
             key: ns_string!("d"),
             masks: Some(

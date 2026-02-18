@@ -649,7 +649,7 @@ mod tests {
     }
 
     fn create_temporary_config(prefix: &str, toml_str: &str) -> Config {
-        let file_name = tmp_dir().join(format!("test-rio-{prefix}-config.toml"));
+        let file_name = tmp_dir().join(format!("test-terminal-{prefix}-config.toml"));
         let mut file = std::fs::File::create(&file_name).unwrap();
         writeln!(file, "{toml_str}").unwrap();
 
@@ -741,7 +741,7 @@ mod tests {
         "#;
 
         let file_name = tmp_dir()
-            .join("test-rio-invalid-config")
+            .join("test-terminal-invalid-config")
             .with_extension("toml");
         let mut file = std::fs::File::create(&file_name).unwrap();
         writeln!(file, "{toml_str}").unwrap();

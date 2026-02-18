@@ -1,3 +1,3 @@
-# rio-window
+# terminal-window
 
-Rio window is a fork of Winit maintained only for Rio terminal.
+Terminal window is a fork of Winit maintained only for Omni Terminal.

@@ -2,14 +2,14 @@
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
-    <title>Rio Terminal WebAssembly</title>
+    <title>Omni Terminal WebAssembly</title>
   </head>
   <body>
     <script type="module">
-      import init from "./wasm/rioterm.js";
+      import init from "./wasm/omni-terminal.js";
       init()
         .then(() => {
-          console.log("Rio terminal was loaded");
+          console.log("Omni Terminal was loaded");
         })
         .catch(err => {
           console.log(err);

@@ -1,4 +1,4 @@
-//! Benchmark simulating Rio's actual usage pattern
+//! Benchmark simulating the terminal's actual usage pattern
 //!
 //! Run with: cargo run --release --example rio_usage_benchmark
 
@@ -57,7 +57,7 @@ impl MockPerformer {
     }
 }
 
-// Simulate Rio's actual advance method
+// Simulate the terminal's actual advance method
 fn simulate_rio_advance_copa(
     parser: &mut Parser<1024>,
     performer: &mut MockPerformer,
@@ -160,7 +160,7 @@ fn main() {
     println!("   • Large paste: Should show batching benefits");
     println!("   • TUI output: Should show consistent performance");
     println!("   • Mixed workload: Should show overall real-world impact");
-    println!("\n💡 This benchmark simulates Rio's actual processing loop");
+    println!("\n💡 This benchmark simulates the terminal's actual processing loop");
 }
 
 fn benchmark_copa_rio_usage(data: &[u8], iterations: usize) -> std::time::Duration {

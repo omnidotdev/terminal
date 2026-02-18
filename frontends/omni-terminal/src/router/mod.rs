@@ -6,7 +6,7 @@ use crate::screen::{Screen, ScreenWindowProperties};
 use assistant::Assistant;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use terminal_backend::clipboard::Clipboard;
-use terminal_backend::config::Config as RioConfig;
+use terminal_backend::config::Config as TerminalConfig;
 use terminal_backend::error::{TerminalError, TerminalErrorLevel, TerminalErrorType};
 
 use terminal_window::event_loop::ActiveEventLoop;
@@ -69,13 +69,13 @@ impl Route<'_> {
 
         #[cfg(not(target_os = "macos"))]
         {
-            use crate::event::{EventPayload, RioEvent, RioEventType};
+            use crate::event::{EventPayload, TerminalEvent, TerminalEventType};
             use crate::scheduler::{TimerId, Topic};
 
             // Windows and Linux use the frame scheduler with refresh rate timing
             let timer_id = TimerId::new(Topic::Render, route_id);
             let event = EventPayload::new(
-                RioEventType::Rio(RioEvent::Render),
+                TerminalEventType::Terminal(TerminalEvent::Render),
                 self.window.winit_window.id(),
             );
 
@@ -184,7 +184,7 @@ impl Route<'_> {
     #[inline]
     pub fn update_config(
         &mut self,
-        config: &RioConfig,
+        config: &TerminalConfig,
         db: &terminal_backend::sugarloaf::font::FontLibrary,
         should_update_font: bool,
     ) {
@@ -337,7 +337,7 @@ impl Router<'_> {
         &mut self,
         event_loop: &ActiveEventLoop,
         event_proxy: EventProxy,
-        config: &RioConfig,
+        config: &TerminalConfig,
     ) {
         // In case configuration window does exists already
         if let Some(route_id) = self.config_route {
@@ -347,7 +347,7 @@ impl Router<'_> {
             }
         }
 
-        let current_config: RioConfig = config.clone();
+        let current_config: TerminalConfig = config.clone();
         let editor = config.editor.clone();
         let mut args = editor.args;
         args.push(
@@ -355,7 +355,7 @@ impl Router<'_> {
                 .display()
                 .to_string(),
         );
-        let new_config = RioConfig {
+        let new_config = TerminalConfig {
             shell: terminal_backend::config::Shell {
                 program: editor.program,
                 args,
@@ -380,8 +380,8 @@ impl Router<'_> {
         self.config_route = Some(id);
     }
 
-    pub fn open_config_split(&mut self, config: &RioConfig) {
-        let current_config: RioConfig = config.clone();
+    pub fn open_config_split(&mut self, config: &TerminalConfig) {
+        let current_config: TerminalConfig = config.clone();
         let editor = config.editor.clone();
         let mut args = editor.args;
         args.push(
@@ -389,7 +389,7 @@ impl Router<'_> {
                 .display()
                 .to_string(),
         );
-        let new_config = RioConfig {
+        let new_config = TerminalConfig {
             shell: terminal_backend::config::Shell {
                 program: editor.program,
                 args,
@@ -550,7 +550,7 @@ impl<'a> RouteWindow<'a> {
     //         let route_id = self.window.screen.ctx().current_route();
     //         let timer_id = TimerId::new(Topic::RenderRoute, route_id);
     //         let event = EventPayload::new(
-    //             RioEventType::Rio(RioEvent::RenderRoute(route_id)),
+    //             TerminalEventType::Terminal(TerminalEvent::RenderRoute(route_id)),
     //             self.window.winit_window.id(),
     //         );
 
@@ -587,7 +587,7 @@ impl<'a> RouteWindow<'a> {
     pub fn from_target<'b>(
         event_loop: &'b ActiveEventLoop,
         event_proxy: EventProxy,
-        config: &'b RioConfig,
+        config: &'b TerminalConfig,
         font_library: &terminal_backend::sugarloaf::font::FontLibrary,
         window_name: &str,
         tab_id: Option<&str>,

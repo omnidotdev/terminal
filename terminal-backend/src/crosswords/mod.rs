@@ -1,5 +1,5 @@
 /*
-    Crosswords -> Rio's grid manager
+    Crosswords -> Omni Terminal's grid manager
 
     |----------------------------------|
     |-$-bash:-echo-1-------------------|
@@ -38,7 +38,7 @@ use crate::config::colors::{self, AnsiColor, ColorRgb};
 use crate::crosswords::colors::term::TermColors;
 use crate::crosswords::grid::{Dimensions, Grid, Scroll};
 use crate::event::WindowId;
-use crate::event::{EventListener, RioEvent, TerminalDamage};
+use crate::event::{EventListener, TerminalEvent, TerminalDamage};
 use crate::performer::handler::Handler;
 use crate::selection::{Selection, SelectionRange, SelectionType};
 use crate::simd_utf8;
@@ -376,7 +376,7 @@ impl IndexMut<Column> for TabStops {
 
 /// Terminal version for escape sequence reports.
 ///
-/// This returns the current terminal version as a unique number based on rio's
+/// This returns the current terminal version as a unique number based on the
 /// semver version. The different versions are padded to ensure that a higher semver version will
 /// always report a higher version number.
 fn version_number(mut version: &str) -> usize {
@@ -495,7 +495,7 @@ impl<U: EventListener> Crosswords<U> {
         // Request a render to display the damage
         if !was_damaged {
             self.event_proxy
-                .send_event(RioEvent::RenderRoute(self.route_id), self.window_id);
+                .send_event(TerminalEvent::RenderRoute(self.route_id), self.window_id);
         }
     }
 
@@ -604,7 +604,7 @@ impl<U: EventListener> Crosswords<U> {
         let old_display_offset = self.grid.display_offset();
         self.grid.scroll_display(scroll);
         self.event_proxy
-            .send_event(RioEvent::MouseCursorDirty, self.window_id);
+            .send_event(TerminalEvent::MouseCursorDirty, self.window_id);
 
         // Clamp vi mode cursor to the viewport.
         let viewport_start = -(self.grid.display_offset() as i32);
@@ -642,7 +642,7 @@ impl<U: EventListener> Crosswords<U> {
         if self.graphics.has_pending_updates() {
             if let Some(queues) = self.graphics.take_queues() {
                 self.event_proxy.send_event(
-                    RioEvent::UpdateGraphics {
+                    TerminalEvent::UpdateGraphics {
                         route_id: self.route_id,
                         queues,
                     },
@@ -658,7 +658,7 @@ impl<U: EventListener> Crosswords<U> {
         U: EventListener,
     {
         self.event_proxy
-            .send_event(RioEvent::CloseTerminal(self.route_id), self.window_id);
+            .send_event(TerminalEvent::CloseTerminal(self.route_id), self.window_id);
     }
 
     pub fn resize<S: Dimensions>(&mut self, size: S) {
@@ -737,7 +737,7 @@ impl<U: EventListener> Crosswords<U> {
 
         // Update UI about cursor blinking state changes.
         self.event_proxy
-            .send_event(RioEvent::CursorBlinkingChange, self.window_id);
+            .send_event(TerminalEvent::CursorBlinkingChange, self.window_id);
     }
 
     /// Update the active selection to match the vi mode cursor position.
@@ -892,7 +892,7 @@ impl<U: EventListener> Crosswords<U> {
         self.damage_cursor_line();
 
         // self.event_proxy.send_event(
-        //     RioEvent::TerminalDamaged {
+        //     TerminalEvent::TerminalDamaged {
         //         route_id: self.route_id,
         //         damage: TerminalDamage::CursorOnly(self.grid.cursor.pos.line, None),
         //     },
@@ -909,7 +909,7 @@ impl<U: EventListener> Crosswords<U> {
             self.damage_cursor_line();
 
             // self.event_proxy.send_event(
-            //     RioEvent::TerminalDamaged {
+            //     TerminalEvent::TerminalDamaged {
             //         route_id: self.route_id,
             //         damage: TerminalDamage::CursorOnly,
             //     },
@@ -1437,7 +1437,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         };
 
         self.event_proxy.send_event(
-            RioEvent::PtyWrite(format!("\x1b[{};{}$y", mode.raw(), state as u8,)),
+            TerminalEvent::PtyWrite(format!("\x1b[{};{}$y", mode.raw(), state as u8,)),
             self.window_id,
         );
     }
@@ -1486,19 +1486,19 @@ impl<U: EventListener> Handler for Crosswords<U> {
                 self.mode.remove(Mode::MOUSE_MODE);
                 self.mode.insert(Mode::MOUSE_REPORT_CLICK);
                 self.event_proxy
-                    .send_event(RioEvent::MouseCursorDirty, self.window_id);
+                    .send_event(TerminalEvent::MouseCursorDirty, self.window_id);
             }
             NamedPrivateMode::ReportCellMouseMotion => {
                 self.mode.remove(Mode::MOUSE_MODE);
                 self.mode.insert(Mode::MOUSE_DRAG);
                 self.event_proxy
-                    .send_event(RioEvent::MouseCursorDirty, self.window_id);
+                    .send_event(TerminalEvent::MouseCursorDirty, self.window_id);
             }
             NamedPrivateMode::ReportAllMouseMotion => {
                 self.mode.remove(Mode::MOUSE_MODE);
                 self.mode.insert(Mode::MOUSE_MOTION);
                 self.event_proxy
-                    .send_event(RioEvent::MouseCursorDirty, self.window_id);
+                    .send_event(TerminalEvent::MouseCursorDirty, self.window_id);
             }
             NamedPrivateMode::ReportFocusInOut => self.mode.insert(Mode::FOCUS_IN_OUT),
             NamedPrivateMode::BracketedPaste => self.mode.insert(Mode::BRACKETED_PASTE),
@@ -1518,7 +1518,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
             NamedPrivateMode::BlinkingCursor => {
                 self.blinking_cursor = true;
                 self.event_proxy
-                    .send_event(RioEvent::CursorBlinkingChange, self.window_id);
+                    .send_event(TerminalEvent::CursorBlinkingChange, self.window_id);
             }
             NamedPrivateMode::SyncUpdate => (),
         }
@@ -1567,17 +1567,17 @@ impl<U: EventListener> Handler for Crosswords<U> {
             NamedPrivateMode::ReportMouseClicks => {
                 self.mode.remove(Mode::MOUSE_REPORT_CLICK);
                 self.event_proxy
-                    .send_event(RioEvent::MouseCursorDirty, self.window_id);
+                    .send_event(TerminalEvent::MouseCursorDirty, self.window_id);
             }
             NamedPrivateMode::ReportCellMouseMotion => {
                 self.mode.remove(Mode::MOUSE_DRAG);
                 self.event_proxy
-                    .send_event(RioEvent::MouseCursorDirty, self.window_id);
+                    .send_event(TerminalEvent::MouseCursorDirty, self.window_id);
             }
             NamedPrivateMode::ReportAllMouseMotion => {
                 self.mode.remove(Mode::MOUSE_MOTION);
                 self.event_proxy
-                    .send_event(RioEvent::MouseCursorDirty, self.window_id);
+                    .send_event(TerminalEvent::MouseCursorDirty, self.window_id);
             }
             NamedPrivateMode::ReportFocusInOut => self.mode.remove(Mode::FOCUS_IN_OUT),
             NamedPrivateMode::BracketedPaste => self.mode.remove(Mode::BRACKETED_PASTE),
@@ -1590,7 +1590,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
             NamedPrivateMode::BlinkingCursor => {
                 self.blinking_cursor = false;
                 self.event_proxy
-                    .send_event(RioEvent::CursorBlinkingChange, self.window_id);
+                    .send_event(TerminalEvent::CursorBlinkingChange, self.window_id);
             }
             NamedPrivateMode::SyncUpdate => (),
         }
@@ -1645,7 +1645,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         };
 
         self.event_proxy.send_event(
-            RioEvent::PtyWrite(format!("\x1b[?{};{}$y", mode.raw(), state as u8,)),
+            TerminalEvent::PtyWrite(format!("\x1b[?{};{}$y", mode.raw(), state as u8,)),
             self.window_id,
         );
     }
@@ -1659,7 +1659,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
 
         let terminator = terminator.to_owned();
         self.event_proxy.send_event(
-            RioEvent::ColorRequest(
+            TerminalEvent::ColorRequest(
                 index,
                 Arc::new(move |color| {
                     format!(
@@ -1953,7 +1953,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         self.mode.insert(Mode::default());
 
         self.event_proxy
-            .send_event(RioEvent::CursorBlinkingChange, self.window_id);
+            .send_event(TerminalEvent::CursorBlinkingChange, self.window_id);
         self.mark_fully_damaged();
     }
 
@@ -2046,7 +2046,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
 
         self.blinking_cursor = blinking;
         self.event_proxy
-            .send_event(RioEvent::CursorBlinkingChange, self.window_id);
+            .send_event(TerminalEvent::CursorBlinkingChange, self.window_id);
     }
 
     #[inline]
@@ -2078,7 +2078,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         if let Ok(bytes) = general_purpose::STANDARD.decode(base64) {
             if let Ok(text) = simd_utf8::from_utf8_to_string(&bytes) {
                 self.event_proxy.send_event(
-                    RioEvent::ClipboardStore(clipboard_type, text),
+                    TerminalEvent::ClipboardStore(clipboard_type, text),
                     self.window_id,
                 );
             }
@@ -2205,14 +2205,14 @@ impl<U: EventListener> Handler for Crosswords<U> {
                 trace!("Reporting primary device attributes");
                 let text = String::from("\x1b[?62;4;6;22c");
                 self.event_proxy
-                    .send_event(RioEvent::PtyWrite(text), self.window_id);
+                    .send_event(TerminalEvent::PtyWrite(text), self.window_id);
             }
             Some('>') => {
                 trace!("Reporting secondary device attributes");
                 let version = version_number(env!("CARGO_PKG_VERSION"));
                 let text = format!("\x1b[>0;{version};1c");
                 self.event_proxy
-                    .send_event(RioEvent::PtyWrite(text), self.window_id);
+                    .send_event(TerminalEvent::PtyWrite(text), self.window_id);
             }
             _ => debug!("Unsupported device attributes intermediate"),
         }
@@ -2224,7 +2224,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         let version = env!("CARGO_PKG_VERSION");
         let text = format!("\x1bP>|OmniTerminal {version}\x1b\\");
         self.event_proxy
-            .send_event(RioEvent::PtyWrite(text), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(text), self.window_id);
     }
 
     #[inline]
@@ -2232,7 +2232,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         let current_mode = self.keyboard_mode_stack[self.keyboard_mode_idx];
         let text = format!("\x1b[?{current_mode}u");
         self.event_proxy
-            .send_event(RioEvent::PtyWrite(text), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(text), self.window_id);
     }
 
     #[inline]
@@ -2288,13 +2288,13 @@ impl<U: EventListener> Handler for Crosswords<U> {
             5 => {
                 let text = String::from("\x1b[0n");
                 self.event_proxy
-                    .send_event(RioEvent::PtyWrite(text), self.window_id);
+                    .send_event(TerminalEvent::PtyWrite(text), self.window_id);
             }
             6 => {
                 let pos = self.grid.cursor.pos;
                 let text = format!("\x1b[{};{}R", pos.row + 1, pos.col + 1);
                 self.event_proxy
-                    .send_event(RioEvent::PtyWrite(text), self.window_id);
+                    .send_event(TerminalEvent::PtyWrite(text), self.window_id);
             }
             _ => debug!("unknown device status query: {}", arg),
         };
@@ -2443,7 +2443,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
 
         self.colors[index] = Some(color_arr);
         self.event_proxy.send_event(
-            RioEvent::ColorChange(self.route_id, index, Some(color)),
+            TerminalEvent::ColorChange(self.route_id, index, Some(color)),
             self.window_id,
         );
     }
@@ -2457,14 +2457,14 @@ impl<U: EventListener> Handler for Crosswords<U> {
 
         self.colors[index] = None;
         self.event_proxy.send_event(
-            RioEvent::ColorChange(self.route_id, index, None),
+            TerminalEvent::ColorChange(self.route_id, index, None),
             self.window_id,
         );
     }
 
     #[inline]
     fn bell(&mut self) {
-        self.event_proxy.send_event(RioEvent::Bell, self.window_id);
+        self.event_proxy.send_event(TerminalEvent::Bell, self.window_id);
     }
 
     #[inline]
@@ -2483,7 +2483,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         let terminator = terminator.to_owned();
 
         self.event_proxy.send_event(
-            RioEvent::ClipboardLoad(
+            TerminalEvent::ClipboardLoad(
                 clipboard_type,
                 Arc::new(move |text| {
                     let base64 = general_purpose::STANDARD.encode(text);
@@ -2627,7 +2627,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
     fn text_area_size_pixels(&mut self) {
         debug!("text_area_size_pixels");
         self.event_proxy.send_event(
-            RioEvent::TextAreaSizeRequest(Arc::new(move |window_size| {
+            TerminalEvent::TextAreaSizeRequest(Arc::new(move |window_size| {
                 let height = window_size.height;
                 let width = window_size.width;
                 format!("\x1b[4;{height};{width}t")
@@ -2645,7 +2645,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         );
         debug!("cells_size_pixels {:?}", text);
         self.event_proxy
-            .send_event(RioEvent::PtyWrite(text), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(text), self.window_id);
     }
 
     #[inline]
@@ -2657,7 +2657,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         );
         debug!("text_area_size_chars {:?}", text);
         self.event_proxy
-            .send_event(RioEvent::PtyWrite(text), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(text), self.window_id);
     }
 
     #[inline]
@@ -2717,7 +2717,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
                 match pa {
                     1 => {
                         self.event_proxy.send_event(
-                            RioEvent::TextAreaSizeRequest(Arc::new(move |window_size| {
+                            TerminalEvent::TextAreaSizeRequest(Arc::new(move |window_size| {
                                 let width = window_size.width;
                                 let height = window_size.height;
                                 let graphic_dimensions = [
@@ -2755,7 +2755,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         };
 
         self.event_proxy.send_event(
-            RioEvent::PtyWrite(generate_response(pi, ps, pv)),
+            TerminalEvent::PtyWrite(generate_response(pi, ps, pv)),
             self.window_id,
         );
     }
@@ -2995,7 +2995,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
     #[inline]
     fn xtgettcap_response(&mut self, response: String) {
         self.event_proxy
-            .send_event(RioEvent::PtyWrite(response), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(response), self.window_id);
     }
 }
 
@@ -3955,15 +3955,15 @@ mod tests {
         // Create a custom event listener that captures PtyWrite events
         #[derive(Clone)]
         struct TestListener {
-            events: Rc<RefCell<Vec<RioEvent>>>,
+            events: Rc<RefCell<Vec<TerminalEvent>>>,
         }
 
         impl EventListener for TestListener {
-            fn event(&self) -> (Option<RioEvent>, bool) {
+            fn event(&self) -> (Option<TerminalEvent>, bool) {
                 (None, false)
             }
 
-            fn send_event(&self, event: RioEvent, _id: WindowId) {
+            fn send_event(&self, event: TerminalEvent, _id: WindowId) {
                 self.events.borrow_mut().push(event);
             }
         }
@@ -3985,7 +3985,7 @@ mod tests {
 
         // Verify the event is PtyWrite with the correct format
         match &captured_events[0] {
-            RioEvent::PtyWrite(text) => {
+            TerminalEvent::PtyWrite(text) => {
                 // Expected format: DCS > | OmniTerminal {version} ST
                 // DCS = \x1bP, ST = \x1b\\
                 assert!(

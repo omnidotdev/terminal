@@ -155,14 +155,14 @@ declare_class!(
             let new_window_item = menu_item(
                 mtm,
                 new_window_item_title,
-                Some(sel!(rioCreateWindow:)),
+                Some(sel!(terminalCreateWindow:)),
                 None,
             );
             let new_tab_item_title = ns_string!("New Tab");
             let new_tab_item = menu_item(
                 mtm,
                 new_tab_item_title,
-                Some(sel!(rioCreateTab:)),
+                Some(sel!(terminalCreateTab:)),
                 None,
             );
             menubar.addItem(&new_window_item);
@@ -284,7 +284,7 @@ declare_class!(
 
     // Custom methods for menu actions
     unsafe impl ApplicationDelegate {
-        #[method(rioCreateWindow:)]
+        #[method(terminalCreateWindow:)]
         fn create_window(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 self.dispatch_create_window_event();
@@ -319,7 +319,7 @@ declare_class!(
             }
         }
 
-        #[method(rioCreateTab:)]
+        #[method(terminalCreateTab:)]
         fn create_tab(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER;
@@ -333,7 +333,7 @@ declare_class!(
             }
         }
 
-        #[method(rioClose:)]
+        #[method(terminalClose:)]
         fn close_tab(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER;
@@ -347,7 +347,7 @@ declare_class!(
             }
         }
 
-        #[method(rioSplitRight:)]
+        #[method(terminalSplitRight:)]
         fn split_right(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER;
@@ -361,7 +361,7 @@ declare_class!(
             }
         }
 
-        #[method(rioSplitDown:)]
+        #[method(terminalSplitDown:)]
         fn split_down(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER | ModifiersState::SHIFT;

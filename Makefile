@@ -24,13 +24,13 @@ dev:
 	MTL_HUD_ENABLED=1 cargo run -p omni-terminal
 
 dev-debug:
-	MTL_HUD_ENABLED=1 RIO_LOG_LEVEL=debug make dev
+	MTL_HUD_ENABLED=1 OMNI_TERMINAL_LOG_LEVEL=debug make dev
 
 dev-debug-wayland:
-	RIO_LOG_LEVEL=debug cargo run -p omni-terminal --no-default-features --features=wayland
+	OMNI_TERMINAL_LOG_LEVEL=debug cargo run -p omni-terminal --no-default-features --features=wayland
 
 dev-debug-x11:
-	RIO_LOG_LEVEL=debug cargo run -p omni-terminal --no-default-features --features=x11
+	OMNI_TERMINAL_LOG_LEVEL=debug cargo run -p omni-terminal --no-default-features --features=x11
 
 run-wasm:
 	cargo build -p omni-terminal --target wasm32-unknown-unknown --lib

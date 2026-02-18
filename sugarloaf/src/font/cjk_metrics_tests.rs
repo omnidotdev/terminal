@@ -540,7 +540,7 @@ mod tests {
     }
 
     /// Test the specific scenario mentioned in issue #1071:
-    /// "after a long CJK text was output in rio terminal, it run into a strange status"
+    /// "after a long CJK text was output in the terminal, it run into a strange status"
     #[test]
     fn test_issue_1071_long_cjk_text_scrolling() {
         // Simulate fonts similar to those that would cause the issue

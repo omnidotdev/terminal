@@ -384,37 +384,37 @@ pub enum Action {
     /// Clear the display buffer(s) to remove history.
     ClearHistory,
 
-    /// Hide the Rio window.
+    /// Hide the Omni Terminal window.
     #[allow(dead_code)]
     Hide,
 
-    /// Hide all windows other than Rio on macOS.
+    /// Hide all windows other than Omni Terminal on macOS.
     #[cfg(target_os = "macos")]
     #[allow(dead_code)]
     HideOtherApplications,
 
-    /// Minimize the Rio window.
+    /// Minimize the Omni Terminal window.
     #[allow(dead_code)]
     Minimize,
 
-    /// Quit Rio.
+    /// Quit Omni Terminal.
     Quit,
 
     /// Clear warning and error notices.
     ClearLogNotice,
 
-    /// Spawn a new instance of Rio.
+    /// Spawn a new instance of Omni Terminal.
     #[allow(dead_code)]
     SpawnNewInstance,
 
-    /// Create a new Rio window.
+    /// Create a new Omni Terminal window.
     #[allow(dead_code)]
     WindowCreateNew,
 
     /// Create config editor.
     ConfigEditor,
 
-    /// Create a new Rio tab.
+    /// Create a new Omni Terminal tab.
     TabCreateNew,
 
     /// Move current tab to previous slot.

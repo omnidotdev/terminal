@@ -3,7 +3,7 @@
 
 use crate::font_introspector::Metrics as FontIntrospectorMetrics;
 
-/// Font metrics similar to Rio's Metrics struct
+/// Font metrics similar to the terminal's Metrics struct
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Metrics {
     /// Recommended cell width for monospace grid
@@ -69,10 +69,10 @@ pub struct FaceMetrics {
 }
 
 impl FaceMetrics {
-    /// Calculate line height (adjusted for Rio's font introspector format)
-    /// Rio's descent is positive, and original code used leading * 2.0
+    /// Calculate line height (adjusted for the font introspector format)
+    /// Descent is positive, and original code used leading * 2.0
     pub fn line_height(&self) -> f64 {
-        // Rio's font introspector has positive descent, and original code doubled leading
+        // The font introspector has positive descent, and original code doubled leading
         self.ascent + self.descent + (self.line_gap * 2.0)
     }
 }
@@ -150,11 +150,11 @@ impl Metrics {
         let cell_width = face.cell_width.ceil();
         let cell_height = face.line_height().ceil();
 
-        // Split line gap evenly between top and bottom of cell (but doubled as per Rio's original)
+        // Split line gap evenly between top and bottom of cell (but doubled as per the original)
         let half_line_gap = face.line_gap; // Using full line_gap since we doubled it in line_height
 
-        // Calculate baseline position from bottom of cell (adjusted for Rio's positive descent)
-        // Rio uses positive descent format, baseline = half_line_gap + descent
+        // Calculate baseline position from bottom of cell (adjusted for positive descent)
+        // Uses positive descent format, baseline = half_line_gap + descent
         //
         // Baseline Adjustment Strategy:
         // - The baseline is positioned consistently for all fonts (primary and secondary)
@@ -340,7 +340,7 @@ mod tests {
         let primary_face = FaceMetrics {
             cell_width: 10.0,
             ascent: 12.0,
-            descent: 3.0, // Positive in Rio's format
+            descent: 3.0, // Positive in the font introspector format
             line_gap: 1.0,
             underline_position: Some(-1.0),
             underline_thickness: Some(1.0),
@@ -361,7 +361,7 @@ mod tests {
         let primary_face = FaceMetrics {
             cell_width: 10.0,
             ascent: 12.0,
-            descent: 3.0, // Positive in Rio's format
+            descent: 3.0, // Positive in the font introspector format
             line_gap: 1.0,
             underline_position: Some(-1.0),
             underline_thickness: Some(1.0),
@@ -375,7 +375,7 @@ mod tests {
         let cjk_face = FaceMetrics {
             cell_width: 12.0,
             ascent: 15.0,
-            descent: 4.0, // Positive in Rio's format
+            descent: 4.0, // Positive in the font introspector format
             line_gap: 2.0,
             underline_position: Some(-2.0),
             underline_thickness: Some(1.5),
@@ -448,12 +448,12 @@ mod tests {
     }
 
     #[test]
-    fn test_baseline_calculation_rio_format() {
-        // Test that baseline calculation works correctly with Rio's positive descent
+    fn test_baseline_calculation_positive_descent_format() {
+        // Test that baseline calculation works correctly with positive descent
         let face = FaceMetrics {
             cell_width: 10.0,
             ascent: 12.0,
-            descent: 4.0, // Positive in Rio's format (not negative like typical typography)
+            descent: 4.0, // Positive in the font introspector format (not negative like typical typography)
             line_gap: 2.0,
             underline_position: None,
             underline_thickness: None,
@@ -771,13 +771,13 @@ mod tests {
 
     #[test]
     fn test_rio_style_baseline_calculation() {
-        // Test that baseline calculation matches Rio's approach
-        // Rio: cell_baseline = half_line_gap + descent (with positive descent)
+        // Test that baseline calculation matches the expected approach
+        // cell_baseline = half_line_gap + descent (with positive descent)
 
         let face = FaceMetrics {
             cell_width: 10.0,
             ascent: 12.0,
-            descent: 4.0, // Positive in Rio (would be -4.0 in typical typography)
+            descent: 4.0, // Positive in the font introspector format (would be -4.0 in typical typography)
             line_gap: 2.0,
             underline_position: None,
             underline_thickness: None,

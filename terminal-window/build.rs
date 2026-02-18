@@ -79,7 +79,7 @@ fn generate_dispatch_bindings() {
 #[cfg(target_os = "windows")]
 fn load_app_icon() {
     let mut res = winres::WindowsResource::new();
-    res.set_icon("../misc/windows/rio-2024.ico");
+    res.set_icon("../misc/windows/omni-terminal.ico");
     res.compile()
         .expect("Failed to compile Window icon resource");
 }

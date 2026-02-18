@@ -97,7 +97,7 @@ impl Compositor {
         if style.underline_offset != 0.0 {
             // Font provides underline_offset as distance from baseline to underline top
             // Negative values mean below baseline, which is what we want
-            // But Rio's renderer expects positive offset for below baseline
+            // But the renderer expects positive offset for below baseline
             -style.underline_offset
         } else {
             // Fallback: place underline 1 thickness below baseline

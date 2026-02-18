@@ -156,10 +156,10 @@ pub fn default_config_file_content() -> String {
 
 # Theme
 #
-# It makes Rio look for the specified theme in the themes folder
-# (macos: ~/.config/rio/themes/dracula.toml)
-# (linux: $XDG_HOME_CONFIG/rio/themes/dracula.toml or ~/.config/rio/themes/dracula.toml)
-# (windows: C:\Users\USER\AppData\Local\rio\themes\dracula.toml)
+# It makes the terminal look for the specified theme in the themes folder
+# (macos: ~/.config/omni-terminal/themes/dracula.toml)
+# (linux: $XDG_HOME_CONFIG/omni-terminal/themes/dracula.toml or ~/.config/omni-terminal/themes/dracula.toml)
+# (windows: C:\Users\USER\AppData\Local\omni-terminal\themes\dracula.toml)
 #
 # Example:
 # theme = "dracula"
@@ -219,7 +219,7 @@ pub fn default_config_file_content() -> String {
 # Example:
 # use-fork = false
 
-# Confirm before exiting Rio
+# Confirm before exiting Omni Terminal
 # Default is `true`
 #
 # confirm-before-quit = false
@@ -244,7 +244,7 @@ pub fn default_config_file_content() -> String {
 # on Windows it is "notepad".
 #
 # Whenever the key binding `OpenConfigEditor` is triggered it will
-# use the value of the editor along with the rio configuration path.
+# use the value of the editor along with the terminal configuration path.
 # [editor]
 # program = "vi"
 # args = []
@@ -264,7 +264,7 @@ pub fn default_config_file_content() -> String {
 #
 # • opacity - Set window opacity
 #
-# • blur - Set blur on the window background. Changing this config requires restarting Rio to take effect.
+# • blur - Set blur on the window background. Changing this config requires restarting Omni Terminal to take effect.
 #
 # • decorations - Set window decorations, options: "Enabled", "Disabled", "Transparent", "Buttonless"
 #
@@ -296,7 +296,7 @@ pub fn default_config_file_content() -> String {
 #   - DX12: Supported on Windows 10
 #   - Metal: Supported on macOS/iOS
 #
-# • disable-unfocused-render: This property disable renderer processes while Rio is unfocused.
+# • disable-unfocused-render: This property disable renderer processes while Omni Terminal is unfocused.
 #
 # • level: Configure renderer level
 #   - Available options: 0 and 1.
@@ -335,7 +335,7 @@ pub fn default_config_file_content() -> String {
 #
 # Configure fonts used by the terminal
 #
-# Note: You can set different font families but Rio terminal
+# Note: You can set different font families but Omni Terminal
 # will always look for regular font bounds whene
 #
 # You can also set family on root to overwrite all fonts.
@@ -351,7 +351,7 @@ pub fn default_config_file_content() -> String {
 # features = ["ss02", "ss03", "ss05", "ss19"]
 #
 # Note: Font features do not have support to live reload on configuration,
-# so to reflect your changes, you will need to close and reopen Rio.
+# so to reflect your changes, you will need to close and reopen Omni Terminal.
 #
 # You can also disable font hinting. Font hinting is enabled by default.
 # [fonts]
@@ -491,7 +491,7 @@ pub fn default_config_file_content() -> String {
 
 # Platform
 #
-# Rio now allows you to have different configurations per OS
+# Omni Terminal now allows you to have different configurations per OS
 # You can write ovewrite properties like `Shell`, `Navigation`
 # and `Window`.
 #

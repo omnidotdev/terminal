@@ -2,7 +2,7 @@ pub mod handler;
 
 use crate::crosswords::Crosswords;
 use crate::event::sync::FairMutex;
-use crate::event::RioEvent;
+use crate::event::TerminalEvent;
 use crate::event::{EventListener, Msg, WindowId};
 use corcovado::channel;
 #[cfg(unix)]
@@ -225,7 +225,7 @@ where
             );
             // Send a Wakeup event to coalesce renders
             self.event_proxy
-                .send_event(RioEvent::Wakeup(self.route_id), self.window_id);
+                .send_event(TerminalEvent::Wakeup(self.route_id), self.window_id);
             // }
         }
 
@@ -356,7 +356,7 @@ where
 
                     // Emit damage event if there's any damage after processing sync buffer
                     self.event_proxy
-                        .send_event(RioEvent::Wakeup(self.route_id), self.window_id);
+                        .send_event(TerminalEvent::Wakeup(self.route_id), self.window_id);
 
                     continue;
                 }
@@ -390,7 +390,7 @@ where
                                 self.terminal.lock().exit();
 
                                 self.event_proxy
-                                    .send_event(RioEvent::Render, self.window_id);
+                                    .send_event(TerminalEvent::Render, self.window_id);
 
                                 break 'event_loop;
                             }

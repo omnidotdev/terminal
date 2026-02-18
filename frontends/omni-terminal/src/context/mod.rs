@@ -8,7 +8,7 @@ use crate::context::title::{
     create_title_extra_from_context, update_title, ContextManagerTitles,
 };
 use crate::event::sync::FairMutex;
-use crate::event::{Msg, RioEvent};
+use crate::event::{Msg, TerminalEvent};
 use crate::ime::Ime;
 use crate::messenger::Messenger;
 use crate::performer::{self, Machine};
@@ -232,7 +232,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
         #[cfg(not(target_os = "windows"))]
         {
             if config.use_fork {
-                tracing::info!("rio -> teletypewriter: create_pty_with_fork");
+                tracing::info!("terminal -> teletypewriter: create_pty_with_fork");
                 pty = match create_pty_with_fork(
                     &Cow::Borrowed(&config.shell.program),
                     cols,
@@ -245,7 +245,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
                     }
                 }
             } else {
-                tracing::info!("rio -> teletypewriter: create_pty_with_spawn");
+                tracing::info!("terminal -> teletypewriter: create_pty_with_spawn");
                 pty = match create_pty_with_spawn(
                     &Cow::Borrowed(&config.shell.program),
                     config.shell.args.clone(),
@@ -342,7 +342,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
                 tracing::error!("{:?}", err_message);
 
                 event_proxy.send_event(
-                    RioEvent::ReportToAssistant(TerminalError {
+                    TerminalEvent::ReportToAssistant(TerminalError {
                         report: TerminalErrorType::InitializationError(
                             err_message.to_string(),
                         ),
@@ -367,7 +367,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
         if let Some(errors) = sugarloaf_errors {
             if !errors.fonts_not_found.is_empty() {
                 event_proxy.send_event(
-                    RioEvent::ReportToAssistant({
+                    TerminalEvent::ReportToAssistant({
                         TerminalError {
                             report: TerminalErrorType::FontsNotFound(errors.fonts_not_found),
                             level: TerminalErrorLevel::Warning,
@@ -494,7 +494,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     #[inline]
     pub fn request_render(&mut self) {
         self.event_proxy
-            .send_event(RioEvent::RenderRoute(self.current_route), self.window_id);
+            .send_event(TerminalEvent::RenderRoute(self.current_route), self.window_id);
     }
 
     #[inline]
@@ -502,7 +502,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
         // PrepareRender will force a render for any route that is focused on window
         // PrepareRenderOnRoute only call render function for specific route ids.
         self.event_proxy.send_event(
-            RioEvent::BlinkCursor(scheduled_time, self.current_route),
+            TerminalEvent::BlinkCursor(scheduled_time, self.current_route),
             self.window_id,
         );
     }
@@ -511,7 +511,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     pub fn report_error_fonts_not_found(&mut self, fonts_not_found: Vec<SugarloafFont>) {
         if !fonts_not_found.is_empty() {
             self.event_proxy.send_event(
-                RioEvent::ReportToAssistant({
+                TerminalEvent::ReportToAssistant({
                     TerminalError {
                         report: TerminalErrorType::FontsNotFound(fonts_not_found),
                         level: TerminalErrorLevel::Warning,
@@ -525,7 +525,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     #[inline]
     pub fn create_new_window(&self) {
         self.event_proxy
-            .send_event(RioEvent::CreateWindow, self.window_id);
+            .send_event(TerminalEvent::CreateWindow, self.window_id);
     }
 
     #[inline]
@@ -610,7 +610,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     pub fn select_tab(&mut self, tab_index: usize) {
         if self.config.is_native {
             self.event_proxy
-                .send_event(RioEvent::SelectNativeTabByIndex(tab_index), self.window_id);
+                .send_event(TerminalEvent::SelectNativeTabByIndex(tab_index), self.window_id);
             return;
         }
 
@@ -620,37 +620,37 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     #[inline]
     pub fn toggle_full_screen(&mut self) {
         self.event_proxy
-            .send_event(RioEvent::ToggleFullScreen, self.window_id);
+            .send_event(TerminalEvent::ToggleFullScreen, self.window_id);
     }
 
     #[inline]
     pub fn minimize(&mut self) {
         self.event_proxy
-            .send_event(RioEvent::Minimize(true), self.window_id);
+            .send_event(TerminalEvent::Minimize(true), self.window_id);
     }
 
     #[inline]
     pub fn hide(&mut self) {
-        self.event_proxy.send_event(RioEvent::Hide, self.window_id);
+        self.event_proxy.send_event(TerminalEvent::Hide, self.window_id);
     }
 
     #[inline]
     pub fn quit(&mut self) {
-        self.event_proxy.send_event(RioEvent::Quit, self.window_id);
+        self.event_proxy.send_event(TerminalEvent::Quit, self.window_id);
     }
 
     #[cfg(target_os = "macos")]
     #[inline]
     pub fn hide_other_apps(&mut self) {
         self.event_proxy
-            .send_event(RioEvent::HideOtherApplications, self.window_id);
+            .send_event(TerminalEvent::HideOtherApplications, self.window_id);
     }
 
     #[inline]
     pub fn select_last_tab(&mut self) {
         if self.config.is_native {
             self.event_proxy
-                .send_event(RioEvent::SelectNativeTabLast, self.window_id);
+                .send_event(TerminalEvent::SelectNativeTabLast, self.window_id);
             return;
         }
 
@@ -660,7 +660,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     #[inline]
     pub fn switch_to_settings(&mut self) {
         self.event_proxy
-            .send_event(RioEvent::CreateConfigEditor, self.window_id);
+            .send_event(TerminalEvent::CreateConfigEditor, self.window_id);
     }
 
     #[inline]
@@ -692,7 +692,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
                 let content = update_title(&self.config.title.content, context.current());
 
                 self.event_proxy
-                    .send_event(RioEvent::Title(content.to_owned()), self.window_id);
+                    .send_event(TerminalEvent::Title(content.to_owned()), self.window_id);
 
                 id.push_str(&format!("{i}{content};"));
 
@@ -761,11 +761,11 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     pub fn close_current_context(&mut self) {
         if self.contexts.len() == 1 {
             // MacOS: Close last tab will work, leading to hide and
-            // keep Rio running in background.
+            // keep the terminal running in background.
             #[cfg(target_os = "macos")]
             {
                 self.event_proxy
-                    .send_event(RioEvent::CloseWindow, self.window_id);
+                    .send_event(TerminalEvent::CloseWindow, self.window_id);
             }
             return;
         }
@@ -810,7 +810,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     pub fn switch_to_next(&mut self) {
         if self.config.is_native {
             self.event_proxy
-                .send_event(RioEvent::SelectNativeTabNext, self.window_id);
+                .send_event(TerminalEvent::SelectNativeTabNext, self.window_id);
             return;
         }
 
@@ -827,7 +827,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     pub fn switch_to_prev(&mut self) {
         if self.config.is_native {
             self.event_proxy
-                .send_event(RioEvent::SelectNativeTabPrev, self.window_id);
+                .send_event(TerminalEvent::SelectNativeTabPrev, self.window_id);
             return;
         }
 
@@ -1005,7 +1005,7 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
 
         if self.config.is_native {
             self.event_proxy
-                .send_event(RioEvent::CreateNativeTab(working_dir), self.window_id);
+                .send_event(TerminalEvent::CreateNativeTab(working_dir), self.window_id);
             return;
         }
 

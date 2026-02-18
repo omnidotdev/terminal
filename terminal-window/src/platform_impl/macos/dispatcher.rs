@@ -1,7 +1,7 @@
 //! GCD (Grand Central Dispatch) bindings and utilities
 //!
 //! This module provides safe Rust bindings for macOS Grand Central Dispatch,
-//! for VSync synchronization in Rio's rendering pipeline.
+//! for VSync synchronization in the rendering pipeline.
 
 use std::ptr::addr_of;
 

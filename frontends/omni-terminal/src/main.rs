@@ -219,7 +219,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_os = "linux")]
     {
         // If running inside a flatpak sandbox.
-        // Rio will never use use_fork configuration as true
+        // Omni Terminal will never use use_fork configuration as true
         if std::path::PathBuf::from("/.flatpak-info").exists() {
             config.use_fork = false;
         }

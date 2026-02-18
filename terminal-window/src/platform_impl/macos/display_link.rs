@@ -1,18 +1,18 @@
 //! CVDisplayLink Integration for VSync Synchronization
 //!
 //! This module implements CVDisplayLink integration to provide precise VSync timing
-//! for Rio's rendering system, using Grand Central Dispatch for thread-safe communication.
+//! for the rendering system, using Grand Central Dispatch for thread-safe communication.
 //!
 //! ## Why CVDisplayLink vs NSTimer/Event-Driven Rendering?
 //!
-//! ### Traditional Approach (Rio's previous method):
+//! ### Traditional Approach (previous method):
 //! - Event-driven rendering - fires whenever something changes
 //! - request_redraw() calls have irregular timing, not VSync aligned
 //!
 //! - Or NSTimer-based rendering with approximate 16.67ms timing
 //! - Timer callbacks are close but not precise to display refresh
 //!
-//! ### CVDisplayLink Approach (Rio's new method):
+//! ### CVDisplayLink Approach (current method):
 //! - VSync-synchronized rendering - fires exactly when display is ready
 //! - CVDisplayLink -> GCD dispatch -> main thread callback -> request_frame()
 //!

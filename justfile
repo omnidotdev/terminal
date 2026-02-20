@@ -93,6 +93,60 @@ install-debian-wayland:
 release-windows:
     cargo wix -p omni-terminal
 
+# Install wasm frontend dependencies (Binaryen/wasm-opt also required: https://github.com/WebAssembly/binaryen)
+wasm-install:
+    cargo install cargo-server
+    cargo install wasm-bindgen-cli
+    cargo install cargo-watch
+
+# Build wasm frontend (debug)
+wasm-build:
+    wasm-bindgen target/wasm32-unknown-unknown/debug/omni-terminal.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
+
+# Build wasm frontend (release)
+wasm-build-release:
+    wasm-bindgen target/wasm32-unknown-unknown/release/omni-terminal.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
+
+# Optimize wasm binary size
+wasm-opt:
+    du -h frontends/wasm/wasm/omni-terminal_bg.wasm
+    wasm-opt -O frontends/wasm/wasm/omni-terminal_bg.wasm -o frontends/wasm/wasm/omni-terminal_bg.wasm
+    du -h frontends/wasm/wasm/omni-terminal_bg.wasm
+
+# Build, optimize, and serve wasm frontend
+wasm-run: wasm-build wasm-opt
+    cd frontends/wasm && cargo server --open
+
+# Watch and rebuild wasm frontend on changes
+wasm-watch:
+    cargo watch -- just wasm-build
+
+# Install sugarloaf wasm dependencies
+sugarloaf-install:
+    cargo install cargo-server
+    cargo install wasm-bindgen-cli
+
+# Run sugarloaf text example
+sugarloaf-dev:
+    cargo run --example text
+
+# Build sugarloaf wasm
+sugarloaf-build:
+    cargo build -p sugarloaf-wasm --target wasm32-unknown-unknown
+    wasm-bindgen target/wasm32-unknown-unknown/debug/sugarloaf_wasm.wasm --out-dir sugarloaf/wasm --target web --no-typescript
+
+# Serve sugarloaf wasm
+sugarloaf-run: sugarloaf-build
+    cd sugarloaf && cargo server
+
+# Run sugarloaf wasm tests with Chrome
+sugarloaf-test:
+    GECKODRIVER=chromedriver cargo test -p sugarloaf --tests --target wasm32-unknown-unknown
+
+# Run sugarloaf wasm tests with Firefox (requires cargo install geckodriver)
+sugarloaf-test-firefox:
+    GECKODRIVER=geckodriver cargo test -p sugarloaf --tests --target wasm32-unknown-unknown
+
 # Build man pages from scdoc sources (requires scdoc)
 man-pages:
     scdoc < extra/man/omni-terminal.1.scd > extra/man/omni-terminal.1

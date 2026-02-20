@@ -928,6 +928,12 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
 
                 match state {
                     ElementState::Pressed => {
+                        // Handle navigation tab bar clicks before anything else
+                        if route.window.screen.select_tab_based_on_mouse() {
+                            route.request_redraw();
+                            return;
+                        }
+
                         // In case need to switch grid current
                         route.window.screen.select_current_based_on_mouse();
 

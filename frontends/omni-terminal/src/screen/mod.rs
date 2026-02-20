@@ -16,6 +16,8 @@ use crate::bindings::{
 };
 #[cfg(target_os = "macos")]
 use crate::constants::{DEADZONE_END_Y, DEADZONE_START_Y};
+use crate::constants::PADDING_Y_BOTTOM_TABS;
+use terminal_backend::config::navigation::NavigationMode;
 use crate::context::grid::{ContextDimension, Delta};
 use crate::context::renderable::{Cursor, RenderableContent};
 use crate::context::{self, process_open_url, ContextManager};
@@ -310,6 +312,77 @@ impl Screen<'_> {
         {
             self.context_manager.select_route_from_current_grid();
         }
+    }
+
+    // Returns true if a navigation tab was clicked and handled, so the caller
+    // can skip further click processing (text selection, etc.).
+    #[inline]
+    pub fn select_tab_based_on_mouse(&mut self) -> bool {
+        let nav_mode = self.renderer.navigation.navigation.mode.clone();
+        let hide_if_single = self.renderer.navigation.navigation.hide_if_single;
+        let len = self.context_manager.len();
+
+        if hide_if_single && len <= 1 {
+            return false;
+        }
+
+        // BottomTab bar is hidden when search is active
+        if self.search_active() && nav_mode == NavigationMode::BottomTab {
+            return false;
+        }
+
+        let scale = self.sugarloaf.scale_factor();
+        let window_size = self.sugarloaf.window_size();
+
+        let logical_x = self.mouse.x as f32 / scale;
+        let logical_y = self.mouse.y as f32 / scale;
+        let logical_height = window_size.height / scale;
+
+        let in_tab_bar = match nav_mode {
+            NavigationMode::TopTab => logical_y <= PADDING_Y_BOTTOM_TABS,
+            NavigationMode::BottomTab => {
+                logical_y >= logical_height - PADDING_Y_BOTTOM_TABS
+            }
+            _ => return false,
+        };
+
+        if !in_tab_bar {
+            return false;
+        }
+
+        let current = self.context_manager.current_index();
+        let logical_width = window_size.width / scale;
+        let max_tab_width = 140.0_f32;
+        let screen_limit = (logical_width / max_tab_width).floor() as usize;
+
+        // Mirror the overflow logic from navigation.rs tab rendering
+        let start_tab = if len > screen_limit && current > screen_limit {
+            current - screen_limit
+        } else {
+            0
+        };
+
+        // Each tab occupies 130 logical px (125px visible + 5px gap), matching
+        // the name_modifier(90) + 40 increment in navigation.rs
+        let tab_stride = 130.0_f32;
+        let tab_visible_width = 125.0_f32;
+
+        let visual_index = (logical_x / tab_stride) as usize;
+        let tab_start_x = visual_index as f32 * tab_stride;
+
+        // Reject clicks in the inter-tab gap
+        if logical_x > tab_start_x + tab_visible_width {
+            return false;
+        }
+
+        let tab_index = start_tab + visual_index;
+        if tab_index >= len {
+            return false;
+        }
+
+        self.context_manager.select_tab(tab_index);
+        self.cancel_search();
+        true
     }
 
     #[inline]

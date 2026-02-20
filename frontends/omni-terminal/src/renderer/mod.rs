@@ -25,8 +25,9 @@ use terminal_backend::config::colors::{
 use terminal_backend::config::Config;
 use terminal_backend::event::EventProxy;
 use terminal_backend::sugarloaf::{
-    drawable_character, Content, FragmentStyle, FragmentStyleDecoration, Graphic, Quad,
-    Stretch, Style, SugarCursor, Sugarloaf, UnderlineInfo, UnderlineShape, Weight,
+    drawable_character, Content, FragmentStyle, FragmentStyleDecoration, Graphic, Object,
+    Quad, RichText, Stretch, Style, SugarCursor, Sugarloaf, UnderlineInfo, UnderlineShape,
+    Weight,
 };
 use std::collections::{BTreeSet, HashMap};
 use std::ops::RangeInclusive;
@@ -66,6 +67,8 @@ pub struct Renderer {
     font_context: terminal_backend::sugarloaf::font::FontLibrary,
     font_cache: FontCache,
     char_cache: CharCache,
+    config_warning: Option<String>,
+    config_warning_rich_text_id: Option<usize>,
 }
 
 impl Renderer {
@@ -122,6 +125,8 @@ impl Renderer {
             font_context: font_context.clone(),
             char_cache: CharCache::new(),
             is_game_mode_enabled: config.renderer.strategy.is_game(),
+            config_warning: None,
+            config_warning_rich_text_id: None,
         };
 
         // Pre-populate font cache with common characters for better performance
@@ -133,6 +138,19 @@ impl Renderer {
     #[inline]
     pub fn set_active_search(&mut self, active_search: Option<String>) {
         self.search.active_search = active_search;
+    }
+
+    #[inline]
+    pub fn set_config_warning(&mut self, warning: Option<String>) {
+        if warning.is_none() {
+            self.config_warning_rich_text_id = None;
+        }
+        self.config_warning = warning;
+    }
+
+    #[inline]
+    pub fn has_config_warning(&self) -> bool {
+        self.config_warning.is_some()
     }
 
     #[inline]
@@ -1129,6 +1147,44 @@ impl Renderer {
             None
         };
         sugarloaf.set_visual_bell_overlay(bell_overlay);
+
+        if let Some(warning) = &self.config_warning {
+            // Create the rich text slot once and reuse each frame
+            if self.config_warning_rich_text_id.is_none() {
+                let rt = sugarloaf.create_temp_rich_text();
+                sugarloaf.set_rich_text_font_size(&rt, 14.0);
+                self.config_warning_rich_text_id = Some(rt);
+            }
+
+            if let Some(rt_id) = self.config_warning_rich_text_id {
+                // Amber background: matches the existing warning color in assistant.rs
+                const BANNER_AMBER: [f32; 4] = [0.706, 0.627, 0.392, 1.0];
+                // Dark text on amber
+                const BANNER_TEXT: [f32; 4] = [0.08, 0.06, 0.02, 1.0];
+
+                let banner_height = crate::constants::PADDING_Y_BOTTOM_TABS;
+                let position_y = (window_size.height / scale_factor) - banner_height;
+
+                sugarloaf
+                    .content()
+                    .sel(rt_id)
+                    .clear()
+                    .add_text(warning, FragmentStyle { color: BANNER_TEXT, ..FragmentStyle::default() })
+                    .build();
+
+                objects.push(Object::Quad(Quad {
+                    position: [0.0, position_y],
+                    color: BANNER_AMBER,
+                    size: [window_size.width, banner_height],
+                    ..Quad::default()
+                }));
+                objects.push(Object::RichText(RichText {
+                    id: rt_id,
+                    position: [8.0, position_y + 4.0],
+                    lines: None,
+                }));
+            }
+        }
 
         sugarloaf.set_objects(objects);
 

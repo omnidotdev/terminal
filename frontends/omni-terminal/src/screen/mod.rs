@@ -2510,6 +2510,14 @@ impl Screen<'_> {
         }
     }
 
+    pub fn set_config_warning(&mut self, warning: Option<String>) {
+        self.renderer.set_config_warning(warning);
+    }
+
+    pub fn has_config_warning(&self) -> bool {
+        self.renderer.has_config_warning()
+    }
+
     pub fn render_assistant(
         &mut self,
         assistant: &crate::router::routes::assistant::Assistant,

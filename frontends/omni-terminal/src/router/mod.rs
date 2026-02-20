@@ -32,6 +32,21 @@ pub struct Route<'a> {
     pub window: RouteWindow<'a>,
 }
 
+/// Returns true if this error type should show as a non-blocking bottom banner
+/// rather than the full-screen blocking assistant route.
+fn is_config_banner_error(error: &TerminalErrorType) -> bool {
+    matches!(
+        error,
+        TerminalErrorType::InvalidConfigurationFormat(_)
+            | TerminalErrorType::InvalidConfigurationTheme(_)
+    )
+}
+
+/// Format the single-line config warning message shown in the bottom banner.
+fn format_config_banner_message(config_path: &str, error_detail: &str) -> String {
+    format!("⚠  {config_path}: {error_detail} — press any key to dismiss")
+}
+
 impl Route<'_> {
     /// Create a performer.
     #[inline]
@@ -212,6 +227,19 @@ impl Route<'_> {
             return;
         }
 
+        if is_config_banner_error(&error.report) {
+            let detail = match &error.report {
+                TerminalErrorType::InvalidConfigurationFormat(msg)
+                | TerminalErrorType::InvalidConfigurationTheme(msg) => msg.as_str(),
+                _ => "",
+            };
+            let path = terminal_backend::config::config_file_path();
+            let warning = format_config_banner_message(&path.to_string_lossy(), detail);
+            self.window.screen.set_config_warning(Some(warning));
+            self.path = RoutePath::Terminal;
+            return;
+        }
+
         self.assistant.set(error.to_owned());
         self.path = RoutePath::Assistant;
     }
@@ -235,6 +263,10 @@ impl Route<'_> {
     #[inline]
     pub fn has_key_wait(&mut self, key_event: &terminal_window::event::KeyEvent) -> bool {
         if self.path == RoutePath::Terminal {
+            // Dismiss config warning banner on any keypress; key still passes through
+            if self.window.screen.has_config_warning() {
+                self.window.screen.set_config_warning(None);
+            }
             return false;
         }
 
@@ -667,5 +699,49 @@ impl<'a> RouteWindow<'a> {
             #[cfg(target_os = "macos")]
             is_macos_deadzone: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use terminal_backend::error::TerminalErrorType;
+    use terminal_backend::sugarloaf::font::fonts::SugarloafFont;
+
+    #[test]
+    fn config_format_error_is_banner_error() {
+        let error = TerminalErrorType::InvalidConfigurationFormat("bad toml".into());
+        assert!(is_config_banner_error(&error));
+    }
+
+    #[test]
+    fn config_theme_error_is_banner_error() {
+        let error = TerminalErrorType::InvalidConfigurationTheme("missing theme".into());
+        assert!(is_config_banner_error(&error));
+    }
+
+    #[test]
+    fn config_not_found_is_not_banner_error() {
+        let error = TerminalErrorType::ConfigurationNotFound;
+        assert!(!is_config_banner_error(&error));
+    }
+
+    #[test]
+    fn fonts_not_found_is_not_banner_error() {
+        let error = TerminalErrorType::FontsNotFound(vec![SugarloafFont::default()]);
+        assert!(!is_config_banner_error(&error));
+    }
+
+    #[test]
+    fn banner_message_includes_path_and_detail() {
+        let msg = format_config_banner_message("/home/user/.config/omni/terminal/config.toml", "unexpected character at line 3");
+        assert!(msg.contains("/home/user/.config/omni/terminal/config.toml"));
+        assert!(msg.contains("unexpected character at line 3"));
+    }
+
+    #[test]
+    fn banner_message_includes_dismiss_hint() {
+        let msg = format_config_banner_message("/path/config.toml", "some error");
+        assert!(msg.contains("press any key to dismiss"));
     }
 }

@@ -36,12 +36,12 @@ Omni Terminal is a modern terminal emulator built with Rust and WebGPU that prov
 	following locations on UNIX systems:
 
 		. _$OMNI_TERMINAL_CONFIG_HOME/config.toml_
-		. _$XDG_CONFIG_HOME/omni-terminal/config.toml_
-		. _$HOME/.config/omni-terminal/config.toml_
+		. _$XDG_CONFIG_HOME/omni/terminal/config.toml_
+		. _$HOME/.config/omni/terminal/config.toml_
 
 	On Windows, the config file will be looked for in:
 
-		. _%USERPROFILE%\\AppData\\Local\\omni-terminal\\config.toml_
+		. _%USERPROFILE%\\AppData\\Local\\omni\\terminal\\config.toml_
 
 *--enable-log-file*
 

@@ -15,12 +15,12 @@ Omni Terminal doesn't create the config file for you, but it looks for one in th
 following locations on UNIX systems:
 
 . _$OMNI_TERMINAL_CONFIG_HOME/config.toml_
-. _$XDG_CONFIG_HOME/omni-terminal/config.toml_
-. _$HOME/.config/omni-terminal/config.toml_
+. _$XDG_CONFIG_HOME/omni/terminal/config.toml_
+. _$HOME/.config/omni/terminal/config.toml_
 
 On Windows, the config file will be looked for in:
 
-. _%USERPROFILE%\\AppData\\Local\\omni-terminal\\config.toml_
+. _%USERPROFILE%\\AppData\\Local\\omni\\terminal\\config.toml_
 
 # GENERAL
 

@@ -157,9 +157,9 @@ pub fn default_config_file_content() -> String {
 # Theme
 #
 # It makes the terminal look for the specified theme in the themes folder
-# (macos: ~/.config/omni-terminal/themes/dracula.toml)
-# (linux: $XDG_HOME_CONFIG/omni-terminal/themes/dracula.toml or ~/.config/omni-terminal/themes/dracula.toml)
-# (windows: C:\Users\USER\AppData\Local\omni-terminal\themes\dracula.toml)
+# (macos: ~/.config/omni/terminal/themes/dracula.toml)
+# (linux: $XDG_HOME_CONFIG/omni/terminal/themes/dracula.toml or ~/.config/omni/terminal/themes/dracula.toml)
+# (windows: C:\Users\USER\AppData\Local\omni\terminal\themes\dracula.toml)
 #
 # Example:
 # theme = "dracula"

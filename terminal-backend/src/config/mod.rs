@@ -170,7 +170,7 @@ pub struct CursorConfig {
 pub fn config_dir_path() -> PathBuf {
     std::env::var("OMNI_TERMINAL_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or(dirs::home_dir().unwrap().join(".config").join("omni-terminal"))
+        .unwrap_or(dirs::home_dir().unwrap().join(".config").join("omni").join("terminal"))
 }
 
 #[cfg(target_os = "windows")]
@@ -183,7 +183,8 @@ pub fn config_dir_path() -> PathBuf {
                 .unwrap()
                 .join("AppData")
                 .join("Local")
-                .join("omni-terminal"),
+                .join("omni")
+                .join("terminal"),
         )
 }
 
@@ -196,7 +197,8 @@ pub fn config_dir_path() -> PathBuf {
             std::env::var("XDG_CONFIG_HOME")
                 .map(PathBuf::from)
                 .unwrap_or(dirs::home_dir().unwrap().join(".config"))
-                .join("omni-terminal"),
+                .join("omni")
+                .join("terminal"),
         )
 }
 

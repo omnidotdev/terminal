@@ -40,22 +40,14 @@ sudo make install
 ### Build man pages
 
 ```bash
-# Build all man pages
-make -C extra/man
-
-# Or build individually
-scdoc < extra/man/omni-terminal.1.scd > omni-terminal.1
-scdoc < extra/man/omni-terminal.5.scd > omni-terminal.5
-scdoc < extra/man/omni-terminal-bindings.5.scd > omni-terminal-bindings.5
+just man-pages
 ```
 
 ### Install man pages
 
 ```bash
 # Install to system man directory (requires sudo)
-sudo cp omni-terminal.1 /usr/local/share/man/man1/
-sudo cp omni-terminal.5 /usr/local/share/man/man5/
-sudo cp omni-terminal-bindings.5 /usr/local/share/man/man5/
+sudo just man-install
 
 # Update man database
 sudo mandb

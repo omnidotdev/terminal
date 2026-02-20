@@ -10,6 +10,7 @@ app_binary := target_dir + "/" + target
 app_binary_dir := target_dir_osx + "/" + app_name + "/Contents/MacOS"
 app_extras_dir := target_dir_osx + "/" + app_name + "/Contents/Resources"
 terminfo := misc_dir + "/omni-terminal.terminfo"
+mandir := "/usr/local/share/man"
 
 # Build universal macOS binary (x86_64 + arm64 via lipo)
 universal:
@@ -91,3 +92,19 @@ install-debian-wayland:
 # Build Windows installer (requires cargo-wix)
 release-windows:
     cargo wix -p omni-terminal
+
+# Build man pages from scdoc sources (requires scdoc)
+man-pages:
+    scdoc < extra/man/omni-terminal.1.scd > extra/man/omni-terminal.1
+    scdoc < extra/man/omni-terminal.5.scd > extra/man/omni-terminal.5
+    scdoc < extra/man/omni-terminal-bindings.5.scd > extra/man/omni-terminal-bindings.5
+
+# Install man pages to system (requires sudo)
+man-install: man-pages
+    install -Dm644 extra/man/omni-terminal.1 {{mandir}}/man1/omni-terminal.1
+    install -Dm644 extra/man/omni-terminal.5 {{mandir}}/man5/omni-terminal.5
+    install -Dm644 extra/man/omni-terminal-bindings.5 {{mandir}}/man5/omni-terminal-bindings.5
+
+# Remove built man pages
+man-clean:
+    rm -f extra/man/omni-terminal.1 extra/man/omni-terminal.5 extra/man/omni-terminal-bindings.5

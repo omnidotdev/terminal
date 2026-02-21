@@ -12,7 +12,9 @@
 > [!NOTE]
 > Omni Terminal is a fork of [Rio Terminal](https://github.com/raphamorim/rio)
 > by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.
-> We are grateful for their foundational work.
+> We are grateful for his foundational work. Please consider
+> [sponsoring him](https://github.com/sponsors/raphamorim) to support his
+> continued open source contributions.
 
 ## Platforms
 

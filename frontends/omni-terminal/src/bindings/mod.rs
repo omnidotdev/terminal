@@ -216,6 +216,7 @@ impl From<String> for Action {
             "paste" => Some(Action::Paste),
             "quit" => Some(Action::Quit),
             "copy" => Some(Action::Copy),
+            "copyorinterrupt" => Some(Action::CopyOrInterrupt),
             "searchforward" => Some(Action::SearchForward),
             "searchbackward" => Some(Action::SearchBackward),
             "searchconfirm" => Some(Action::Search(SearchAction::SearchConfirm)),
@@ -345,6 +346,9 @@ pub enum Action {
 
     /// Store current selection into clipboard.
     Copy,
+
+    /// Copy selection if present, otherwise send interrupt (\x03) to PTY.
+    CopyOrInterrupt,
 
     #[cfg(not(any(target_os = "macos", windows)))]
     #[allow(dead_code)]
@@ -1075,6 +1079,8 @@ pub fn platform_key_bindings(
         "c", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::Copy;
         "c", ModifiersState::CONTROL | ModifiersState::SHIFT,
             +BindingMode::VI; Action::ClearSelection;
+        "c", ModifiersState::CONTROL, ~BindingMode::VI, ~BindingMode::SEARCH;
+            Action::CopyOrInterrupt;
         Key::Named(Insert),   ModifiersState::SHIFT, ~BindingMode::VI; Action::PasteSelection;
         "0", ModifiersState::CONTROL;  Action::ResetFontSize;
         "=", ModifiersState::CONTROL;  Action::IncreaseFontSize;
@@ -1138,6 +1144,8 @@ pub fn platform_key_bindings(
         "v", ModifiersState::CONTROL | ModifiersState::SHIFT, ~BindingMode::VI; Action::Paste;
         "c", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::Copy;
         "c", ModifiersState::CONTROL | ModifiersState::SHIFT, +BindingMode::VI; Action::ClearSelection;
+        "c", ModifiersState::CONTROL, ~BindingMode::VI, ~BindingMode::SEARCH;
+            Action::CopyOrInterrupt;
         Key::Named(Insert), ModifiersState::SHIFT, ~BindingMode::VI; Action::PasteSelection;
         "0", ModifiersState::CONTROL; Action::ResetFontSize;
         "=", ModifiersState::CONTROL; Action::IncreaseFontSize;
@@ -1540,5 +1548,46 @@ mod tests {
         assert_eq!(new_bindings.len(), 1);
 
         assert_eq!(&new_bindings[0].action, &Action::Scroll(1));
+    }
+
+    #[test]
+    fn copy_or_interrupt_parses_from_config_string() {
+        let action: Action = String::from("copyorinterrupt").into();
+        assert_eq!(action, Action::CopyOrInterrupt);
+    }
+
+    #[test]
+    fn ctrl_c_default_binding_is_copy_or_interrupt() {
+        let bindings = bindings!(
+            KeyBinding;
+            "c", ModifiersState::CONTROL, ~BindingMode::VI, ~BindingMode::SEARCH;
+                Action::CopyOrInterrupt;
+        );
+
+        assert_eq!(bindings.len(), 1);
+        assert_eq!(bindings[0].action, Action::CopyOrInterrupt);
+        assert_eq!(bindings[0].mods, ModifiersState::CONTROL);
+    }
+
+    #[test]
+    fn copy_or_interrupt_can_be_overridden_by_config() {
+        let bindings = bindings!(
+            KeyBinding;
+            "c", ModifiersState::CONTROL, ~BindingMode::VI, ~BindingMode::SEARCH;
+                Action::CopyOrInterrupt;
+        );
+
+        // User overrides Ctrl+C to always copy
+        let config_bindings = vec![ConfigKeyBinding {
+            key: String::from("c"),
+            action: String::from("copy"),
+            with: String::from("control"),
+            esc: String::from(""),
+            mode: String::from(""),
+        }];
+
+        let new_bindings = config_key_bindings(config_bindings, bindings);
+        assert_eq!(new_bindings.len(), 1);
+        assert_eq!(new_bindings[0].action, Action::Copy);
     }
 }

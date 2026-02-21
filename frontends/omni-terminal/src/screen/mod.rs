@@ -916,6 +916,14 @@ impl Screen<'_> {
                     Act::Copy => {
                         self.copy_selection(ClipboardType::Clipboard);
                     }
+                    Act::CopyOrInterrupt => {
+                        if self.selection_is_empty() {
+                            self.paste("\x03", false);
+                        } else {
+                            self.copy_selection(ClipboardType::Clipboard);
+                            self.clear_selection();
+                        }
+                    }
                     Act::Hint(hint_config) => {
                         self.start_hint_mode(hint_config.clone());
                     }

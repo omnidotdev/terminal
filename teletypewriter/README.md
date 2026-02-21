@@ -1,3 +1,5 @@
 # Teletypewriter
 
-Rust crate to create a pseudoterminal (pty) that emulates a tty, which is a command in Unix and Unix-like operating systems to print the file name of the terminal connected to standard input. tty stands for TeleTYpewriter. This project is created and maintained for [Omni Terminal](https://github.com/omnidotdev/terminal) purposes but feel free to use it.
+Rust crate for creating pseudoterminals (PTYs). Provides the PTY layer for [Omni Terminal](https://github.com/omnidotdev/terminal).
+
+> Forked from [Rio Terminal](https://github.com/raphamorim/rio)'s teletypewriter by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.

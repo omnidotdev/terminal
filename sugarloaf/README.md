@@ -1,6 +1,8 @@
 # Sugarloaf
 
-Sugarloaf is Omni Terminal's rendering engine, designed to be multiplatform. It is based on WebGPU, Rust library for Desktops and WebAssembly for Web (JavaScript). This project is created and maintained for Omni Terminal purposes but feel free to use it.
+GPU rendering engine for [Omni Terminal](https://github.com/omnidotdev/terminal), built on WebGPU. Targets desktop (native Rust) and web (WebAssembly).
+
+> Forked from [Rio Terminal](https://github.com/raphamorim/rio)'s Sugarloaf by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.
 
 ```bash
 cargo run --example text
@@ -10,22 +12,22 @@ cargo run --example text
 
 ### Setup
 
-Install `wasm-bindgen-cli` globally: `cargo install wasm-bindgen-cli`.
-`wasm-bindgen-cli` provides a test runner harness.
+Install `wasm-bindgen-cli` globally:
+
+```bash
+cargo install wasm-bindgen-cli
+```
 
 ### Running Tests
 
-Run (in the root sugarloaf directory):
+From the root sugarloaf directory:
 
-```
+```bash
 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner cargo test --target wasm32-unknown-unknown -p sugarloaf --tests
 ```
 
 Flag explanation:
 
-- `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner`: Tells
-  Cargo to use the test harness provided by `wasm-bindgen-cli`.
-- `-p sugarloaf`: Only run tests in the sugarloaf directory.
-- `--tests`: Only run tests; do not build examples. Many (possibly all) of the
-  examples in sugarloaf/examples currently do not compile to WASM because they
-  use networking.
+- `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner` -- use the test harness provided by `wasm-bindgen-cli`
+- `-p sugarloaf` -- only run tests in the sugarloaf package
+- `--tests` -- only run tests, skip examples (some don't compile to WASM)

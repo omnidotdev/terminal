@@ -1,5 +1,5 @@
 # Corcovado
 
-Corcovado is a maintained fork of mio 0.6.x along mio-signal-hook, mio-extras and using Windows API that works in Windows 11. It uses Rust edition 2021 instead of 2018.
+Async I/O primitives for [Omni Terminal](https://github.com/omnidotdev/terminal). Uses Rust edition 2021 and the standard library for net/IO.
 
-Corcovado also uses Rust standard library for net and io instead of Mio 0.6.x.
+> Forked from [mio 0.6.x](https://github.com/tokio-rs/mio) with additions from [mio-signal-hook](https://github.com/vorner/mio-signal-hook) and [mio-extras](https://github.com/dimbleby/mio-extras). Originally adapted via [Rio Terminal](https://github.com/raphamorim/rio) by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.

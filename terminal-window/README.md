@@ -1,3 +1,5 @@
 # terminal-window
 
-Terminal window is a fork of Winit maintained only for Omni Terminal.
+Windowing layer for [Omni Terminal](https://github.com/omnidotdev/terminal).
+
+> Forked from [winit](https://github.com/rust-windowing/winit), adapted via [Rio Terminal](https://github.com/raphamorim/rio) by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.

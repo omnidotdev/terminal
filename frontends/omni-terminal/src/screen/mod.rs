@@ -11,8 +11,8 @@ pub mod touch;
 
 use crate::bindings::kitty_keyboard::build_key_sequence;
 use crate::bindings::{
-    Action as Act, BindingKey, BindingMode, FontSizeAction, MouseBinding, SearchAction,
-    ViAction,
+    Action as Act, BindingKey, BindingMode, FontSizeAction, MouseBinding, OpacityAction,
+    SearchAction, ViAction,
 };
 #[cfg(target_os = "macos")]
 use crate::constants::{DEADZONE_END_Y, DEADZONE_START_Y};
@@ -555,6 +555,27 @@ impl Screen<'_> {
 
         self.render();
         self.resize_all_contexts();
+    }
+
+    #[inline]
+    pub fn change_opacity(&mut self, action: OpacityAction) {
+        let current_opacity = self.renderer.dynamic_background.1.a as f32;
+        let step = 0.1_f32;
+
+        let new_opacity = match action {
+            OpacityAction::Increase => (current_opacity + step).min(1.0),
+            OpacityAction::Decrease => (current_opacity - step).max(0.0),
+            OpacityAction::Reset => self.renderer.config_opacity,
+        };
+
+        let has_background_image = self.sugarloaf.background_image.is_some();
+        self.renderer.set_opacity(new_opacity, has_background_image);
+
+        self.sugarloaf
+            .set_background_color(Some(self.renderer.dynamic_background.1));
+
+        self.context_manager.set_window_opacity(new_opacity);
+        self.render();
     }
 
     #[inline]
@@ -1117,6 +1138,15 @@ impl Screen<'_> {
                     }
                     Act::ResetFontSize => {
                         self.change_font_size(FontSizeAction::Reset);
+                    }
+                    Act::IncreaseOpacity => {
+                        self.change_opacity(OpacityAction::Increase);
+                    }
+                    Act::DecreaseOpacity => {
+                        self.change_opacity(OpacityAction::Decrease);
+                    }
+                    Act::ResetOpacity => {
+                        self.change_opacity(OpacityAction::Reset);
                     }
                     Act::ScrollPageUp => {
                         // Move vi mode cursor.

@@ -791,6 +791,25 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
+            TerminalEventType::Terminal(TerminalEvent::SetWindowOpacity(opacity)) => {
+                if let Some(route) = self.router.routes.get_mut(&window_id) {
+                    route.window.winit_window.set_transparent(opacity < 1.0);
+
+                    #[cfg(target_os = "macos")]
+                    {
+                        use terminal_window::platform::macos::WindowExtMacOS;
+                        let bg = self.config.colors.background.1;
+                        route.window.winit_window.set_background_color(
+                            bg.r,
+                            bg.g,
+                            bg.b,
+                            opacity as f64,
+                        );
+                    }
+
+                    route.window.winit_window.request_redraw();
+                }
+            }
             TerminalEventType::Terminal(TerminalEvent::ColorChange(route_id, index, color)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     let screen = &mut route.window.screen;

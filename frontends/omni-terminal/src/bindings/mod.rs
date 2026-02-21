@@ -23,6 +23,13 @@ pub enum FontSizeAction {
     Reset,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OpacityAction {
+    Increase,
+    Decrease,
+    Reset,
+}
+
 /// Mouse binding specific actions.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MouseAction {
@@ -235,6 +242,9 @@ impl From<String> for Action {
             "resetfontsize" => Some(Action::ResetFontSize),
             "increasefontsize" => Some(Action::IncreaseFontSize),
             "decreasefontsize" => Some(Action::DecreaseFontSize),
+            "increaseopacity" => Some(Action::IncreaseOpacity),
+            "decreaseopacity" => Some(Action::DecreaseOpacity),
+            "resetopacity" => Some(Action::ResetOpacity),
             "createwindow" => Some(Action::WindowCreateNew),
             "createtab" => Some(Action::TabCreateNew),
             "movecurrenttabtoprev" => Some(Action::MoveCurrentTabToPrev),
@@ -366,6 +376,15 @@ pub enum Action {
 
     /// Reset font size to the config value.
     ResetFontSize,
+
+    /// Increase window opacity.
+    IncreaseOpacity,
+
+    /// Decrease window opacity.
+    DecreaseOpacity,
+
+    /// Reset window opacity to the config value.
+    ResetOpacity,
 
     /// Scroll exactly one page up.
     ScrollPageUp,
@@ -990,6 +1009,9 @@ pub fn platform_key_bindings(
         "+", ModifiersState::SUPER; Action::IncreaseFontSize;
         "-", ModifiersState::SUPER; Action::DecreaseFontSize;
         "-", ModifiersState::SUPER; Action::DecreaseFontSize;
+        "0", ModifiersState::SUPER | ModifiersState::ALT; Action::ResetOpacity;
+        "=", ModifiersState::SUPER | ModifiersState::ALT; Action::IncreaseOpacity;
+        "-", ModifiersState::SUPER | ModifiersState::ALT; Action::DecreaseOpacity;
         Key::Named(Insert), ModifiersState::SHIFT, ~BindingMode::VI, ~BindingMode::SEARCH;
             Action::Esc("\x1b[2;2~".into());
         "k", ModifiersState::SUPER, ~BindingMode::VI, ~BindingMode::SEARCH;
@@ -1088,6 +1110,9 @@ pub fn platform_key_bindings(
         "+", ModifiersState::CONTROL;  Action::IncreaseFontSize;
         "-", ModifiersState::CONTROL;  Action::DecreaseFontSize;
         "-", ModifiersState::CONTROL;  Action::DecreaseFontSize;
+        "0", ModifiersState::CONTROL | ModifiersState::ALT; Action::ResetOpacity;
+        "=", ModifiersState::CONTROL | ModifiersState::ALT; Action::IncreaseOpacity;
+        "-", ModifiersState::CONTROL | ModifiersState::ALT; Action::DecreaseOpacity;
         "n", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::WindowCreateNew;
         ",", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::ConfigEditor;
 
@@ -1153,6 +1178,9 @@ pub fn platform_key_bindings(
         "+", ModifiersState::CONTROL; Action::IncreaseFontSize;
         "-", ModifiersState::CONTROL; Action::DecreaseFontSize;
         "-", ModifiersState::CONTROL; Action::DecreaseFontSize;
+        "0", ModifiersState::CONTROL | ModifiersState::ALT; Action::ResetOpacity;
+        "=", ModifiersState::CONTROL | ModifiersState::ALT; Action::IncreaseOpacity;
+        "-", ModifiersState::CONTROL | ModifiersState::ALT; Action::DecreaseOpacity;
         Key::Named(Enter), ModifiersState::ALT; Action::ToggleFullscreen;
         "n", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::WindowCreateNew;
         ",", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::ConfigEditor;

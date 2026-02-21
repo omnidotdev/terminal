@@ -624,6 +624,12 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     }
 
     #[inline]
+    pub fn set_window_opacity(&mut self, opacity: f32) {
+        self.event_proxy
+            .send_event(TerminalEvent::SetWindowOpacity(opacity), self.window_id);
+    }
+
+    #[inline]
     pub fn minimize(&mut self) {
         self.event_proxy
             .send_event(TerminalEvent::Minimize(true), self.window_id);

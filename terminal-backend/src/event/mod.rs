@@ -78,6 +78,7 @@ pub enum TerminalEvent {
     UpdateFontSize(u8),
     Scroll(Scroll),
     ToggleFullScreen,
+    SetWindowOpacity(f32),
     Minimize(bool),
     Hide,
     HideOtherApplications,
@@ -217,6 +218,7 @@ impl Debug for TerminalEvent {
                 write!(f, "ReportToAssistant({})", error_report.report)
             }
             TerminalEvent::ToggleFullScreen => write!(f, "FullScreen"),
+            TerminalEvent::SetWindowOpacity(opacity) => write!(f, "SetWindowOpacity({opacity})"),
             TerminalEvent::BlinkCursor(timeout, route_id) => {
                 write!(f, "BlinkCursor {timeout} {route_id}")
             }

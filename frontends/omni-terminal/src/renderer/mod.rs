@@ -61,6 +61,7 @@ pub struct Renderer {
     // Dynamic background keep track of the original bg color and
     // the same r,g,b with the mutated alpha channel.
     pub dynamic_background: ([f32; 4], wgpu::Color, bool),
+    pub config_opacity: f32,
     // Visual bell state
     visual_bell_active: bool,
     visual_bell_start: Option<std::time::Instant>,
@@ -118,6 +119,7 @@ impl Renderer {
             ),
             named_colors,
             dynamic_background,
+            config_opacity: config.window.opacity,
             visual_bell_active: false,
             visual_bell_start: None,
             search: Search::default(),
@@ -729,6 +731,31 @@ impl Renderer {
     #[inline]
     pub fn set_vi_mode(&mut self, is_vi_mode_enabled: bool) {
         self.is_vi_mode_enabled = is_vi_mode_enabled;
+    }
+
+    #[inline]
+    pub fn set_opacity(&mut self, opacity: f32, has_background_image: bool) {
+        let bg = self.dynamic_background.0;
+        if opacity < 1.0 {
+            self.dynamic_background.1 = wgpu::Color {
+                r: bg[0] as f64,
+                g: bg[1] as f64,
+                b: bg[2] as f64,
+                a: opacity as f64,
+            };
+            self.dynamic_background.2 = true;
+        } else if has_background_image {
+            self.dynamic_background.1 = wgpu::Color::TRANSPARENT;
+            self.dynamic_background.2 = true;
+        } else {
+            self.dynamic_background.1 = wgpu::Color {
+                r: bg[0] as f64,
+                g: bg[1] as f64,
+                b: bg[2] as f64,
+                a: 1.0,
+            };
+            self.dynamic_background.2 = false;
+        }
     }
 
     /// Trigger the visual bell

@@ -172,7 +172,7 @@ fn connect_ws(
     let ws = web_sys::WebSocket::new(&url).expect("Failed to create WebSocket");
     ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
 
-    // on_open — create a new PTY session
+    // on_open — reattach to a previous session or create a new one
     {
         let ws_state = ws_state.clone();
         let grid = grid.clone();
@@ -181,14 +181,28 @@ fn connect_ws(
             state.backoff_ms = 0; // Reset backoff on successful connect
 
             let grid = grid.borrow();
-            let create_msg = format!(
-                r#"{{"type":"create","cols":{},"rows":{}}}"#,
-                grid.cols, grid.rows
-            );
-            if let Some(ref ws) = state.ws {
-                let _ = ws.send_with_str(&create_msg);
+
+            if let Some(sid) = state.session_id {
+                // Try to reattach to previous session
+                let attach_msg = format!(
+                    r#"{{"type":"attach","session_id":"{}"}}"#,
+                    uuid::Uuid::from_bytes(sid)
+                );
+                if let Some(ref ws) = state.ws {
+                    let _ = ws.send_with_str(&attach_msg);
+                }
+                log::info!("WebSocket connected, attempting to reattach session");
+            } else {
+                // No previous session — create new
+                let create_msg = format!(
+                    r#"{{"type":"create","cols":{},"rows":{}}}"#,
+                    grid.cols, grid.rows
+                );
+                if let Some(ref ws) = state.ws {
+                    let _ = ws.send_with_str(&create_msg);
+                }
+                log::info!("WebSocket connected, creating session");
             }
-            log::info!("WebSocket connected, creating session");
         });
         ws.set_onopen(Some(on_open.as_ref().unchecked_ref()));
         on_open.forget();
@@ -208,7 +222,9 @@ fn connect_ws(
                         let msg_type = js_sys::Reflect::get(&msg, &"type".into())
                             .ok()
                             .and_then(|v| v.as_string());
-                        if msg_type.as_deref() == Some("created") {
+                        if msg_type.as_deref() == Some("created")
+                            || msg_type.as_deref() == Some("attached")
+                        {
                             if let Some(sid) =
                                 js_sys::Reflect::get(&msg, &"session_id".into())
                                     .ok()
@@ -217,9 +233,27 @@ fn connect_ws(
                                 if let Ok(uuid) = uuid::Uuid::parse_str(&sid) {
                                     ws_state.borrow_mut().session_id =
                                         Some(*uuid.as_bytes());
-                                    log::info!("Session created: {sid}");
+                                    log::info!(
+                                        "Session {}: {sid}",
+                                        msg_type.as_deref().unwrap_or("unknown")
+                                    );
                                 }
                             }
+                        }
+
+                        // Attach failed — clear stale session_id and create fresh
+                        if msg_type.as_deref() == Some("error") {
+                            ws_state.borrow_mut().session_id = None;
+                            let grid = grid.borrow();
+                            let create_msg = format!(
+                                r#"{{"type":"create","cols":{},"rows":{}}}"#,
+                                grid.cols, grid.rows
+                            );
+                            let state = ws_state.borrow();
+                            if let Some(ref ws) = state.ws {
+                                let _ = ws.send_with_str(&create_msg);
+                            }
+                            log::info!("Attach failed, creating new session");
                         }
                     }
                     return;
@@ -272,8 +306,6 @@ fn schedule_reconnect(
     grid: &Rc<RefCell<TerminalGrid>>,
 ) {
     let mut state = ws_state.borrow_mut();
-    // Clear stale session
-    state.session_id = None;
     // Exponential backoff: 1s, 2s, 4s, 8s, ... max 30s
     state.backoff_ms = if state.backoff_ms == 0 {
         1000

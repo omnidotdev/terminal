@@ -1,17 +1,64 @@
 use dashmap::DashMap;
 use std::io::{Read, Write};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use teletypewriter::create_pty_with_spawn;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
+const MAX_BUFFER_SIZE: usize = 1024 * 1024; // 1 MB
+
 pub type SessionId = Uuid;
+
+pub struct SessionOutput {
+    buffer: Vec<u8>,
+    sender: Option<mpsc::UnboundedSender<Vec<u8>>>,
+}
+
+impl SessionOutput {
+    fn new(sender: mpsc::UnboundedSender<Vec<u8>>) -> Self {
+        Self {
+            buffer: Vec::new(),
+            sender: Some(sender),
+        }
+    }
+
+    pub fn write(&mut self, data: &[u8]) {
+        if let Some(ref sender) = self.sender {
+            if sender.send(data.to_vec()).is_err() {
+                self.sender = None;
+                self.buffer_data(data);
+            }
+        } else {
+            self.buffer_data(data);
+        }
+    }
+
+    fn buffer_data(&mut self, data: &[u8]) {
+        self.buffer.extend_from_slice(data);
+        if self.buffer.len() > MAX_BUFFER_SIZE {
+            let excess = self.buffer.len() - MAX_BUFFER_SIZE;
+            self.buffer.drain(..excess);
+        }
+    }
+
+    pub fn attach(&mut self, sender: mpsc::UnboundedSender<Vec<u8>>) -> Vec<u8> {
+        self.sender = Some(sender);
+        std::mem::take(&mut self.buffer)
+    }
+
+    pub fn detach(&mut self) {
+        self.sender = None;
+    }
+}
 
 pub struct Session {
     pub pty_writer: std::fs::File,
     pub child_pid: i32,
     pub cols: u16,
     pub rows: u16,
+    pub output: Arc<Mutex<SessionOutput>>,
+    pub disconnected_at: Option<Instant>,
     reader_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
@@ -81,10 +128,11 @@ impl SessionManager {
             std::fs::File::from_raw_fd(write_fd)
         };
 
-        let (output_tx, output_rx) = mpsc::unbounded_channel();
+        let (tx, output_rx) = mpsc::unbounded_channel();
+        let output = Arc::new(Mutex::new(SessionOutput::new(tx)));
 
         // Spawn PTY reader task with pre-dup'd fd
-        let tx = output_tx;
+        let output_clone = Arc::clone(&output);
         let reader_handle = tokio::task::spawn_blocking(move || {
             let mut reader = unsafe {
                 use std::os::unix::io::FromRawFd;
@@ -95,9 +143,7 @@ impl SessionManager {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        if tx.send(buf[..n].to_vec()).is_err() {
-                            break;
-                        }
+                        output_clone.lock().unwrap().write(&buf[..n]);
                     }
                     Err(e) => {
                         // EIO means PTY closed (child exited)
@@ -116,6 +162,8 @@ impl SessionManager {
             child_pid,
             cols,
             rows,
+            output,
+            disconnected_at: None,
             reader_handle: Some(reader_handle),
         };
 
@@ -164,6 +212,49 @@ impl SessionManager {
             Ok(())
         } else {
             Err(format!("Session {session_id} not found"))
+        }
+    }
+
+    pub fn attach_session(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<(mpsc::UnboundedReceiver<Vec<u8>>, Vec<u8>), String> {
+        if let Some(mut session) = self.sessions.get_mut(session_id) {
+            let (tx, rx) = mpsc::unbounded_channel();
+            let buffered = session.output.lock().unwrap().attach(tx);
+            session.disconnected_at = None;
+            Ok((rx, buffered))
+        } else {
+            Err(format!("Session {session_id} not found"))
+        }
+    }
+
+    pub fn detach_session(&self, session_id: &SessionId) {
+        if let Some(mut session) = self.sessions.get_mut(session_id) {
+            session.output.lock().unwrap().detach();
+            session.disconnected_at = Some(Instant::now());
+            tracing::info!("Session {session_id} detached, PTY kept alive");
+        }
+    }
+
+    pub fn reap_stale_sessions(&self, max_disconnect_duration: std::time::Duration) {
+        let now = Instant::now();
+        let stale: Vec<SessionId> = self
+            .sessions
+            .iter()
+            .filter_map(|entry| {
+                if let Some(disconnected_at) = entry.value().disconnected_at {
+                    if now.duration_since(disconnected_at) > max_disconnect_duration {
+                        return Some(*entry.key());
+                    }
+                }
+                None
+            })
+            .collect();
+
+        for session_id in stale {
+            self.close_session(&session_id);
+            tracing::info!("Reaped stale session {session_id}");
         }
     }
 

@@ -33,6 +33,16 @@ async fn main() {
         session_manager: SessionManager::default(),
     };
 
+    // Spawn reaper task to clean up stale disconnected sessions
+    let reaper_manager = state.session_manager.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(10));
+        loop {
+            interval.tick().await;
+            reaper_manager.reap_stale_sessions(std::time::Duration::from_secs(60));
+        }
+    });
+
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .fallback_service(ServeDir::new("frontends/wasm"))
@@ -131,10 +141,10 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         }
     }
 
-    // Clean up active session on disconnect
+    // Detach session on disconnect, keeping PTY alive for reconnection
     if let Some(session_id) = active_session {
-        tracing::info!("WebSocket disconnected, closing session {session_id}");
-        manager.close_session(&session_id);
+        tracing::info!("WebSocket disconnected, detaching session {session_id}");
+        manager.detach_session(&session_id);
     }
 }
 
@@ -197,6 +207,36 @@ async fn handle_control_message(
                 .unwrap_or(24) as u16;
 
             manager.resize_session(&session_id, cols, rows)?;
+            Ok(true)
+        }
+        "attach" => {
+            let session_id_str = msg
+                .get("session_id")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing session_id")?;
+            let session_id: SessionId = session_id_str
+                .parse()
+                .map_err(|_| "Invalid session_id")?;
+
+            let (rx, buffered) = manager.attach_session(&session_id)?;
+            *active_session = Some(session_id);
+            *output_rx = Some(rx);
+
+            // Send buffered output first
+            if !buffered.is_empty() {
+                let mut frame = session_id.as_bytes().to_vec();
+                frame.extend_from_slice(&buffered);
+                let _ = ws_sender.send(Message::Binary(frame.into())).await;
+            }
+
+            let response = serde_json::json!({
+                "type": "attached",
+                "session_id": session_id.to_string(),
+            });
+            let _ = ws_sender
+                .send(Message::Text(response.to_string().into()))
+                .await;
+
             Ok(true)
         }
         "close" => {

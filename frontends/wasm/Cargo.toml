@@ -49,6 +49,7 @@ web-sys = { version = "0.3.62", features = [
     "HtmlDivElement",
     "CssStyleDeclaration",
     "HtmlElement",
+    "HtmlSpanElement",
     "InputEvent",
 ] }
 console_log = { workspace = true }

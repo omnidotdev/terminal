@@ -14,6 +14,9 @@ use terminal::{MouseMode, TerminalGrid};
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, HtmlDivElement, HtmlTextAreaElement};
 
+/// Height of the tab bar in CSS pixels
+const TAB_BAR_HEIGHT: u32 = 28;
+
 fn get_or_create_canvas() -> (HtmlCanvasElement, u32) {
     let window = web_sys::window().expect("no window");
     let document = window.document().expect("no document");
@@ -40,7 +43,7 @@ fn get_or_create_canvas() -> (HtmlCanvasElement, u32) {
     canvas
         .set_attribute(
             "style",
-            "width: 100vw; height: 100vh; display: block;",
+            &format!("width: 100vw; height: calc(100vh - {}px); display: block;", TAB_BAR_HEIGHT),
         )
         .unwrap();
 
@@ -62,7 +65,7 @@ fn create_ime_elements() -> (HtmlTextAreaElement, HtmlDivElement) {
     let document = window.document().expect("no document");
     let body = document.body().expect("no body");
 
-    // Hidden textarea — the OS sends composition events here
+    // Hidden textarea -- the OS sends composition events here
     let textarea: HtmlTextAreaElement = document
         .create_element("textarea")
         .unwrap()
@@ -80,7 +83,7 @@ fn create_ime_elements() -> (HtmlTextAreaElement, HtmlDivElement) {
     textarea.set_attribute("spellcheck", "false").unwrap();
     body.append_child(&textarea).unwrap();
 
-    // Preedit overlay — show the composition string during active IME input
+    // Preedit overlay -- show the composition string during active IME input
     let overlay: HtmlDivElement = document
         .create_element("div")
         .unwrap()
@@ -116,7 +119,6 @@ fn ws_url() -> String {
 /// Shared state for the WebSocket connection, accessible by all handlers
 struct WsState {
     ws: Option<web_sys::WebSocket>,
-    session_id: Option<[u8; 16]>,
     backoff_ms: u32,
 }
 
@@ -126,6 +128,98 @@ struct MouseState {
     last_col: usize,
     last_row: usize,
     buttons_down: u8,
+}
+
+/// Single terminal tab with its own session, grid, and parser
+struct Tab {
+    session_id: Option<[u8; 16]>,
+    grid: TerminalGrid,
+    parser: copa::Parser,
+    title: String,
+}
+
+/// Manage multiple terminal tabs
+struct TabManager {
+    tabs: Vec<Tab>,
+    active: usize,
+}
+
+impl TabManager {
+    /// Create a new TabManager with one initial tab
+    fn new(cols: usize, rows: usize) -> Self {
+        let tab = Tab {
+            session_id: None,
+            grid: TerminalGrid::new(cols, rows),
+            parser: copa::Parser::new(),
+            title: "Tab 1".to_string(),
+        };
+        Self {
+            tabs: vec![tab],
+            active: 0,
+        }
+    }
+
+    fn active_tab(&self) -> &Tab {
+        &self.tabs[self.active]
+    }
+
+    fn active_tab_mut(&mut self) -> &mut Tab {
+        &mut self.tabs[self.active]
+    }
+
+    /// Add a new tab, returning its index
+    fn add_tab(&mut self, cols: usize, rows: usize) -> usize {
+        let idx = self.tabs.len();
+        let tab = Tab {
+            session_id: None,
+            grid: TerminalGrid::new(cols, rows),
+            parser: copa::Parser::new(),
+            title: format!("Tab {}", idx + 1),
+        };
+        self.tabs.push(tab);
+        idx
+    }
+
+    /// Close tab at index, returning its session_id for cleanup.
+    /// Returns None if this is the last tab (refuses to close).
+    fn close_tab(&mut self, idx: usize) -> Option<[u8; 16]> {
+        if self.tabs.len() <= 1 {
+            return None;
+        }
+        if idx >= self.tabs.len() {
+            return None;
+        }
+        let tab = self.tabs.remove(idx);
+        // Adjust active index
+        if self.active >= self.tabs.len() {
+            self.active = self.tabs.len() - 1;
+        } else if self.active > idx {
+            self.active -= 1;
+        }
+        tab.session_id
+    }
+
+    fn switch_to(&mut self, idx: usize) {
+        if idx < self.tabs.len() {
+            self.active = idx;
+            // Mark new active tab dirty so it gets rendered
+            self.tabs[self.active].grid.dirty = true;
+        }
+    }
+
+    /// Route PTY output to the tab with the matching session_id
+    fn route_output(&mut self, session_id: &[u8; 16], data: &[u8]) {
+        for tab in &mut self.tabs {
+            if tab.session_id.as_ref() == Some(session_id) {
+                tab.parser.advance(&mut tab.grid, data);
+                return;
+            }
+        }
+    }
+
+    fn tab_count(&self) -> usize {
+        self.tabs.len()
+    }
 }
 
 /// Extract X11-style modifier bitmask from a browser mouse event
@@ -163,56 +257,250 @@ fn pixel_to_cell(offset_x: i32, offset_y: i32, cell_width: f32, cell_height: f32
     (col, row)
 }
 
+/// Create the tab bar DOM element above the canvas
+fn create_tab_bar() {
+    let document = web_sys::window().unwrap().document().unwrap();
+    let body = document.body().unwrap();
+
+    let tab_bar: HtmlDivElement = document
+        .create_element("div")
+        .unwrap()
+        .unchecked_into();
+    tab_bar.set_id("tab-bar");
+    tab_bar
+        .set_attribute(
+            "style",
+            &format!(
+                "display: flex; background: #1a1a2e; border-bottom: 1px solid #333; height: {}px; align-items: center; padding: 0 4px; gap: 2px; user-select: none; flex-shrink: 0;",
+                TAB_BAR_HEIGHT
+            ),
+        )
+        .unwrap();
+
+    // Insert tab bar before the canvas (first child of body)
+    let first_child = body.first_child();
+    body.insert_before(&tab_bar, first_child.as_ref()).unwrap();
+}
+
+/// Rebuild the tab bar buttons from current TabManager state.
+/// Captures `tabs` and `ws_state` to wire click handlers.
+fn rebuild_tab_bar(
+    tabs: &Rc<RefCell<TabManager>>,
+    ws_state: &Rc<RefCell<WsState>>,
+) {
+    let document = web_sys::window().unwrap().document().unwrap();
+    let Some(tab_bar) = document.get_element_by_id("tab-bar") else {
+        return;
+    };
+
+    // Clear existing buttons
+    tab_bar.set_inner_html("");
+
+    let tabs_ref = tabs.borrow();
+    let tab_count = tabs_ref.tab_count();
+    let active = tabs_ref.active;
+
+    for i in 0..tab_count {
+        let title = &tabs_ref.tabs[i].title;
+        let is_active = i == active;
+
+        // Tab button container
+        let tab_btn: HtmlDivElement = document
+            .create_element("div")
+            .unwrap()
+            .unchecked_into();
+
+        let bg = if is_active { "#2a2a4e" } else { "transparent" };
+        tab_btn
+            .set_attribute(
+                "style",
+                &format!(
+                    "padding: 4px 12px; cursor: pointer; color: #ccc; font-family: monospace; font-size: 12px; border-radius: 4px 4px 0 0; background: {}; display: flex; align-items: center; gap: 6px;",
+                    bg
+                ),
+            )
+            .unwrap();
+
+        // Tab label span
+        let label: web_sys::HtmlSpanElement = document
+            .create_element("span")
+            .unwrap()
+            .unchecked_into();
+        label.set_text_content(Some(title));
+
+        // Click on label/tab to switch
+        {
+            let tabs = tabs.clone();
+            let ws_state = ws_state.clone();
+            let on_click = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+                move |event: web_sys::MouseEvent| {
+                    event.stop_propagation();
+                    tabs.borrow_mut().switch_to(i);
+                    rebuild_tab_bar(&tabs, &ws_state);
+                },
+            );
+            let target: &web_sys::EventTarget = label.as_ref();
+            target
+                .add_event_listener_with_callback("click", on_click.as_ref().unchecked_ref())
+                .unwrap();
+            on_click.forget();
+        }
+
+        tab_btn.append_child(&label).unwrap();
+
+        // Close button (only if more than 1 tab)
+        if tab_count > 1 {
+            let close_btn: web_sys::HtmlSpanElement = document
+                .create_element("span")
+                .unwrap()
+                .unchecked_into();
+            close_btn.set_text_content(Some("\u{00d7}")); // multiplication sign as close icon
+            close_btn
+                .set_attribute(
+                    "style",
+                    "cursor: pointer; color: #888; font-size: 14px; line-height: 1; padding: 0 2px;",
+                )
+                .unwrap();
+
+            let tabs = tabs.clone();
+            let ws_state = ws_state.clone();
+            let on_close = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+                move |event: web_sys::MouseEvent| {
+                    event.stop_propagation();
+                    let sid = tabs.borrow_mut().close_tab(i);
+                    if let Some(sid) = sid {
+                        // Send close message to server
+                        let close_msg = format!(
+                            r#"{{"type":"close","session_id":"{}"}}"#,
+                            uuid::Uuid::from_bytes(sid)
+                        );
+                        let state = ws_state.borrow();
+                        if let Some(ref ws) = state.ws {
+                            if ws.ready_state() == web_sys::WebSocket::OPEN {
+                                let _ = ws.send_with_str(&close_msg);
+                            }
+                        }
+                        drop(state);
+                    }
+                    rebuild_tab_bar(&tabs, &ws_state);
+                },
+            );
+            let target: &web_sys::EventTarget = close_btn.as_ref();
+            target
+                .add_event_listener_with_callback("click", on_close.as_ref().unchecked_ref())
+                .unwrap();
+            on_close.forget();
+
+            tab_btn.append_child(&close_btn).unwrap();
+        }
+
+        tab_bar.append_child(&tab_btn).unwrap();
+    }
+
+    // "+" button to add a new tab
+    let add_btn: HtmlDivElement = document
+        .create_element("div")
+        .unwrap()
+        .unchecked_into();
+    add_btn
+        .set_attribute(
+            "style",
+            "padding: 4px 8px; cursor: pointer; color: #888; font-family: monospace; font-size: 14px; border-radius: 4px 4px 0 0;",
+        )
+        .unwrap();
+    add_btn.set_text_content(Some("+"));
+
+    {
+        let tabs = tabs.clone();
+        let ws_state = ws_state.clone();
+        let on_add = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+            move |_event: web_sys::MouseEvent| {
+                // Grab dimensions from the active tab
+                let (cols, rows) = {
+                    let tabs_ref = tabs.borrow();
+                    let active = tabs_ref.active_tab();
+                    (active.grid.cols, active.grid.rows)
+                };
+                let new_idx = tabs.borrow_mut().add_tab(cols, rows);
+                tabs.borrow_mut().switch_to(new_idx);
+
+                // Send create message for the new tab
+                let create_msg = format!(
+                    r#"{{"type":"create","cols":{},"rows":{}}}"#,
+                    cols, rows
+                );
+                let state = ws_state.borrow();
+                if let Some(ref ws) = state.ws {
+                    if ws.ready_state() == web_sys::WebSocket::OPEN {
+                        let _ = ws.send_with_str(&create_msg);
+                    }
+                }
+                drop(state);
+
+                rebuild_tab_bar(&tabs, &ws_state);
+            },
+        );
+        let target: &web_sys::EventTarget = add_btn.as_ref();
+        target
+            .add_event_listener_with_callback("click", on_add.as_ref().unchecked_ref())
+            .unwrap();
+        on_add.forget();
+    }
+
+    tab_bar.append_child(&add_btn).unwrap();
+}
+
 /// Connect or reconnect the WebSocket with auto-reconnect on close/error
 fn connect_ws(
     ws_state: &Rc<RefCell<WsState>>,
-    grid: &Rc<RefCell<TerminalGrid>>,
+    tabs: &Rc<RefCell<TabManager>>,
 ) {
     let url = ws_url();
     let ws = web_sys::WebSocket::new(&url).expect("Failed to create WebSocket");
     ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
 
-    // on_open — reattach to a previous session or create a new one
+    // on_open -- reattach all tabs with existing sessions, create for tabs without
     {
         let ws_state = ws_state.clone();
-        let grid = grid.clone();
+        let tabs = tabs.clone();
         let on_open = Closure::<dyn FnMut()>::new(move || {
-            let mut state = ws_state.borrow_mut();
-            state.backoff_ms = 0; // Reset backoff on successful connect
+            ws_state.borrow_mut().backoff_ms = 0; // Reset backoff on successful connect
 
-            let grid = grid.borrow();
+            let tabs_ref = tabs.borrow();
+            let state = ws_state.borrow();
 
-            if let Some(sid) = state.session_id {
-                // Try to reattach to previous session
-                let attach_msg = format!(
-                    r#"{{"type":"attach","session_id":"{}"}}"#,
-                    uuid::Uuid::from_bytes(sid)
-                );
-                if let Some(ref ws) = state.ws {
-                    let _ = ws.send_with_str(&attach_msg);
+            for tab in &tabs_ref.tabs {
+                if let Some(sid) = tab.session_id {
+                    let attach_msg = format!(
+                        r#"{{"type":"attach","session_id":"{}"}}"#,
+                        uuid::Uuid::from_bytes(sid)
+                    );
+                    if let Some(ref ws) = state.ws {
+                        let _ = ws.send_with_str(&attach_msg);
+                    }
+                } else {
+                    let create_msg = format!(
+                        r#"{{"type":"create","cols":{},"rows":{}}}"#,
+                        tab.grid.cols, tab.grid.rows
+                    );
+                    if let Some(ref ws) = state.ws {
+                        let _ = ws.send_with_str(&create_msg);
+                    }
                 }
-                log::info!("WebSocket connected, attempting to reattach session");
-            } else {
-                // No previous session — create new
-                let create_msg = format!(
-                    r#"{{"type":"create","cols":{},"rows":{}}}"#,
-                    grid.cols, grid.rows
-                );
-                if let Some(ref ws) = state.ws {
-                    let _ = ws.send_with_str(&create_msg);
-                }
-                log::info!("WebSocket connected, creating session");
             }
+            log::info!(
+                "WebSocket connected, reattaching/creating {} tab(s)",
+                tabs_ref.tabs.len()
+            );
         });
         ws.set_onopen(Some(on_open.as_ref().unchecked_ref()));
         on_open.forget();
     }
 
-    // on_message — process PTY output
+    // on_message -- process PTY output
     {
         let ws_state = ws_state.clone();
-        let grid = grid.clone();
-        let mut parser = copa::Parser::new();
+        let tabs = tabs.clone();
         let on_message = Closure::<dyn FnMut(web_sys::MessageEvent)>::new(
             move |event: web_sys::MessageEvent| {
                 // Text messages are control responses (JSON)
@@ -222,32 +510,48 @@ fn connect_ws(
                         let msg_type = js_sys::Reflect::get(&msg, &"type".into())
                             .ok()
                             .and_then(|v| v.as_string());
-                        if msg_type.as_deref() == Some("created")
-                            || msg_type.as_deref() == Some("attached")
-                        {
+                        // New session -- assign to the first tab without a session_id
+                        if msg_type.as_deref() == Some("created") {
                             if let Some(sid) =
                                 js_sys::Reflect::get(&msg, &"session_id".into())
                                     .ok()
                                     .and_then(|v| v.as_string())
                             {
                                 if let Ok(uuid) = uuid::Uuid::parse_str(&sid) {
-                                    ws_state.borrow_mut().session_id =
+                                    let mut tabs_ref = tabs.borrow_mut();
+                                    let target_idx = tabs_ref.tabs.iter()
+                                        .position(|t| t.session_id.is_none())
+                                        .unwrap_or(tabs_ref.active);
+                                    tabs_ref.tabs[target_idx].session_id =
                                         Some(*uuid.as_bytes());
-                                    log::info!(
-                                        "Session {}: {sid}",
-                                        msg_type.as_deref().unwrap_or("unknown")
-                                    );
+                                    log::info!("Session created: {sid}");
                                 }
                             }
                         }
 
-                        // Attach failed — clear stale session_id and create fresh
+                        // Reattached -- tab already has the correct session_id
+                        if msg_type.as_deref() == Some("attached") {
+                            if let Some(sid) =
+                                js_sys::Reflect::get(&msg, &"session_id".into())
+                                    .ok()
+                                    .and_then(|v| v.as_string())
+                            {
+                                log::info!("Session reattached: {sid}");
+                            }
+                        }
+
+                        // Attach failed -- clear stale session_id and create fresh
                         if msg_type.as_deref() == Some("error") {
-                            ws_state.borrow_mut().session_id = None;
-                            let grid = grid.borrow();
+                            let mut tabs_ref = tabs.borrow_mut();
+                            let active = tabs_ref.active_tab_mut();
+                            active.session_id = None;
+                            let cols = active.grid.cols;
+                            let rows = active.grid.rows;
+                            drop(tabs_ref);
+
                             let create_msg = format!(
                                 r#"{{"type":"create","cols":{},"rows":{}}}"#,
-                                grid.cols, grid.rows
+                                cols, rows
                             );
                             let state = ws_state.borrow();
                             if let Some(ref ws) = state.ws {
@@ -264,9 +568,9 @@ fn connect_ws(
                     let array = js_sys::Uint8Array::new(&buffer);
                     let data = array.to_vec();
                     if data.len() > 16 {
+                        let sid: [u8; 16] = data[..16].try_into().unwrap();
                         let pty_output = &data[16..];
-                        let mut grid = grid.borrow_mut();
-                        parser.advance(&mut *grid, pty_output);
+                        tabs.borrow_mut().route_output(&sid, pty_output);
                     }
                 }
             },
@@ -275,13 +579,13 @@ fn connect_ws(
         on_message.forget();
     }
 
-    // on_close / on_error — schedule reconnect with exponential backoff
+    // on_close / on_error -- schedule reconnect with exponential backoff
     {
         let ws_state_close = ws_state.clone();
-        let grid_close = grid.clone();
+        let tabs_close = tabs.clone();
         let on_close = Closure::<dyn FnMut()>::new(move || {
             log::info!("WebSocket closed, scheduling reconnect");
-            schedule_reconnect(&ws_state_close, &grid_close);
+            schedule_reconnect(&ws_state_close, &tabs_close);
         });
         ws.set_onclose(Some(on_close.as_ref().unchecked_ref()));
         on_close.forget();
@@ -289,10 +593,10 @@ fn connect_ws(
 
     {
         let ws_state_err = ws_state.clone();
-        let grid_err = grid.clone();
+        let tabs_err = tabs.clone();
         let on_error = Closure::<dyn FnMut()>::new(move || {
             log::info!("WebSocket error, scheduling reconnect");
-            schedule_reconnect(&ws_state_err, &grid_err);
+            schedule_reconnect(&ws_state_err, &tabs_err);
         });
         ws.set_onerror(Some(on_error.as_ref().unchecked_ref()));
         on_error.forget();
@@ -303,7 +607,7 @@ fn connect_ws(
 
 fn schedule_reconnect(
     ws_state: &Rc<RefCell<WsState>>,
-    grid: &Rc<RefCell<TerminalGrid>>,
+    tabs: &Rc<RefCell<TabManager>>,
 ) {
     let mut state = ws_state.borrow_mut();
     // Exponential backoff: 1s, 2s, 4s, 8s, ... max 30s
@@ -316,9 +620,9 @@ fn schedule_reconnect(
     drop(state);
 
     let ws_state = ws_state.clone();
-    let grid = grid.clone();
+    let tabs = tabs.clone();
     let cb = Closure::<dyn FnMut()>::new(move || {
-        connect_ws(&ws_state, &grid);
+        connect_ws(&ws_state, &tabs);
     });
     web_sys::window()
         .unwrap()
@@ -333,11 +637,8 @@ fn schedule_reconnect(
 }
 
 /// Send bytes over the WebSocket with session UUID prefix
-fn ws_send_binary(ws_state: &RefCell<WsState>, payload: &[u8]) {
+fn ws_send_binary(ws_state: &RefCell<WsState>, session_id: &[u8; 16], payload: &[u8]) {
     let state = ws_state.borrow();
-    let Some(sid) = state.session_id.as_ref() else {
-        return;
-    };
     let Some(ref ws) = state.ws else {
         return;
     };
@@ -345,7 +646,7 @@ fn ws_send_binary(ws_state: &RefCell<WsState>, payload: &[u8]) {
         return;
     }
 
-    let mut frame = sid.to_vec();
+    let mut frame = session_id.to_vec();
     frame.extend_from_slice(payload);
     let array = js_sys::Uint8Array::from(&frame[..]);
     let _ = ws.send_with_array_buffer_view(&array);
@@ -361,6 +662,9 @@ pub fn run() {
 }
 
 async fn async_main() {
+    // Create tab bar first so canvas sits below it
+    create_tab_bar();
+
     let (canvas, canvas_id) = get_or_create_canvas();
     let (ime_textarea, ime_overlay) = create_ime_elements();
     let window = web_sys::window().unwrap();
@@ -391,7 +695,7 @@ async fn async_main() {
 
     let rt_id = sugarloaf.create_rich_text();
 
-    // Calculate cell dimensions once (stable — based on font size, not surface size)
+    // Calculate cell dimensions once (stable -- based on font size, not surface size)
     let dims = sugarloaf.get_rich_text_dimensions(&rt_id);
     let cell_width = dims.width * dpr;
     let cell_height = dims.height * dpr;
@@ -409,7 +713,7 @@ async fn async_main() {
 
     log::info!("Terminal dimensions: {cols}x{rows} (cell: {cell_width}x{cell_height})");
 
-    let grid = Rc::new(RefCell::new(TerminalGrid::new(cols, rows)));
+    let tabs = Rc::new(RefCell::new(TabManager::new(cols, rows)));
 
     sugarloaf.set_background_color(Some(wgpu::Color {
         r: 0.05,
@@ -421,26 +725,83 @@ async fn async_main() {
     // WebSocket connection with auto-reconnect
     let ws_state = Rc::new(RefCell::new(WsState {
         ws: None,
-        session_id: None,
         backoff_ms: 0,
     }));
-    connect_ws(&ws_state, &grid);
+    connect_ws(&ws_state, &tabs);
 
-    // IME composition state — shared between keyboard and composition handlers
+    // Build the initial tab bar
+    rebuild_tab_bar(&tabs, &ws_state);
+
+    // IME composition state -- shared between keyboard and composition handlers
     let is_composing = Rc::new(RefCell::new(false));
 
-    // Keyboard handler — send input to WebSocket
+    // Keyboard handler -- send input to WebSocket
     {
         let ws_state_key = ws_state.clone();
+        let tabs_key = tabs.clone();
         let ws_state_paste = ws_state.clone();
+        let tabs_paste = tabs.clone();
         let canvas_element: web_sys::EventTarget = canvas.clone().into();
         let textarea_target: web_sys::EventTarget = ime_textarea.clone().into();
+
+        // Tab keyboard shortcuts
+        let tabs_shortcut = tabs.clone();
+        let ws_state_shortcut = ws_state.clone();
 
         let is_composing_ref = is_composing.clone();
         let on_keydown = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(
             move |event: web_sys::KeyboardEvent| {
                 // Skip during IME composition
                 if *is_composing_ref.borrow() {
+                    return;
+                }
+
+                // Ctrl+T: create new tab
+                if event.ctrl_key() && event.key() == "t" {
+                    event.prevent_default();
+                    let (cols, rows) = {
+                        let tabs_ref = tabs_shortcut.borrow();
+                        let active = tabs_ref.active_tab();
+                        (active.grid.cols, active.grid.rows)
+                    };
+                    let new_idx = tabs_shortcut.borrow_mut().add_tab(cols, rows);
+                    tabs_shortcut.borrow_mut().switch_to(new_idx);
+
+                    // Send create message for the new tab
+                    let create_msg = format!(
+                        r#"{{"type":"create","cols":{},"rows":{}}}"#,
+                        cols, rows
+                    );
+                    let state = ws_state_shortcut.borrow();
+                    if let Some(ref ws) = state.ws {
+                        if ws.ready_state() == web_sys::WebSocket::OPEN {
+                            let _ = ws.send_with_str(&create_msg);
+                        }
+                    }
+                    drop(state);
+
+                    rebuild_tab_bar(&tabs_shortcut, &ws_state_shortcut);
+                    return;
+                }
+
+                // Ctrl+W: close active tab
+                if event.ctrl_key() && event.key() == "w" {
+                    event.prevent_default();
+                    let active_idx = tabs_shortcut.borrow().active;
+                    let sid = tabs_shortcut.borrow_mut().close_tab(active_idx);
+                    if let Some(sid) = sid {
+                        let close_msg = format!(
+                            r#"{{"type":"close","session_id":"{}"}}"#,
+                            uuid::Uuid::from_bytes(sid)
+                        );
+                        let state = ws_state_shortcut.borrow();
+                        if let Some(ref ws) = state.ws {
+                            if ws.ready_state() == web_sys::WebSocket::OPEN {
+                                let _ = ws.send_with_str(&close_msg);
+                            }
+                        }
+                        rebuild_tab_bar(&tabs_shortcut, &ws_state_shortcut);
+                    }
                     return;
                 }
 
@@ -455,7 +816,12 @@ async fn async_main() {
                     return;
                 }
 
-                ws_send_binary(&ws_state_key, &bytes);
+                let tabs_ref = tabs_key.borrow();
+                let Some(sid) = tabs_ref.active_tab().session_id else {
+                    return;
+                };
+                drop(tabs_ref);
+                ws_send_binary(&ws_state_key, &sid, &bytes);
             },
         );
         textarea_target
@@ -479,7 +845,7 @@ async fn async_main() {
             .unwrap();
         on_click.forget();
 
-        // Paste handler — send clipboard text as bracketed paste
+        // Paste handler -- send clipboard text as bracketed paste
         let on_paste = Closure::<dyn FnMut(web_sys::ClipboardEvent)>::new(
             move |event: web_sys::ClipboardEvent| {
                 event.prevent_default();
@@ -500,7 +866,14 @@ async fn async_main() {
                 payload.extend_from_slice(text.as_bytes());
                 payload.extend_from_slice(b"\x1b[201~");
 
-                ws_send_binary(&ws_state_paste, &payload);
+                let sid = {
+                    let tabs_ref = tabs_paste.borrow();
+                    tabs_ref.active_tab().session_id
+                };
+                let Some(sid) = sid else {
+                    return;
+                };
+                ws_send_binary(&ws_state_paste, &sid, &payload);
             },
         );
         textarea_target
@@ -508,11 +881,11 @@ async fn async_main() {
             .unwrap();
         on_paste.forget();
 
-        // Composition event handlers — IME lifecycle
-        // compositionstart — position overlay at cursor and show it
+        // Composition event handlers -- IME lifecycle
+        // compositionstart -- position overlay at cursor and show it
         {
             let is_composing = is_composing.clone();
-            let grid = grid.clone();
+            let tabs = tabs.clone();
             let textarea = ime_textarea.clone();
             let overlay = ime_overlay.clone();
             let canvas_for_ime = canvas.clone();
@@ -524,11 +897,16 @@ async fn async_main() {
                         *is_composing.borrow_mut() = true;
 
                         let dpr = web_sys::window().unwrap().device_pixel_ratio();
-                        let grid = grid.borrow();
+                        let tabs_ref = tabs.borrow();
+                        let active = tabs_ref.active_tab();
+                        let cursor_col = active.grid.cursor_col;
+                        let cursor_row = active.grid.cursor_row;
+                        drop(tabs_ref);
+
                         let canvas_el: &web_sys::Element = canvas_for_ime.as_ref();
                         let rect = canvas_el.get_bounding_client_rect();
-                        let css_x = rect.left() + grid.cursor_col as f64 * (cw as f64 / dpr);
-                        let css_y = rect.top() + grid.cursor_row as f64 * (ch as f64 / dpr);
+                        let css_x = rect.left() + cursor_col as f64 * (cw as f64 / dpr);
+                        let css_y = rect.top() + cursor_row as f64 * (ch as f64 / dpr);
 
                         // Position the textarea at the cursor so the OS IME window
                         // appears near the insertion point
@@ -552,7 +930,7 @@ async fn async_main() {
             on_compositionstart.forget();
         }
 
-        // compositionupdate — update overlay text with the preedit string
+        // compositionupdate -- update overlay text with the preedit string
         {
             let overlay = ime_overlay.clone();
             let on_compositionupdate =
@@ -572,10 +950,11 @@ async fn async_main() {
             on_compositionupdate.forget();
         }
 
-        // compositionend — commit text to PTY, hide overlay, clear textarea
+        // compositionend -- commit text to PTY, hide overlay, clear textarea
         {
             let is_composing = is_composing.clone();
             let ws_state = ws_state.clone();
+            let tabs = tabs.clone();
             let overlay = ime_overlay.clone();
             let textarea = ime_textarea.clone();
             let on_compositionend =
@@ -590,7 +969,12 @@ async fn async_main() {
                         // Send committed text to PTY as raw bytes
                         if let Some(data) = event.data() {
                             if !data.is_empty() {
-                                ws_send_binary(&ws_state, data.as_bytes());
+                                let tabs_ref = tabs.borrow();
+                                let Some(sid) = tabs_ref.active_tab().session_id else {
+                                    return;
+                                };
+                                drop(tabs_ref);
+                                ws_send_binary(&ws_state, &sid, data.as_bytes());
                             }
                         }
 
@@ -607,16 +991,16 @@ async fn async_main() {
             on_compositionend.forget();
         }
 
-        // Mouse event handlers — forward mouse input to the PTY when mouse mode is active
+        // Mouse event handlers -- forward mouse input to the PTY when mouse mode is active
         let mouse_state = Rc::new(RefCell::new(MouseState {
             last_col: 0,
             last_row: 0,
             buttons_down: 0,
         }));
 
-        // mousedown — report press events to the PTY
+        // mousedown -- report press events to the PTY
         {
-            let grid = grid.clone();
+            let tabs = tabs.clone();
             let ws_state = ws_state.clone();
             let mouse_state = mouse_state.clone();
             let cw = cell_width;
@@ -635,13 +1019,17 @@ async fn async_main() {
                         ms.last_row = row;
                     }
 
-                    let mut grid = grid.borrow_mut();
-                    grid.mouse_report(button, mods, col, row, true);
-                    let writes: Vec<u8> = grid.pending_writes.drain(..).collect();
-                    drop(grid);
+                    let mut tabs_ref = tabs.borrow_mut();
+                    let active = tabs_ref.active_tab_mut();
+                    active.grid.mouse_report(button, mods, col, row, true);
+                    let writes: Vec<u8> = active.grid.pending_writes.drain(..).collect();
+                    let sid = active.session_id;
+                    drop(tabs_ref);
 
                     if !writes.is_empty() {
-                        ws_send_binary(&ws_state, &writes);
+                        if let Some(ref sid) = sid {
+                            ws_send_binary(&ws_state, sid, &writes);
+                        }
                         event.prevent_default();
                     }
                 },
@@ -655,9 +1043,9 @@ async fn async_main() {
             on_mousedown.forget();
         }
 
-        // mouseup — report release events to the PTY
+        // mouseup -- report release events to the PTY
         {
-            let grid = grid.clone();
+            let tabs = tabs.clone();
             let ws_state = ws_state.clone();
             let mouse_state = mouse_state.clone();
             let cw = cell_width;
@@ -671,13 +1059,17 @@ async fn async_main() {
 
                     mouse_state.borrow_mut().buttons_down &= !(1 << button);
 
-                    let mut grid = grid.borrow_mut();
-                    grid.mouse_report(button, mods, col, row, false);
-                    let writes: Vec<u8> = grid.pending_writes.drain(..).collect();
-                    drop(grid);
+                    let mut tabs_ref = tabs.borrow_mut();
+                    let active = tabs_ref.active_tab_mut();
+                    active.grid.mouse_report(button, mods, col, row, false);
+                    let writes: Vec<u8> = active.grid.pending_writes.drain(..).collect();
+                    let sid = active.session_id;
+                    drop(tabs_ref);
 
                     if !writes.is_empty() {
-                        ws_send_binary(&ws_state, &writes);
+                        if let Some(ref sid) = sid {
+                            ws_send_binary(&ws_state, sid, &writes);
+                        }
                     }
                 },
             );
@@ -690,9 +1082,9 @@ async fn async_main() {
             on_mouseup.forget();
         }
 
-        // mousemove — report motion events (drag or all-motion depending on mode)
+        // mousemove -- report motion events (drag or all-motion depending on mode)
         {
-            let grid = grid.clone();
+            let tabs = tabs.clone();
             let ws_state = ws_state.clone();
             let mouse_state = mouse_state.clone();
             let cw = cell_width;
@@ -712,8 +1104,9 @@ async fn async_main() {
                     let buttons_down = ms.buttons_down;
                     drop(ms);
 
-                    let mut grid = grid.borrow_mut();
-                    let mode = grid.mouse_mode();
+                    let mut tabs_ref = tabs.borrow_mut();
+                    let active = tabs_ref.active_tab_mut();
+                    let mode = active.grid.mouse_mode();
 
                     // DragMotion only reports when a button is held; AllMotion always reports
                     let should_report = match mode {
@@ -733,12 +1126,15 @@ async fn async_main() {
                     };
                     let mods = mouse_modifiers(&event);
 
-                    grid.mouse_report(button, mods, col, row, true);
-                    let writes: Vec<u8> = grid.pending_writes.drain(..).collect();
-                    drop(grid);
+                    active.grid.mouse_report(button, mods, col, row, true);
+                    let writes: Vec<u8> = active.grid.pending_writes.drain(..).collect();
+                    let sid = active.session_id;
+                    drop(tabs_ref);
 
                     if !writes.is_empty() {
-                        ws_send_binary(&ws_state, &writes);
+                        if let Some(ref sid) = sid {
+                            ws_send_binary(&ws_state, sid, &writes);
+                        }
                     }
                 },
             );
@@ -751,9 +1147,9 @@ async fn async_main() {
             on_mousemove.forget();
         }
 
-        // wheel — report scroll events to the PTY
+        // wheel -- report scroll events to the PTY
         {
-            let grid = grid.clone();
+            let tabs = tabs.clone();
             let ws_state = ws_state.clone();
             let cw = cell_width;
             let ch = cell_height;
@@ -765,14 +1161,18 @@ async fn async_main() {
                     let button: u8 = if event.delta_y() < 0.0 { 64 } else { 65 };
                     let mods = mouse_modifiers(mouse_event);
 
-                    let mut grid = grid.borrow_mut();
-                    grid.mouse_report(button, mods, col, row, true);
-                    let writes: Vec<u8> = grid.pending_writes.drain(..).collect();
-                    drop(grid);
+                    let mut tabs_ref = tabs.borrow_mut();
+                    let active = tabs_ref.active_tab_mut();
+                    active.grid.mouse_report(button, mods, col, row, true);
+                    let writes: Vec<u8> = active.grid.pending_writes.drain(..).collect();
+                    let sid = active.session_id;
+                    drop(tabs_ref);
 
                     if !writes.is_empty() {
-                        ws_send_binary(&ws_state, &writes);
-                        event.prevent_default();
+                        if let Some(ref sid) = sid {
+                            ws_send_binary(&ws_state, sid, &writes);
+                            event.prevent_default();
+                        }
                     }
                 },
             );
@@ -785,7 +1185,7 @@ async fn async_main() {
             on_wheel.forget();
         }
 
-        // contextmenu — suppress right-click menu on the canvas
+        // contextmenu -- suppress right-click menu on the canvas
         {
             let on_contextmenu = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
                 move |event: web_sys::MouseEvent| {
@@ -843,10 +1243,10 @@ async fn async_main() {
 
     let sugarloaf = Rc::new(RefCell::new(sugarloaf));
 
-    // ResizeObserver — debounced recalculation of terminal dimensions
+    // ResizeObserver -- debounced recalculation of terminal dimensions
     {
         let sugarloaf = sugarloaf.clone();
-        let grid = grid.clone();
+        let tabs = tabs.clone();
         let ws_state = ws_state.clone();
         let canvas_observe = canvas.clone();
         let pending_timer: Rc<RefCell<Option<i32>>> = Rc::new(RefCell::new(None));
@@ -861,7 +1261,7 @@ async fn async_main() {
 
             // Schedule the actual resize after 50ms of inactivity
             let sugarloaf = sugarloaf.clone();
-            let grid = grid.clone();
+            let tabs = tabs.clone();
             let ws_state = ws_state.clone();
             let canvas_observe = canvas_observe.clone();
             let pending_timer_inner = pending_timer.clone();
@@ -899,20 +1299,23 @@ async fn async_main() {
                     24
                 };
 
-                let mut grid = grid.borrow_mut();
-                if new_cols != grid.cols || new_rows != grid.rows {
-                    grid.resize(new_cols, new_rows);
+                // Resize ALL tabs' grids and send resize messages for each active session
+                let mut tabs_ref = tabs.borrow_mut();
+                let state = ws_state.borrow();
+                for tab in &mut tabs_ref.tabs {
+                    if new_cols != tab.grid.cols || new_rows != tab.grid.rows {
+                        tab.grid.resize(new_cols, new_rows);
 
-                    let state = ws_state.borrow();
-                    if let Some(sid) = state.session_id.as_ref() {
-                        let resize_msg = format!(
-                            r#"{{"type":"resize","session_id":"{}","cols":{},"rows":{}}}"#,
-                            uuid::Uuid::from_bytes(*sid),
-                            new_cols,
-                            new_rows
-                        );
-                        if let Some(ref ws) = state.ws {
-                            let _ = ws.send_with_str(&resize_msg);
+                        if let Some(sid) = tab.session_id.as_ref() {
+                            let resize_msg = format!(
+                                r#"{{"type":"resize","session_id":"{}","cols":{},"rows":{}}}"#,
+                                uuid::Uuid::from_bytes(*sid),
+                                new_cols,
+                                new_rows
+                            );
+                            if let Some(ref ws) = state.ws {
+                                let _ = ws.send_with_str(&resize_msg);
+                            }
                         }
                     }
                 }
@@ -937,12 +1340,12 @@ async fn async_main() {
     }
 
     // Render loop
-    render_loop(sugarloaf, grid, rt_id);
+    render_loop(sugarloaf, tabs, rt_id);
 }
 
 fn render_loop(
     sugarloaf: Rc<RefCell<Sugarloaf<'static>>>,
-    grid: Rc<RefCell<TerminalGrid>>,
+    tabs: Rc<RefCell<TabManager>>,
     rt_id: usize,
 ) {
     let f: Rc<RefCell<Option<Closure<dyn FnMut()>>>> = Rc::new(RefCell::new(None));
@@ -950,17 +1353,18 @@ fn render_loop(
 
     *g.borrow_mut() = Some(Closure::new(move || {
         {
-            let mut grid = grid.borrow_mut();
-            if grid.dirty {
+            let mut tabs_ref = tabs.borrow_mut();
+            let active = tabs_ref.active_tab_mut();
+            if active.grid.dirty {
                 let mut sugarloaf = sugarloaf.borrow_mut();
-                renderer::render_grid(&mut sugarloaf, &grid, rt_id);
+                renderer::render_grid(&mut sugarloaf, &active.grid, rt_id);
                 sugarloaf.set_objects(vec![Object::RichText(RichText {
                     id: rt_id,
                     position: [0.0, 0.0],
                     lines: None,
                 })]);
                 sugarloaf.render();
-                grid.dirty = false;
+                active.grid.dirty = false;
             }
         }
 
@@ -1014,7 +1418,7 @@ fn key_event_to_bytes(event: &web_sys::KeyboardEvent) -> Vec<u8> {
         _ => {}
     }
 
-    // Ctrl+key combinations (skip Ctrl+V — let browser paste event handle it)
+    // Ctrl+key combinations (skip Ctrl+V -- let browser paste event handle it)
     if ctrl && key.len() == 1 {
         let ch = key.chars().next().unwrap();
         if ch.to_ascii_lowercase() == 'v' {

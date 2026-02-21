@@ -11,6 +11,7 @@ use axum::{
 };
 use futures::{SinkExt, StreamExt};
 use session::{SessionId, SessionManager};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use tokio::sync::mpsc;
 use tower_http::services::ServeDir;
@@ -71,29 +72,20 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     let (mut ws_sender, mut ws_receiver) = socket.split();
     let manager = state.session_manager;
 
-    // Track active session and its output receiver
-    let mut active_session: Option<SessionId> = None;
-    let mut output_rx: Option<mpsc::UnboundedReceiver<Vec<u8>>> = None;
+    // Merged output channel: all sessions' PTY output flows through here
+    let (merged_tx, mut merged_rx) = mpsc::unbounded_channel::<(SessionId, Vec<u8>)>();
 
-    // Wait for initial control message to create or attach session
+    // Track active sessions and their forwarding tasks
+    let mut session_tasks: HashMap<SessionId, tokio::task::JoinHandle<()>> = HashMap::new();
+
     loop {
         tokio::select! {
-            // Forward PTY output to WebSocket
-            Some(data) = async {
-                if let Some(ref mut rx) = output_rx {
-                    rx.recv().await
-                } else {
-                    // No active session yet — yield forever
-                    std::future::pending::<Option<Vec<u8>>>().await
-                }
-            } => {
-                if let Some(session_id) = active_session {
-                    // Binary frame: 16 bytes session UUID + PTY output
-                    let mut frame = session_id.as_bytes().to_vec();
-                    frame.extend_from_slice(&data);
-                    if ws_sender.send(Message::Binary(frame.into())).await.is_err() {
-                        break;
-                    }
+            // Forward merged PTY output to WebSocket
+            Some((session_id, data)) = merged_rx.recv() => {
+                let mut frame = session_id.as_bytes().to_vec();
+                frame.extend_from_slice(&data);
+                if ws_sender.send(Message::Binary(frame.into())).await.is_err() {
+                    break;
                 }
             }
 
@@ -104,8 +96,8 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                         match handle_control_message(
                             &text,
                             &manager,
-                            &mut active_session,
-                            &mut output_rx,
+                            &merged_tx,
+                            &mut session_tasks,
                             &mut ws_sender,
                         ).await {
                             Ok(should_continue) => {
@@ -141,18 +133,34 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
         }
     }
 
-    // Detach session on disconnect, keeping PTY alive for reconnection
-    if let Some(session_id) = active_session {
+    // Detach all sessions on disconnect, keeping PTYs alive for reconnection
+    for (session_id, handle) in session_tasks {
+        handle.abort();
         tracing::info!("WebSocket disconnected, detaching session {session_id}");
         manager.detach_session(&session_id);
     }
 }
 
+/// Forward a single session's PTY output into the merged channel
+fn spawn_output_forwarder(
+    session_id: SessionId,
+    mut rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    merged_tx: mpsc::UnboundedSender<(SessionId, Vec<u8>)>,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        while let Some(data) = rx.recv().await {
+            if merged_tx.send((session_id, data)).is_err() {
+                break;
+            }
+        }
+    })
+}
+
 async fn handle_control_message(
     text: &str,
     manager: &SessionManager,
-    active_session: &mut Option<SessionId>,
-    output_rx: &mut Option<mpsc::UnboundedReceiver<Vec<u8>>>,
+    merged_tx: &mpsc::UnboundedSender<(SessionId, Vec<u8>)>,
+    session_tasks: &mut HashMap<SessionId, tokio::task::JoinHandle<()>>,
     ws_sender: &mut (impl SinkExt<Message, Error = axum::Error> + Unpin),
 ) -> Result<bool, String> {
     let msg: serde_json::Value =
@@ -175,8 +183,9 @@ async fn handle_control_message(
                 .unwrap_or(24) as u16;
 
             let (session_id, rx) = manager.create_session(cols, rows)?;
-            *active_session = Some(session_id);
-            *output_rx = Some(rx);
+
+            let handle = spawn_output_forwarder(session_id, rx, merged_tx.clone());
+            session_tasks.insert(session_id, handle);
 
             let response = serde_json::json!({
                 "type": "created",
@@ -219,8 +228,9 @@ async fn handle_control_message(
                 .map_err(|_| "Invalid session_id")?;
 
             let (rx, buffered) = manager.attach_session(&session_id)?;
-            *active_session = Some(session_id);
-            *output_rx = Some(rx);
+
+            let handle = spawn_output_forwarder(session_id, rx, merged_tx.clone());
+            session_tasks.insert(session_id, handle);
 
             // Send buffered output first
             if !buffered.is_empty() {
@@ -248,9 +258,12 @@ async fn handle_control_message(
                 .parse()
                 .map_err(|_| "Invalid session_id")?;
 
+            // Abort the forwarding task for this session
+            if let Some(handle) = session_tasks.remove(&session_id) {
+                handle.abort();
+            }
+
             manager.close_session(&session_id);
-            *active_session = None;
-            *output_rx = None;
             Ok(true)
         }
         _ => Err(format!("Unknown message type: {msg_type}")),

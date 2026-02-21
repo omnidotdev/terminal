@@ -1103,7 +1103,9 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     return;
                 }
 
-                if route.window.screen.update_highlighted_hints() {
+                if route.window.screen.is_mouse_over_tab_bar()
+                    || route.window.screen.update_highlighted_hints()
+                {
                     route.window.winit_window.set_cursor(CursorIcon::Pointer);
                     route.window.screen.context_manager.request_render();
                 } else {

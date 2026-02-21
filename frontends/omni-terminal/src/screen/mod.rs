@@ -385,6 +385,36 @@ impl Screen<'_> {
         true
     }
 
+    /// Check if the mouse is currently over the tab bar area
+    #[inline]
+    pub fn is_mouse_over_tab_bar(&self) -> bool {
+        let nav_mode = &self.renderer.navigation.navigation.mode;
+        let hide_if_single = self.renderer.navigation.navigation.hide_if_single;
+        let len = self.context_manager.len();
+
+        if hide_if_single && len <= 1 {
+            return false;
+        }
+
+        if self.search_active() && *nav_mode == NavigationMode::BottomTab {
+            return false;
+        }
+
+        let scale = self.sugarloaf.scale_factor();
+        let window_size = self.sugarloaf.window_size();
+
+        let logical_y = self.mouse.y as f32 / scale;
+        let logical_height = window_size.height / scale;
+
+        match nav_mode {
+            NavigationMode::TopTab => logical_y <= PADDING_Y_BOTTOM_TABS,
+            NavigationMode::BottomTab => {
+                logical_y >= logical_height - PADDING_Y_BOTTOM_TABS
+            }
+            _ => false,
+        }
+    }
+
     #[inline]
     pub fn mouse_position(&self, display_offset: usize) -> Pos {
         let current_grid = self.context_manager.current_grid();

@@ -10,7 +10,7 @@
 **Omni Terminal** is a GPU-accelerated terminal emulator built to run everywhere.
 
 > [!NOTE]
-> Omni Terminal is a fork of [Rio Terminal](https://github.com/raphamorim/rio)
+> Omni Terminal was originally forked from [Rio Terminal](https://github.com/raphamorim/rio)
 > by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.
 > We are grateful for his foundational work. Please consider
 > [sponsoring him](https://github.com/sponsors/raphamorim) to support his

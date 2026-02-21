@@ -2,7 +2,7 @@
 
 GPU rendering engine for [Omni Terminal](https://github.com/omnidotdev/terminal), built on WebGPU. Targets desktop (native Rust) and web (WebAssembly).
 
-> Forked from [Rio Terminal](https://github.com/raphamorim/rio)'s Sugarloaf by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.
+> Originally forked from [Rio Terminal](https://github.com/raphamorim/rio)'s Sugarloaf by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.
 
 ```bash
 cargo run --example text

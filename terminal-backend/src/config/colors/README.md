@@ -1,6 +1,6 @@
 # Colors
 
-> Derived from [Rio Terminal](https://github.com/raphamorim/rio) by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.
+> Originally derived from [Rio Terminal](https://github.com/raphamorim/rio) by [Raphael Amorim](https://github.com/raphamorim), licensed under MIT.
 
 ## Conversion Enums
 

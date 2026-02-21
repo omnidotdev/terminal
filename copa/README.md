@@ -1,6 +1,6 @@
 # Copa
 
-Copa is a fork of [Alacritty's VTE](https://github.com/alacritty/vte/) intended to extend [Paul Williams' ANSI parser state
+Copa was originally forked from [Alacritty's VTE](https://github.com/alacritty/vte/) and extends [Paul Williams' ANSI parser state
 machine] with custom instructions.
 
 The state machine doesn't assign meaning to the parsed data and is

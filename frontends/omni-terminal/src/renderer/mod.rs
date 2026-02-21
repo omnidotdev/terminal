@@ -1223,9 +1223,20 @@ impl Renderer {
             use crate::context::renderable::BackgroundState;
             match bg_state {
                 BackgroundState::Set(color) => {
+                    // Update dynamic_background so opacity changes use the current color
+                    self.dynamic_background.0 = [
+                        color.r as f32,
+                        color.g as f32,
+                        color.b as f32,
+                        color.a as f32,
+                    ];
+                    self.dynamic_background.1 = color;
                     sugarloaf.set_background_color(Some(color));
                 }
                 BackgroundState::Reset => {
+                    // Restore dynamic_background to config defaults
+                    self.dynamic_background.0 = self.named_colors.background.0;
+                    self.dynamic_background.1 = self.named_colors.background.1;
                     sugarloaf.set_background_color(None);
                 }
             }

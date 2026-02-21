@@ -22,9 +22,11 @@ pub struct Size<T = f32> {
     pub height: T,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Default)]
 pub struct Hasher(twox_hash::XxHash64);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl core::hash::Hasher for Hasher {
     fn write(&mut self, bytes: &[u8]) {
         self.0.write(bytes)
@@ -32,5 +34,20 @@ impl core::hash::Hasher for Hasher {
 
     fn finish(&self) -> u64 {
         self.0.finish()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Default)]
+pub struct Hasher(std::collections::hash_map::DefaultHasher);
+
+#[cfg(target_arch = "wasm32")]
+impl core::hash::Hasher for Hasher {
+    fn write(&mut self, bytes: &[u8]) {
+        core::hash::Hasher::write(&mut self.0, bytes)
+    }
+
+    fn finish(&self) -> u64 {
+        core::hash::Hasher::finish(&self.0)
     }
 }

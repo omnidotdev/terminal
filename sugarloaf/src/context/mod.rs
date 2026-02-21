@@ -102,6 +102,162 @@ fn get_macos_texture_format(colorspace: Colorspace) -> wgpu::TextureFormat {
 }
 
 impl Context<'_> {
+    /// Async variant of `new()` for WASM — uses `.await` instead of `block_on()`
+    pub async fn new_async<'a>(
+        sugarloaf_window: SugarloafWindow,
+        renderer_config: SugarloafRenderer,
+    ) -> Context<'a> {
+        let backend =
+            wgpu::Backends::from_env().unwrap_or(renderer_config.backend);
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: backend,
+            ..Default::default()
+        });
+
+        tracing::info!("selected instance: {instance:?}");
+
+        let size = sugarloaf_window.size;
+        let scale = sugarloaf_window.scale;
+
+        let surface: wgpu::Surface<'a> =
+            instance.create_surface(sugarloaf_window).unwrap();
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: renderer_config.power_preference,
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            })
+            .await
+            .expect("Request adapter");
+
+        let adapter_info = adapter.get_info();
+        tracing::info!("Selected adapter: {:?}", adapter_info);
+
+        let surface_caps = surface.get_capabilities(&adapter);
+
+        #[cfg(target_os = "macos")]
+        let format = get_macos_texture_format(renderer_config.colorspace);
+        #[cfg(not(target_os = "macos"))]
+        let format = find_best_texture_format(
+            surface_caps.formats.as_slice(),
+            renderer_config.colorspace,
+        );
+
+        let (device, queue, supports_f16) = {
+            let base_features = wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER;
+            let base_f16_features =
+                base_features | wgpu::Features::SHADER_F16;
+
+            let device_configs =
+                [(base_f16_features, true), (base_features, false)];
+
+            let mut result = None;
+            for (features, supports_f16_val) in device_configs {
+                if let Ok(device_result) = adapter
+                    .request_device(&wgpu::DeviceDescriptor {
+                        required_features: features,
+                        ..Default::default()
+                    })
+                    .await
+                {
+                    result = Some((
+                        device_result.0,
+                        device_result.1,
+                        supports_f16_val,
+                    ));
+                    break;
+                }
+            }
+
+            match result {
+                Some(r) => r,
+                None => {
+                    let device_result = adapter
+                        .request_device(&wgpu::DeviceDescriptor {
+                            memory_hints: wgpu::MemoryHints::Performance,
+                            label: None,
+                            required_features: wgpu::Features::empty(),
+                            required_limits:
+                                wgpu::Limits::downlevel_webgl2_defaults(),
+                            ..Default::default()
+                        })
+                        .await
+                        .expect("Request device");
+                    (device_result.0, device_result.1, false)
+                }
+            }
+        };
+
+        let alpha_mode = if surface_caps
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+        {
+            wgpu::CompositeAlphaMode::PostMultiplied
+        } else if surface_caps
+            .alpha_modes
+            .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
+        {
+            wgpu::CompositeAlphaMode::PreMultiplied
+        } else {
+            wgpu::CompositeAlphaMode::Auto
+        };
+
+        let view_formats = match renderer_config.colorspace {
+            Colorspace::DisplayP3 | Colorspace::Rec2020 => {
+                vec![format]
+            }
+            Colorspace::Srgb => {
+                vec![]
+            }
+        };
+
+        surface.configure(
+            &device,
+            &wgpu::SurfaceConfiguration {
+                usage: Self::get_texture_usage(&surface_caps),
+                format,
+                width: size.width as u32,
+                height: size.height as u32,
+                view_formats,
+                alpha_mode,
+                present_mode: wgpu::PresentMode::Fifo,
+                desired_maximum_frame_latency: 2,
+            },
+        );
+
+        let max_texture_dimension_2d =
+            device.limits().max_texture_dimension_2d;
+
+        tracing::info!("F16 shader support: {}", supports_f16);
+        tracing::info!(
+            "Configured colorspace: {:?}",
+            renderer_config.colorspace
+        );
+        tracing::info!("Surface format: {:?}", format);
+        tracing::info!(
+            "Max texture dimension 2D: {}",
+            max_texture_dimension_2d
+        );
+
+        Context {
+            device,
+            queue,
+            surface,
+            format,
+            alpha_mode,
+            size: SugarloafWindowSize {
+                width: size.width,
+                height: size.height,
+            },
+            scale,
+            adapter_info,
+            surface_caps,
+            supports_f16,
+            colorspace: renderer_config.colorspace,
+            max_texture_dimension_2d,
+        }
+    }
+
     pub fn new<'a>(
         sugarloaf_window: SugarloafWindow,
         renderer_config: SugarloafRenderer,

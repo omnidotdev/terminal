@@ -8,6 +8,8 @@ members = [
     "terminal-backend",
     "terminal-window",
     "frontends/omni-terminal",
+    "frontends/wasm",
+    "frontends/web-server",
 ]
 resolver = "2"
 

@@ -101,21 +101,27 @@ wasm-install:
 
 # Build wasm frontend (debug)
 wasm-build:
-    wasm-bindgen target/wasm32-unknown-unknown/debug/omni-terminal.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
+    cargo build -p omni-terminal-wasm --target wasm32-unknown-unknown
+    wasm-bindgen target/wasm32-unknown-unknown/debug/omni_terminal_wasm.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
 
 # Build wasm frontend (release)
 wasm-build-release:
-    wasm-bindgen target/wasm32-unknown-unknown/release/omni-terminal.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
+    cargo build -p omni-terminal-wasm --target wasm32-unknown-unknown --release
+    wasm-bindgen target/wasm32-unknown-unknown/release/omni_terminal_wasm.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
 
 # Optimize wasm binary size
 wasm-opt:
-    du -h frontends/wasm/wasm/omni-terminal_bg.wasm
-    wasm-opt -O frontends/wasm/wasm/omni-terminal_bg.wasm -o frontends/wasm/wasm/omni-terminal_bg.wasm
-    du -h frontends/wasm/wasm/omni-terminal_bg.wasm
+    du -h frontends/wasm/wasm/omni_terminal_wasm_bg.wasm
+    wasm-opt -O frontends/wasm/wasm/omni_terminal_wasm_bg.wasm -o frontends/wasm/wasm/omni_terminal_wasm_bg.wasm
+    du -h frontends/wasm/wasm/omni_terminal_wasm_bg.wasm
 
-# Build, optimize, and serve wasm frontend
-wasm-run: wasm-build wasm-opt
+# Build and serve wasm frontend (static, no PTY)
+wasm-run: wasm-build
     cd frontends/wasm && cargo server --open
+
+# Build and serve web terminal (WASM + WebSocket PTY server)
+web-serve: wasm-build
+    cargo run -p web-server
 
 # Watch and rebuild wasm frontend on changes
 wasm-watch:

@@ -21,8 +21,8 @@ struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) f_color: vec4<f16>,
     @location(1) f_uv: vec2<f16>,
-    @location(2) color_layer: i32,
-    @location(3) mask_layer: i32,
+    @location(2) @interpolate(flat) color_layer: i32,
+    @location(3) @interpolate(flat) mask_layer: i32,
 }
 
 @vertex

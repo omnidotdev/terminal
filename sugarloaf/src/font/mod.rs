@@ -12,7 +12,9 @@ mod cjk_metrics_tests;
 pub const FONT_ID_REGULAR: usize = 0;
 
 use crate::font::constants::*;
-use crate::font::fonts::{parse_unicode, SugarloafFontStyle, SugarloafFontWidth};
+use crate::font::fonts::SugarloafFontStyle;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::font::fonts::{parse_unicode, SugarloafFontWidth};
 use crate::font::metrics::{FaceMetrics, Metrics};
 use crate::font_introspector::text::cluster::Parser;
 use crate::font_introspector::text::cluster::Token;
@@ -22,34 +24,39 @@ use crate::font_introspector::text::Script;
 use crate::font_introspector::{CacheKey, FontRef, Synthesis};
 use crate::layout::FragmentStyle;
 use crate::SugarloafErrors;
+#[cfg(not(target_arch = "wasm32"))]
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use std::ops::Range;
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::OnceLock;
 
 pub use crate::font_introspector::{Style, Weight};
 
-// Type alias for the font data cache to improve readability
+#[cfg(not(target_arch = "wasm32"))]
 type FontDataCache = Arc<DashMap<PathBuf, SharedData>>;
 
-// Global font data cache to avoid reloading fonts from disk
-// This cache stores font file data indexed by path, so fonts are only loaded once
-// and shared across all font library instances. This significantly improves
-// performance when the same font is referenced multiple times.
+#[cfg(not(target_arch = "wasm32"))]
 static FONT_DATA_CACHE: OnceLock<FontDataCache> = OnceLock::new();
 
+#[cfg(not(target_arch = "wasm32"))]
 fn get_font_data_cache() -> &'static FontDataCache {
     FONT_DATA_CACHE.get_or_init(|| Arc::new(DashMap::default()))
 }
 
-/// Clears the global font data cache, forcing fonts to be reloaded from disk
-/// on next access. This should be called when font configuration changes.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn clear_font_data_cache() {
     if let Some(cache) = FONT_DATA_CACHE.get() {
         cache.clear();
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn clear_font_data_cache() {
+    // No-op: WASM uses bundled fonts, no disk cache to clear
 }
 
 pub fn lookup_for_font_match(
@@ -518,7 +525,15 @@ impl FontLibraryData {
 
     #[cfg(target_arch = "wasm32")]
     pub fn load(&mut self, _font_spec: SugarloafFonts) -> Vec<SugarloafFont> {
+        // Load bundled fonts in the same order as native: regular, italic, bold, bold_italic
         self.insert(FontData::from_slice(FONT_CASCADIAMONO_REGULAR, false).unwrap());
+        self.insert(FontData::from_slice(FONT_CASCADIAMONO_ITALIC, false).unwrap());
+        self.insert(FontData::from_slice(FONT_CASCADIAMONO_BOLD, false).unwrap());
+        self.insert(FontData::from_slice(FONT_CASCADIAMONO_BOLD_ITALIC, false).unwrap());
+        // Emoji
+        self.insert(FontData::from_slice(FONT_TWEMOJI_EMOJI, true).unwrap());
+        // Symbols
+        self.insert(FontData::from_slice(FONT_SYMBOLS_NERD_FONT_MONO, false).unwrap());
 
         vec![]
     }
@@ -730,6 +745,7 @@ pub type SugarloafFonts = fonts::SugarloafFonts;
 #[cfg(not(target_arch = "wasm32"))]
 use tracing::{info, warn};
 
+#[cfg(not(target_arch = "wasm32"))]
 enum FindResult {
     Found(FontData),
     NotFound(SugarloafFont),
@@ -859,6 +875,7 @@ fn find_font(
     FindResult::NotFound(font_spec)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn load_fallback_from_memory(font_spec: &SugarloafFont) -> FontData {
     let style = &font_spec.style;
     let weight = font_spec.weight.unwrap_or(400);
@@ -897,6 +914,7 @@ fn load_fallback_from_memory(font_spec: &SugarloafFont) -> FontData {
     FontData::from_slice(font_to_load, false).unwrap()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]
 fn find_font_path(
     db: &crate::font::loader::Database,
@@ -944,5 +962,10 @@ fn load_from_font_source(path: &PathBuf) -> Option<SharedData> {
         }
     }
 
+    None
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_from_font_source(_path: &PathBuf) -> Option<SharedData> {
     None
 }

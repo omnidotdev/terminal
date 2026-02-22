@@ -49,4 +49,29 @@
         android:text="@string/connect"
         android:textColor="@color/on_primary" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:text="or"
+        android:textColor="@color/on_surface" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/localButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/local_shell"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:textColor="@color/primary" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/storageButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/setup_storage"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:textColor="@color/on_surface" />
+
 </LinearLayout>

@@ -7,4 +7,11 @@
     <string name="connecting">Connecting&#8230;</string>
     <string name="error_empty_url">Enter a server address</string>
     <string name="error_load_failed">Failed to load terminal</string>
+    <string name="local_shell">Local Shell</string>
+    <string name="setup_storage">Setup Storage</string>
+    <string name="bootstrap_title">Setting up</string>
+    <string name="bootstrap_extracting">Setting up terminal environment…</string>
+    <string name="bootstrap_failed">Bootstrap failed: %1$s</string>
+    <string name="storage_created">Storage symlinks created in ~/storage/</string>
+    <string name="storage_denied">Storage permission denied</string>
 </resources>

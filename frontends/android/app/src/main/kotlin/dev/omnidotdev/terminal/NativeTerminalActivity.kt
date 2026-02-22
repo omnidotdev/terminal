@@ -234,10 +234,15 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             NativeTerminal.init(holder.surface, width, height, scale)
             initialized = true
 
-            // Connect to server if URL provided
-            serverUrl = intent.getStringExtra("server_url")
-            if (serverUrl != null) {
-                NativeTerminal.connect(serverUrl!!)
+            // Connect based on mode
+            val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
+            if (mode == "local") {
+                NativeTerminal.connectLocal(filesDir.absolutePath)
+            } else {
+                serverUrl = intent.getStringExtra(ConnectActivity.EXTRA_SERVER_URL)
+                if (serverUrl != null) {
+                    NativeTerminal.connect(serverUrl!!)
+                }
             }
 
             // Start render loop to poll WebSocket output

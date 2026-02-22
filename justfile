@@ -157,6 +157,10 @@ sugarloaf-test:
 sugarloaf-test-firefox:
     GECKODRIVER=geckodriver cargo test -p sugarloaf --tests --target wasm32-unknown-unknown
 
+# Build busybox bootstrap archive for Android aarch64
+android-bootstrap:
+    frontends/android/scripts/build-bootstrap.sh
+
 # Build native library for Android arm64
 android-native:
     cargo ndk -t aarch64-linux-android build -p omni-terminal-android

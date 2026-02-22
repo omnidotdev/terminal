@@ -21,11 +21,11 @@ use tungstenite::Message;
 
 static TERMINAL_STATE: Mutex<Option<TerminalState>> = Mutex::new(None);
 
-/// Messages sent from JNI to the WebSocket thread.
-enum WsCommand {
+/// Messages sent from JNI to the PTY/WebSocket thread.
+enum PtyCommand {
     /// Send raw bytes to the PTY (keyboard input).
     Input(Vec<u8>),
-    /// Resize the remote PTY (includes JSON with session_id).
+    /// Resize the PTY.
     Resize(String),
     /// Disconnect and shut down.
     Disconnect,
@@ -44,17 +44,21 @@ struct TerminalState {
     /// Whether font dimensions have been confirmed (non-zero from sugarloaf).
     dims_confirmed: bool,
     /// Send commands to the WebSocket thread.
-    ws_tx: Option<mpsc::Sender<WsCommand>>,
+    ws_tx: Option<mpsc::Sender<PtyCommand>>,
     /// Receive PTY output from the WebSocket thread.
     ws_rx: Option<mpsc::Receiver<Vec<u8>>>,
     /// Session UUID (set after "created" response).
     session_id: Option<[u8; 16]>,
     /// Whether content needs re-rendering.
     dirty: bool,
-    /// Whether we're connected to a server.
+    /// Whether we're connected to a server or local PTY.
     connected: bool,
     /// Error message to display on status screen.
     error_msg: Option<String>,
+    /// Whether using a local PTY (vs remote WebSocket).
+    local_mode: bool,
+    /// Android files directory for local shell environment.
+    files_dir: Option<String>,
 }
 
 impl TerminalState {
@@ -94,17 +98,23 @@ impl TerminalState {
             }
         }
         for data in incoming {
-            if let Ok(text) = std::str::from_utf8(&data) {
-                if text.starts_with('{') {
-                    self.handle_control_message(text);
-                    continue;
-                }
-            }
-            // Binary PTY output: first 16 bytes = session UUID
-            if data.len() > 16 {
-                let pty_data = &data[16..];
-                self.parser.advance(&mut self.grid, pty_data);
+            if self.local_mode {
+                // Local PTY: raw output, no UUID prefix
+                self.parser.advance(&mut self.grid, &data);
                 self.dirty = true;
+            } else {
+                if let Ok(text) = std::str::from_utf8(&data) {
+                    if text.starts_with('{') {
+                        self.handle_control_message(text);
+                        continue;
+                    }
+                }
+                // Binary PTY output: first 16 bytes = session UUID
+                if data.len() > 16 {
+                    let pty_data = &data[16..];
+                    self.parser.advance(&mut self.grid, pty_data);
+                    self.dirty = true;
+                }
             }
         }
 
@@ -112,7 +122,7 @@ impl TerminalState {
             return;
         }
 
-        if self.connected && self.session_id.is_some() {
+        if self.connected && (self.local_mode || self.session_id.is_some()) {
             // Real terminal: render the grid
             renderer::render_grid(&mut self.sugarloaf, &self.grid, self.rt_id);
         } else {
@@ -203,20 +213,29 @@ impl TerminalState {
     }
 
     fn send_input(&self, data: &[u8]) {
-        if let (Some(ref tx), Some(ref sid)) = (&self.ws_tx, &self.session_id) {
-            let mut frame = sid.to_vec();
-            frame.extend_from_slice(data);
-            let _ = tx.send(WsCommand::Input(frame));
+        if let Some(ref tx) = self.ws_tx {
+            if self.local_mode {
+                let _ = tx.send(PtyCommand::Input(data.to_vec()));
+            } else if let Some(ref sid) = self.session_id {
+                let mut frame = sid.to_vec();
+                frame.extend_from_slice(data);
+                let _ = tx.send(PtyCommand::Input(frame));
+            }
         }
     }
 
     fn send_resize(&self, cols: usize, rows: usize) {
-        if let (Some(ref tx), Some(ref sid)) = (&self.ws_tx, &self.session_id) {
-            let uuid = uuid::Uuid::from_bytes(*sid);
-            let msg = format!(
-                r#"{{"type":"resize","session_id":"{uuid}","cols":{cols},"rows":{rows}}}"#
-            );
-            let _ = tx.send(WsCommand::Resize(msg));
+        if let Some(ref tx) = self.ws_tx {
+            if self.local_mode {
+                let msg = format!(r#"{{"cols":{cols},"rows":{rows}}}"#);
+                let _ = tx.send(PtyCommand::Resize(msg));
+            } else if let Some(ref sid) = self.session_id {
+                let uuid = uuid::Uuid::from_bytes(*sid);
+                let msg = format!(
+                    r#"{{"type":"resize","session_id":"{uuid}","cols":{cols},"rows":{rows}}}"#
+                );
+                let _ = tx.send(PtyCommand::Resize(msg));
+            }
         }
     }
 }
@@ -226,8 +245,8 @@ fn spawn_ws_thread(
     ws_url: String,
     cols: usize,
     rows: usize,
-) -> (mpsc::Sender<WsCommand>, mpsc::Receiver<Vec<u8>>) {
-    let (cmd_tx, cmd_rx) = mpsc::channel::<WsCommand>();
+) -> (mpsc::Sender<PtyCommand>, mpsc::Receiver<Vec<u8>>) {
+    let (cmd_tx, cmd_rx) = mpsc::channel::<PtyCommand>();
     let (out_tx, out_rx) = mpsc::channel::<Vec<u8>>();
 
     thread::Builder::new()
@@ -244,7 +263,7 @@ fn ws_thread_main(
     ws_url: &str,
     cols: usize,
     rows: usize,
-    cmd_rx: &mpsc::Receiver<WsCommand>,
+    cmd_rx: &mpsc::Receiver<PtyCommand>,
     out_tx: &mpsc::Sender<Vec<u8>>,
 ) {
     log::info!("WebSocket connecting to {ws_url}");
@@ -333,18 +352,18 @@ fn ws_thread_main(
     loop {
         // Check for commands from JNI
         match cmd_rx.try_recv() {
-            Ok(WsCommand::Input(data)) => {
+            Ok(PtyCommand::Input(data)) => {
                 if ws.send(Message::Binary(data.into())).is_err() {
                     log::error!("WebSocket send failed");
                     break;
                 }
             }
-            Ok(WsCommand::Resize(json)) => {
+            Ok(PtyCommand::Resize(json)) => {
                 if ws.send(Message::Text(json.into())).is_err() {
                     break;
                 }
             }
-            Ok(WsCommand::Disconnect) => {
+            Ok(PtyCommand::Disconnect) => {
                 let _ = ws.close(None);
                 break;
             }
@@ -379,6 +398,238 @@ fn ws_thread_main(
     }
 
     log::info!("WebSocket thread exiting");
+}
+
+/// Create local shell directories under `files_dir`.
+fn ensure_local_dirs(files_dir: &str) {
+    use std::ffi::CString;
+
+    let dirs = [
+        format!("{files_dir}/home"),
+        format!("{files_dir}/usr"),
+        format!("{files_dir}/usr/bin"),
+        format!("{files_dir}/usr/tmp"),
+        format!("{files_dir}/usr/etc"),
+    ];
+
+    for dir in &dirs {
+        if let Ok(c_path) = CString::new(dir.as_str()) {
+            unsafe {
+                libc::mkdir(c_path.as_ptr(), 0o755);
+            }
+        }
+    }
+}
+
+/// Spawn a local PTY shell process.
+fn spawn_local_pty(
+    files_dir: &str,
+    cols: usize,
+    rows: usize,
+) -> (mpsc::Sender<PtyCommand>, mpsc::Receiver<Vec<u8>>) {
+    use nix::pty::openpty;
+    use nix::unistd::{dup2, execve, fork, setsid, ForkResult};
+    use std::ffi::CString;
+    use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+
+    let home = format!("{files_dir}/home");
+    let prefix = format!("{files_dir}/usr");
+
+    ensure_local_dirs(files_dir);
+
+    let (cmd_tx, cmd_rx) = mpsc::channel::<PtyCommand>();
+    let (out_tx, out_rx) = mpsc::channel::<Vec<u8>>();
+
+    let pty = openpty(None, None).expect("openpty failed");
+    let master_fd = pty.master;
+    let slave_fd = pty.slave;
+
+    // Set initial terminal size
+    set_winsize(master_fd.as_raw_fd(), cols as u16, rows as u16);
+
+    // Clone strings for the child process (pre-fork)
+    let home_c = home.clone();
+    let prefix_c = prefix.clone();
+
+    match unsafe { fork() } {
+        Ok(ForkResult::Child) => {
+            // Child process: set up slave as controlling terminal
+            drop(master_fd);
+
+            setsid().expect("setsid failed");
+
+            // Set slave as controlling terminal
+            unsafe {
+                libc::ioctl(slave_fd.as_raw_fd(), libc::TIOCSCTTY, 0);
+            }
+
+            dup2(slave_fd.as_raw_fd(), 0).expect("dup2 stdin failed");
+            dup2(slave_fd.as_raw_fd(), 1).expect("dup2 stdout failed");
+            dup2(slave_fd.as_raw_fd(), 2).expect("dup2 stderr failed");
+
+            if slave_fd.as_raw_fd() > 2 {
+                drop(slave_fd);
+            }
+
+            // Detect best available shell
+            let bash_path = format!("{prefix_c}/bin/bash");
+            let ash_path = format!("{prefix_c}/bin/ash");
+
+            let (shell_path, argv0) = if std::path::Path::new(&bash_path).exists() {
+                (bash_path, "-bash")
+            } else if std::path::Path::new(&ash_path).exists() {
+                (ash_path, "-ash")
+            } else {
+                ("/system/bin/sh".to_string(), "sh")
+            };
+
+            // chdir to $HOME
+            if let Ok(c_home) = CString::new(home_c.as_str()) {
+                unsafe {
+                    libc::chdir(c_home.as_ptr());
+                }
+            }
+
+            let shell = CString::new(shell_path.as_str()).unwrap();
+            let argv0 = CString::new(argv0).unwrap();
+            let argv = [argv0];
+
+            let path_val = format!("PATH={prefix_c}/bin:/system/bin");
+            let env_vars: Vec<CString> = [
+                format!("HOME={home_c}"),
+                path_val,
+                format!("PREFIX={prefix_c}"),
+                format!("TMPDIR={prefix_c}/tmp"),
+                "TERM=xterm-256color".to_string(),
+                "COLORTERM=truecolor".to_string(),
+                "LANG=en_US.UTF-8".to_string(),
+                format!("ENV={home_c}/.profile"),
+            ]
+            .iter()
+            .filter_map(|s| CString::new(s.as_str()).ok())
+            .collect();
+
+            let env_refs: Vec<&CString> = env_vars.iter().collect();
+            execve(&shell, &argv, &env_refs).expect("execve failed");
+        }
+        Ok(ForkResult::Parent { child }) => {
+            drop(slave_fd);
+
+            // Set master to non-blocking
+            unsafe {
+                let flags = libc::fcntl(master_fd.as_raw_fd(), libc::F_GETFL);
+                libc::fcntl(
+                    master_fd.as_raw_fd(),
+                    libc::F_SETFL,
+                    flags | libc::O_NONBLOCK,
+                );
+            }
+
+            let master_raw = master_fd.as_raw_fd();
+            // Prevent OwnedFd from closing on drop in this thread — the PTY thread owns it
+            std::mem::forget(master_fd);
+
+            thread::Builder::new()
+                .name("pty-local".into())
+                .spawn(move || {
+                    let master = unsafe { OwnedFd::from_raw_fd(master_raw) };
+                    pty_thread_main(master, child, &cmd_rx, &out_tx);
+                })
+                .expect("Failed to spawn PTY thread");
+        }
+        Err(e) => {
+            log::error!("fork failed: {e}");
+        }
+    }
+
+    (cmd_tx, out_rx)
+}
+
+/// Set terminal window size via ioctl.
+fn set_winsize(fd: i32, cols: u16, rows: u16) {
+    let ws = libc::winsize {
+        ws_row: rows,
+        ws_col: cols,
+        ws_xpixel: 0,
+        ws_ypixel: 0,
+    };
+    unsafe {
+        libc::ioctl(fd, libc::TIOCSWINSZ, &ws);
+    }
+}
+
+/// PTY thread main loop: shuttle data between master fd and channels.
+fn pty_thread_main(
+    master: std::os::fd::OwnedFd,
+    child: nix::unistd::Pid,
+    cmd_rx: &mpsc::Receiver<PtyCommand>,
+    out_tx: &mpsc::Sender<Vec<u8>>,
+) {
+    use nix::sys::signal::{kill, Signal};
+    use nix::sys::wait::{waitpid, WaitPidFlag};
+    use std::io::{Read, Write};
+    use std::os::fd::{AsRawFd, FromRawFd};
+
+    let fd = master.as_raw_fd();
+    let mut file = unsafe { std::fs::File::from_raw_fd(fd) };
+    // Prevent double-close: File will close the fd, we must not drop OwnedFd
+    std::mem::forget(master);
+
+    let mut buf = [0u8; 4096];
+
+    log::info!("PTY thread started, child pid={child}");
+
+    loop {
+        // Check for commands
+        match cmd_rx.try_recv() {
+            Ok(PtyCommand::Input(data)) => {
+                let _ = file.write_all(&data);
+            }
+            Ok(PtyCommand::Resize(json)) => {
+                if let Ok(msg) = serde_json::from_str::<serde_json::Value>(&json) {
+                    let cols = msg.get("cols").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
+                    let rows = msg.get("rows").and_then(|v| v.as_u64()).unwrap_or(24) as u16;
+                    set_winsize(fd, cols, rows);
+                    let _ = kill(child, Signal::SIGWINCH);
+                }
+            }
+            Ok(PtyCommand::Disconnect) => {
+                let _ = kill(child, Signal::SIGHUP);
+                break;
+            }
+            Err(mpsc::TryRecvError::Disconnected) => break,
+            Err(mpsc::TryRecvError::Empty) => {}
+        }
+
+        // Read from master fd
+        match Read::read(&mut file, &mut buf) {
+            Ok(0) => break, // EOF — shell exited
+            Ok(n) => {
+                if out_tx.send(buf[..n].to_vec()).is_err() {
+                    break;
+                }
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                thread::sleep(std::time::Duration::from_millis(5));
+            }
+            Err(e) => {
+                log::error!("PTY read error: {e}");
+                break;
+            }
+        }
+
+        // Check if child has exited
+        match waitpid(child, Some(WaitPidFlag::WNOHANG)) {
+            Ok(nix::sys::wait::WaitStatus::Exited(_, _))
+            | Ok(nix::sys::wait::WaitStatus::Signaled(_, _, _)) => {
+                log::info!("Shell process exited");
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    log::info!("PTY thread exiting");
 }
 
 /// Calculate grid columns and rows from surface dimensions.
@@ -525,6 +776,8 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_init(
         dirty: true,
         connected: false,
         error_msg: None,
+        local_mode: false,
+        files_dir: None,
     };
 
     state.render_content();
@@ -549,7 +802,7 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connect(
     if let Some(ref mut s) = *state {
         // Disconnect existing connection
         if let Some(ref tx) = s.ws_tx {
-            let _ = tx.send(WsCommand::Disconnect);
+            let _ = tx.send(PtyCommand::Disconnect);
         }
 
         let (cmd_tx, out_rx) = spawn_ws_thread(url_str, s.total_cols, s.total_rows);
@@ -557,6 +810,38 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connect(
         s.ws_rx = Some(out_rx);
         s.session_id = None;
         s.connected = true;
+        s.dirty = true;
+        s.render_content();
+    }
+}
+
+/// Connect to a local PTY shell.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connectLocal(
+    mut env: JNIEnv,
+    _class: JClass,
+    files_dir: JString,
+) {
+    let Ok(files_dir_jstr) = env.get_string(&files_dir) else {
+        return;
+    };
+    let files_dir_str: String = files_dir_jstr.into();
+
+    let mut state = TERMINAL_STATE.lock().unwrap();
+    if let Some(ref mut s) = *state {
+        // Disconnect existing connection
+        if let Some(ref tx) = s.ws_tx {
+            let _ = tx.send(PtyCommand::Disconnect);
+        }
+
+        s.files_dir = Some(files_dir_str.clone());
+
+        let (cmd_tx, out_rx) = spawn_local_pty(&files_dir_str, s.total_cols, s.total_rows);
+        s.ws_tx = Some(cmd_tx);
+        s.ws_rx = Some(out_rx);
+        s.session_id = None;
+        s.connected = true;
+        s.local_mode = true;
         s.dirty = true;
         s.render_content();
     }
@@ -685,7 +970,7 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_destroy(
     let mut state = TERMINAL_STATE.lock().unwrap();
     if let Some(ref s) = *state {
         if let Some(ref tx) = s.ws_tx {
-            let _ = tx.send(WsCommand::Disconnect);
+            let _ = tx.send(PtyCommand::Disconnect);
         }
     }
     *state = None;

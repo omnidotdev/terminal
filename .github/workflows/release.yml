@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: Handle release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontends/wasm
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --version 0.2.106
+      - name: Install dependencies
+        run: bun i
+      - name: Create release PR or publish package
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: bun release
+          title: "feature(release): version packages"
+          commit: "ci(changesets): version packages"
+          cwd: frontends/wasm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true

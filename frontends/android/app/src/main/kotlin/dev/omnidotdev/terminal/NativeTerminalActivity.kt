@@ -69,15 +69,22 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
         setContentView(root)
 
-        // Apply window insets as padding so content avoids the cutout and status bar
+        // Handle system bars, display cutout, and keyboard insets
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, windowInsets ->
-            val insets = windowInsets.getInsets(
+            val systemInsets = windowInsets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
             )
-            // Pad top and sides for cutout/status bar; bottom handled by toolbar
-            view.setPadding(insets.left, insets.top, insets.right, 0)
-            // Pad toolbar bottom for navigation bar gesture area
-            toolbar.setPadding(8, 4, 8, 4 + insets.bottom)
+            val imeInsets = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
+            val imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime())
+
+            // Bottom: keyboard height (if visible) or 0
+            val bottomPadding = if (imeVisible) imeInsets.bottom else 0
+            view.setPadding(systemInsets.left, systemInsets.top, systemInsets.right, bottomPadding)
+
+            // Toolbar: pad for nav bar when keyboard is hidden
+            val toolbarBottom = if (imeVisible) 4 else 4 + systemInsets.bottom
+            toolbar.setPadding(8, 4, 8, toolbarBottom)
+
             windowInsets
         }
 

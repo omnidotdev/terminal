@@ -176,6 +176,8 @@ struct TerminalManager {
     scale: f32,
     /// Whether font dimensions have been confirmed (non-zero from sugarloaf).
     dims_confirmed: bool,
+    /// Monotonic counter for local shell labels (avoids duplicates on close/reopen).
+    shell_counter: usize,
 }
 
 impl TerminalManager {
@@ -227,16 +229,12 @@ impl TerminalManager {
     }
 
     /// Generate the next "Shell", "Shell 2", etc. label.
-    fn next_shell_label(&self) -> String {
-        let existing: usize = self
-            .sessions
-            .iter()
-            .filter(|s| s.local_mode)
-            .count();
-        if existing == 0 {
+    fn next_shell_label(&mut self) -> String {
+        self.shell_counter += 1;
+        if self.shell_counter == 1 {
             "Shell".to_string()
         } else {
-            format!("Shell {}", existing + 1)
+            format!("Shell {}", self.shell_counter)
         }
     }
 
@@ -926,6 +924,7 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_init(
         surface_height: height as f32,
         scale,
         dims_confirmed,
+        shell_counter: 0,
     };
 
     mgr.render_content();
@@ -1136,7 +1135,9 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_closeSession(
             m.sessions[idx].disconnect();
             m.sessions.remove(idx);
 
-            // Adjust active index
+            // Adjust active index. If active == idx and idx < new len,
+            // active now points to the next session (which slid into the
+            // removed slot) — this is the desired behavior.
             if m.sessions.is_empty() {
                 m.active = 0;
             } else if m.active >= m.sessions.len() {

@@ -3,32 +3,32 @@ use std::path::PathBuf;
 use crate::font::SharedData;
 pub use ttf_parser::Language;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 use font_kit::source::SystemSource;
 
 #[derive(Clone, Debug)]
 pub struct ID {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     handle: Option<font_kit::handle::Handle>,
     // TODO: Fix wasm32
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(desktop_platform))]
     _dummy: u32,
 }
 
 impl ID {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     fn from_handle(handle: font_kit::handle::Handle) -> Self {
         Self {
             handle: Some(handle),
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(desktop_platform))]
     fn from_handle(_handle: ()) -> Self {
         Self { _dummy: 0 }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     fn to_handle(&self) -> Option<font_kit::handle::Handle> {
         self.handle.clone()
     }
@@ -112,7 +112,7 @@ impl Stretch {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     fn from_font_kit(fk_stretch: font_kit::properties::Stretch) -> Self {
         use font_kit::properties::Stretch as FKS;
         let val = fk_stretch.0;
@@ -148,7 +148,7 @@ pub enum Style {
 }
 
 impl Style {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     fn from_font_kit(fk_style: font_kit::properties::Style) -> Self {
         use font_kit::properties::Style as FKStyle;
         match fk_style {
@@ -159,7 +159,7 @@ impl Style {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 struct FontCandidate {
     handle: font_kit::handle::Handle,
     weight: Weight,
@@ -169,7 +169,7 @@ struct FontCandidate {
 
 /// CSS-spec compliant font matching algorithm
 /// Based on https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 fn find_best_match(candidates: &[FontCandidate], query: &Query) -> Option<usize> {
     if candidates.is_empty() {
         return None;
@@ -303,23 +303,23 @@ fn find_best_match(candidates: &[FontCandidate], query: &Query) -> Option<usize>
 }
 
 pub struct Database {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     system_source: SystemSource,
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     additional_sources: Vec<font_kit::sources::mem::MemSource>,
 }
 
 impl Database {
     pub fn new() -> Self {
         Self {
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(desktop_platform)]
             system_source: SystemSource::new(),
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(desktop_platform)]
             additional_sources: Vec::new(),
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     pub fn load_fonts_dir<P: AsRef<std::path::Path>>(&mut self, path: P) {
         use font_kit::handle::Handle;
         use walkdir::WalkDir;
@@ -356,14 +356,14 @@ impl Database {
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(desktop_platform))]
     pub fn load_fonts_dir<P: AsRef<std::path::Path>>(&mut self, _path: P) {
         // No-op for WASM
     }
 
     /// Query for a font matching the given criteria
     /// Gets ALL faces from the family, then applies CSS-spec matching
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     pub fn query(&self, query: &Query) -> Option<ID> {
         use font_kit::family_name::FamilyName;
 
@@ -496,13 +496,13 @@ impl Database {
         None
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(desktop_platform))]
     pub fn query(&self, _query: &Query) -> Option<ID> {
         None
     }
 
     /// Get face source (path and index) for a given ID
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     pub fn face_source(&self, id: ID) -> Option<(Source, u32)> {
         // Reconstruct handle from ID
         tracing::debug!("face_source: getting source for ID");
@@ -548,7 +548,7 @@ impl Database {
         None
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(desktop_platform))]
     pub fn face_source(&self, _id: ID) -> Option<(Source, u32)> {
         None
     }
@@ -576,7 +576,7 @@ const SYSTEM_FONT_DIRS: &[&str] = &[
 #[cfg(all(unix, not(target_os = "macos")))]
 const SYSTEM_FONT_DIRS: &[&str] = &["/usr/share/fonts", "/usr/local/share/fonts"];
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 fn get_font_name(face: &ttf_parser::Face) -> Option<String> {
     face.names()
         .into_iter()
@@ -590,7 +590,7 @@ fn get_font_name(face: &ttf_parser::Face) -> Option<String> {
         })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 fn get_font_dirs() -> Vec<PathBuf> {
     let mut dirs: Vec<PathBuf> = SYSTEM_FONT_DIRS.iter().map(PathBuf::from).collect();
 
@@ -625,7 +625,7 @@ fn get_font_dirs() -> Vec<PathBuf> {
 
 // find the file path for a font given its binary data.
 // parses the font to get its PostScript name, then searches system directories.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 fn find_font_path_from_data(data: &[u8]) -> Option<PathBuf> {
     use memmap2::Mmap;
     use std::fs::File;

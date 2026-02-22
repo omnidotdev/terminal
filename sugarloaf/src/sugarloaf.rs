@@ -3,7 +3,7 @@ pub mod primitives;
 pub mod state;
 
 use crate::components::core::{image::Handle, shapes::Rectangle};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 use crate::components::filters::{Filter, FiltersBrush};
 use crate::components::layer::{self, LayerBrush};
 use crate::components::quad::QuadBrush;
@@ -31,7 +31,7 @@ pub struct Sugarloaf<'a> {
     pub background_color: Option<wgpu::Color>,
     pub background_image: Option<ImageProperties>,
     pub graphics: Graphics,
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     filters_brush: Option<FiltersBrush>,
 }
 
@@ -162,7 +162,7 @@ impl Sugarloaf<'_> {
             background_image: None,
             rich_text_brush,
             graphics: Graphics::default(),
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(desktop_platform)]
             filters_brush: None,
         };
 
@@ -192,7 +192,7 @@ impl Sugarloaf<'_> {
             background_image: None,
             rich_text_brush,
             graphics: Graphics::default(),
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(desktop_platform)]
             filters_brush: None,
         };
 
@@ -265,7 +265,7 @@ impl Sugarloaf<'_> {
         self.state.set_rich_text_line_height(rt_id, line_height);
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     #[inline]
     pub fn update_filters(&mut self, filters: &[Filter]) {
         if filters.is_empty() {
@@ -515,7 +515,7 @@ impl Sugarloaf<'_> {
                     self.graphics.clear_top_layer();
                 }
 
-                #[cfg(not(target_arch = "wasm32"))]
+                #[cfg(desktop_platform)]
                 if let Some(ref mut filters_brush) = self.filters_brush {
                     filters_brush.render(
                         &self.ctx,

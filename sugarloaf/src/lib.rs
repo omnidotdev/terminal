@@ -19,7 +19,7 @@ pub use crate::sugarloaf::{
     Colorspace, Sugarloaf, SugarloafErrors, SugarloafRenderer, SugarloafWindow,
     SugarloafWindowSize, SugarloafWithErrors,
 };
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 pub use components::filters::Filter;
 pub use components::quad::Quad;
 pub use layout::{

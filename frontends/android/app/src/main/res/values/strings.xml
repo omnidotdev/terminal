@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Omni Terminal</string>
+    <string name="connect">Connect</string>
+    <string name="server_url">Server URL</string>
+    <string name="server_url_hint">e.g. 192.168.1.100:3000</string>
+    <string name="connecting">Connecting&#8230;</string>
+    <string name="error_empty_url">Enter a server address</string>
+    <string name="error_load_failed">Failed to load terminal</string>
+</resources>

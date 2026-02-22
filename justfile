@@ -157,6 +157,44 @@ sugarloaf-test:
 sugarloaf-test-firefox:
     GECKODRIVER=geckodriver cargo test -p sugarloaf --tests --target wasm32-unknown-unknown
 
+# Build native library for Android arm64
+android-native:
+    cargo ndk -t aarch64-linux-android build -p omni-terminal-android
+    mkdir -p frontends/android/app/src/main/jniLibs/arm64-v8a
+    cp target/aarch64-linux-android/debug/libomni_terminal_android.so frontends/android/app/src/main/jniLibs/arm64-v8a/
+
+# Build native library for Android arm64 (release, optimized)
+android-native-release:
+    cargo ndk -t aarch64-linux-android build -p omni-terminal-android --release
+    mkdir -p frontends/android/app/src/main/jniLibs/arm64-v8a
+    cp target/aarch64-linux-android/release/libomni_terminal_android.so frontends/android/app/src/main/jniLibs/arm64-v8a/
+
+# Build Android debug APK (native library + Kotlin shell)
+android-build: android-native
+    cd frontends/android && ./gradlew assembleDebug
+
+# Build Android release APK
+android-release: android-native-release
+    cd frontends/android && ./gradlew assembleRelease
+
+android_adb := env("ANDROID_ADB", "adb")
+android_package := "dev.omnidotdev.terminal"
+android_activity := android_package + "/.ConnectActivity"
+
+# Build, install, and launch Android app on connected device
+android-deploy: android-build
+    {{android_adb}} install -r frontends/android/app/build/outputs/apk/debug/app-debug.apk
+    {{android_adb}} shell am start -n {{android_activity}}
+
+# Watch Rust sources, rebuild and deploy on change
+android-watch:
+    cargo watch -w frontends/android-lib/src -w sugarloaf/src -w copa/src -s 'just android-deploy'
+
+# Clean Android build artifacts
+android-clean:
+    cd frontends/android && ./gradlew clean
+    rm -rf frontends/android/app/src/main/jniLibs
+
 # Build man pages from scdoc sources (requires scdoc)
 man-pages:
     scdoc < extra/man/omni-terminal.1.scd > extra/man/omni-terminal.1

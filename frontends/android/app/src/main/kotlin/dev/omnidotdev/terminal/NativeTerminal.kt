@@ -1,0 +1,35 @@
+package dev.omnidotdev.terminal
+
+import android.view.Surface
+
+object NativeTerminal {
+    init {
+        System.loadLibrary("omni_terminal_android")
+    }
+
+    external fun init(surface: Surface, width: Int, height: Int, scale: Float)
+    external fun connect(url: String)
+    external fun render()
+    external fun resize(width: Int, height: Int, scale: Float)
+    external fun destroy()
+
+    // Input
+    external fun sendKey(text: String)
+    external fun sendSpecialKey(keyCode: Int)
+
+    // Font size: 0=reset, 1=decrease, 2=increase
+    external fun setFontAction(action: Int)
+
+    // Scroll by lines (positive=down, negative=up)
+    external fun scroll(lines: Int)
+
+    // Special key codes
+    const val KEY_ENTER = 1
+    const val KEY_BACKSPACE = 2
+    const val KEY_TAB = 3
+    const val KEY_ESCAPE = 4
+    const val KEY_ARROW_UP = 10
+    const val KEY_ARROW_DOWN = 11
+    const val KEY_ARROW_LEFT = 12
+    const val KEY_ARROW_RIGHT = 13
+}

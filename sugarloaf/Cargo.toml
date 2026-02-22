@@ -56,16 +56,18 @@ futures = { workspace = true }
 
 thiserror = "2.0.1"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 librashader = { version = "0.10.0", default-features = false, features = ["runtime-wgpu", "stable", "presets"] }
+font-kit = "0.14.3"
+walkdir = "2.5.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rayon = "1.10.0"
 twox-hash = { version = "2.1.1", default-features = false, features = [
     "std",
     "xxhash64",
 ] }
 memmap2 = { workspace = true }
-font-kit = "0.14.3"
-walkdir = "2.5.0"
 ttf-parser = { version = "0.25.1", default-features = false, features = ["std", "opentype-layout", "apple-layout", "variable-fonts", "glyph-names"] }
 
 [target.'cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))'.dependencies]

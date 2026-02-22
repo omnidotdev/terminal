@@ -1,7 +1,7 @@
 pub mod constants;
 mod fallbacks;
 pub mod fonts;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 pub mod loader;
 pub mod metrics;
 pub mod text_run_cache;
@@ -13,7 +13,7 @@ pub const FONT_ID_REGULAR: usize = 0;
 
 use crate::font::constants::*;
 use crate::font::fonts::SugarloafFontStyle;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 use crate::font::fonts::{parse_unicode, SugarloafFontWidth};
 use crate::font::metrics::{FaceMetrics, Metrics};
 use crate::font_introspector::text::cluster::Parser;
@@ -24,37 +24,37 @@ use crate::font_introspector::text::Script;
 use crate::font_introspector::{CacheKey, FontRef, Synthesis};
 use crate::layout::FragmentStyle;
 use crate::SugarloafErrors;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 use std::sync::OnceLock;
 
 pub use crate::font_introspector::{Style, Weight};
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 type FontDataCache = Arc<DashMap<PathBuf, SharedData>>;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 static FONT_DATA_CACHE: OnceLock<FontDataCache> = OnceLock::new();
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 fn get_font_data_cache() -> &'static FontDataCache {
     FONT_DATA_CACHE.get_or_init(|| Arc::new(DashMap::default()))
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 pub fn clear_font_data_cache() {
     if let Some(cache) = FONT_DATA_CACHE.get() {
         cache.clear();
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(desktop_platform))]
 pub fn clear_font_data_cache() {
     // No-op: WASM uses bundled fonts, no disk cache to clear
 }
@@ -326,7 +326,7 @@ impl FontLibraryData {
         self.inner.is_empty()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(desktop_platform)]
     pub fn load(&mut self, mut spec: SugarloafFonts) -> Vec<SugarloafFont> {
         // Configure hinting through spec
         self.hinting = spec.hinting;
@@ -523,7 +523,7 @@ impl FontLibraryData {
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(desktop_platform))]
     pub fn load(&mut self, _font_spec: SugarloafFonts) -> Vec<SugarloafFont> {
         // Load bundled fonts in the same order as native: regular, italic, bold, bold_italic
         self.insert(FontData::from_slice(FONT_CASCADIAMONO_REGULAR, false).unwrap());
@@ -742,16 +742,16 @@ impl FontData {
 pub type SugarloafFont = fonts::SugarloafFont;
 pub type SugarloafFonts = fonts::SugarloafFonts;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 use tracing::{info, warn};
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 enum FindResult {
     Found(FontData),
     NotFound(SugarloafFont),
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 #[inline]
 fn find_font(
     db: &crate::font::loader::Database,
@@ -875,7 +875,7 @@ fn find_font(
     FindResult::NotFound(font_spec)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 fn load_fallback_from_memory(font_spec: &SugarloafFont) -> FontData {
     let style = &font_spec.style;
     let weight = font_spec.weight.unwrap_or(400);
@@ -914,7 +914,7 @@ fn load_fallback_from_memory(font_spec: &SugarloafFont) -> FontData {
     FontData::from_slice(font_to_load, false).unwrap()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 #[allow(dead_code)]
 fn find_font_path(
     db: &crate::font::loader::Database,
@@ -938,7 +938,7 @@ fn find_font_path(
     None
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 fn load_from_font_source(path: &PathBuf) -> Option<SharedData> {
     use std::io::Read;
 
@@ -965,7 +965,7 @@ fn load_from_font_source(path: &PathBuf) -> Option<SharedData> {
     None
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(desktop_platform))]
 fn load_from_font_source(_path: &PathBuf) -> Option<SharedData> {
     None
 }

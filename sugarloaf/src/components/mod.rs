@@ -1,5 +1,5 @@
 pub mod core;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(desktop_platform)]
 pub mod filters;
 pub mod layer;
 pub mod quad;

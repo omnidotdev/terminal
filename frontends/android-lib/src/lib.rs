@@ -197,15 +197,18 @@ impl TerminalState {
                 color: [1.0, 0.3, 0.3, 1.0],
                 ..FragmentStyle::default()
             };
-            content.add_text(&format!("  Error: {err}"), red);
-            content.new_line();
-            content.add_text("  Press back to try again", dim);
+            let msg = format!(" Error: {err}");
+            for line in wrap_text(&msg, self.total_cols) {
+                content.add_text(&line, red);
+                content.new_line();
+            }
+            content.add_text(" Press back to try again", dim);
         } else if self.connected {
-            content.add_text("  Connecting to server...", dim);
+            content.add_text(" Connecting to server...", dim);
         } else {
-            content.add_text("  Not connected", dim);
+            content.add_text(" Not connected", dim);
             content.new_line();
-            content.add_text("  Press back to enter server URL", dim);
+            content.add_text(" Press back to enter server URL", dim);
         }
 
         content.new_line();
@@ -400,6 +403,33 @@ fn ws_thread_main(
     log::info!("WebSocket thread exiting");
 }
 
+/// Word-wrap text to fit within `cols` columns.
+fn wrap_text(text: &str, cols: usize) -> Vec<String> {
+    if cols == 0 {
+        return vec![text.to_string()];
+    }
+
+    let mut lines = Vec::new();
+    let mut line = String::new();
+
+    for word in text.split(' ') {
+        if line.is_empty() {
+            line.push_str(word);
+        } else if line.len() + 1 + word.len() <= cols {
+            line.push(' ');
+            line.push_str(word);
+        } else {
+            lines.push(line);
+            line = format!(" {word}");
+        }
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+
+    lines
+}
+
 /// Create local shell directories under `files_dir`.
 fn ensure_local_dirs(files_dir: &str) {
     use std::ffi::CString;
@@ -452,6 +482,7 @@ fn spawn_local_pty(
     let prefix_c = prefix.clone();
 
     match unsafe { fork() } {
+        #[allow(unreachable_code)]
         Ok(ForkResult::Child) => {
             // Child process: set up slave as controlling terminal
             drop(master_fd);

@@ -27,6 +27,7 @@ impl Default for Cell {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum MouseMode {
     None,
     Click,
@@ -66,6 +67,7 @@ pub struct TerminalGrid {
     mouse_sgr: bool,    // Mode 1006: SGR extended encoding
 
     // Bytes to send back to the PTY (mouse reports, etc.). Drained by lib.rs each frame.
+    #[allow(dead_code)]
     pub pending_writes: Vec<u8>,
 }
 
@@ -97,6 +99,7 @@ impl TerminalGrid {
         }
     }
 
+    #[allow(dead_code)]
     pub fn mouse_mode(&self) -> MouseMode {
         if self.mouse_motion {
             MouseMode::AllMotion
@@ -616,6 +619,7 @@ impl TerminalGrid {
     /// `modifiers` is a bitmask: 4=shift, 8=alt, 16=ctrl.
     /// `col` and `row` are 0-indexed grid coordinates.
     /// `pressed` is true for press/motion, false for release.
+    #[allow(dead_code)]
     pub fn mouse_report(
         &mut self,
         button: u8,

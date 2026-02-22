@@ -35,6 +35,9 @@ pub enum MouseMode {
     AllMotion,
 }
 
+/// Maximum number of lines kept in scrollback history.
+const MAX_SCROLLBACK: usize = 1000;
+
 /// Simple terminal grid state driven by ANSI escape sequences
 pub struct TerminalGrid {
     pub cols: usize,
@@ -43,6 +46,11 @@ pub struct TerminalGrid {
     pub cursor_row: usize,
     pub cursor_col: usize,
     pub dirty: bool,
+
+    // Scrollback history (oldest first)
+    scrollback: Vec<Vec<Cell>>,
+    /// Viewport offset from the bottom. 0 = viewing live output.
+    pub display_offset: usize,
 
     // Current text attributes
     cur_fg: [f32; 4],
@@ -81,6 +89,8 @@ impl TerminalGrid {
             cursor_row: 0,
             cursor_col: 0,
             dirty: true,
+            scrollback: Vec::new(),
+            display_offset: 0,
             cur_fg: [1.0, 1.0, 1.0, 1.0],
             cur_bg: None,
             cur_bold: false,
@@ -129,8 +139,44 @@ impl TerminalGrid {
         self.dirty = true;
     }
 
+    /// Adjust the viewport by `delta` lines. Positive = scroll up (into history).
+    pub fn scroll_display(&mut self, delta: i32) {
+        let max = self.scrollback.len();
+        let new_offset = (self.display_offset as i32 + delta).clamp(0, max as i32);
+        self.display_offset = new_offset as usize;
+        self.dirty = true;
+    }
+
+    /// Return the row to display at screen position `row_idx`, accounting for
+    /// `display_offset`. When scrolled back, rows come from scrollback history.
+    pub fn visible_row(&self, row_idx: usize) -> &Vec<Cell> {
+        if self.display_offset == 0 {
+            return &self.cells[row_idx];
+        }
+
+        // Total virtual lines = scrollback + live cells
+        // We want to show `rows` lines ending at (total - display_offset)
+        let total = self.scrollback.len() + self.rows;
+        let end = total - self.display_offset;
+        let start = end.saturating_sub(self.rows);
+        let abs_idx = start + row_idx;
+
+        if abs_idx < self.scrollback.len() {
+            &self.scrollback[abs_idx]
+        } else {
+            &self.cells[abs_idx - self.scrollback.len()]
+        }
+    }
+
     fn scroll_up(&mut self) {
-        self.cells.remove(self.scroll_top);
+        let removed = self.cells.remove(self.scroll_top);
+        // Only save to scrollback when the whole screen scrolls (region == full screen)
+        if self.scroll_top == 0 {
+            self.scrollback.push(removed);
+            if self.scrollback.len() > MAX_SCROLLBACK {
+                self.scrollback.remove(0);
+            }
+        }
         self.cells
             .insert(self.scroll_bottom, vec![Cell::default(); self.cols]);
         self.dirty = true;

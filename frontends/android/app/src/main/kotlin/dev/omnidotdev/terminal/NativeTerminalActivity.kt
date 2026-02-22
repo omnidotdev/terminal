@@ -3,6 +3,7 @@ package dev.omnidotdev.terminal
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.DisplayMetrics
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -24,6 +25,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private lateinit var surfaceView: TerminalSurfaceView
     private lateinit var toolbar: LinearLayout
     private lateinit var scaleDetector: ScaleGestureDetector
+    private lateinit var gestureDetector: GestureDetector
     private var initialized = false
     private var scaleFactor = 1.0f
     private var serverUrl: String? = null
@@ -89,6 +91,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
 
         scaleDetector = ScaleGestureDetector(this, PinchListener())
+        gestureDetector = GestureDetector(this, ScrollListener())
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -217,6 +220,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     override fun surfaceCreated(holder: SurfaceHolder) {
         surfaceView.setOnTouchListener { _, event ->
             scaleDetector.onTouchEvent(event)
+            gestureDetector.onTouchEvent(event)
             if (event.action == MotionEvent.ACTION_UP && !scaleDetector.isInProgress) {
                 surfaceView.showKeyboard()
             }
@@ -279,6 +283,35 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             } else if (scaleFactor < 0.85f) {
                 NativeTerminal.setFontAction(1)
                 scaleFactor = 1.0f
+            }
+            return true
+        }
+    }
+
+    private inner class ScrollListener : GestureDetector.SimpleOnGestureListener() {
+        private var accumulatedScroll = 0f
+
+        override fun onDown(e: MotionEvent): Boolean {
+            accumulatedScroll = 0f
+            return true
+        }
+
+        override fun onScroll(
+            e1: MotionEvent?,
+            e2: MotionEvent,
+            distanceX: Float,
+            distanceY: Float,
+        ): Boolean {
+            if (scaleDetector.isInProgress) return false
+
+            // Convert pixel distance to lines (font_size=18 * line_height=1.2 * density)
+            val lineHeight = 18f * 1.2f * resources.displayMetrics.density
+            accumulatedScroll -= distanceY
+
+            val lines = (accumulatedScroll / lineHeight).toInt()
+            if (lines != 0) {
+                accumulatedScroll -= lines * lineHeight
+                NativeTerminal.scroll(lines)
             }
             return true
         }

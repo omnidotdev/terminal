@@ -11,10 +11,12 @@ pub fn render_grid(
     content.sel(rt_id).clear();
 
     for row_idx in 0..grid.rows {
-        let row = &grid.cells[row_idx];
+        let row = grid.visible_row(row_idx);
+        // Scrollback rows may have a different column count after resize
+        let cols = grid.cols.min(row.len());
         let mut run_start = 0;
 
-        while run_start < grid.cols {
+        while run_start < cols {
             let cell = &row[run_start];
 
             // Build a style for the current cell
@@ -45,7 +47,7 @@ pub fn render_grid(
 
             // Batch consecutive characters with the same style
             let mut run_end = run_start + 1;
-            while run_end < grid.cols {
+            while run_end < cols {
                 let next = &row[run_end];
                 let (nfg, nbg) = if next.inverse {
                     (
@@ -77,8 +79,11 @@ pub fn render_grid(
             run_start = run_end;
         }
 
-        // Render cursor on this row
-        if row_idx == grid.cursor_row && grid.cursor_col < grid.cols {
+        // Cursor only visible when viewing live output
+        if grid.display_offset == 0
+            && row_idx == grid.cursor_row
+            && grid.cursor_col < grid.cols
+        {
             // Cursor is rendered as part of the content — the cursor block
             // is already included in the text above via the cell character
         }

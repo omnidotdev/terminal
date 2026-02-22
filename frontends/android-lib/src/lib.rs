@@ -19,7 +19,7 @@ use sugarloaf::{
 use terminal::TerminalGrid;
 use tungstenite::Message;
 
-static TERMINAL_STATE: Mutex<Option<TerminalState>> = Mutex::new(None);
+static TERMINAL_MANAGER: Mutex<Option<TerminalManager>> = Mutex::new(None);
 
 /// Messages sent from JNI to the PTY/WebSocket thread.
 enum PtyCommand {
@@ -31,23 +31,14 @@ enum PtyCommand {
     Disconnect,
 }
 
-struct TerminalState {
-    sugarloaf: Sugarloaf<'static>,
-    rt_id: usize,
+struct Session {
     grid: TerminalGrid,
     parser: copa::Parser,
-    total_cols: usize,
-    total_rows: usize,
-    surface_width: f32,
-    surface_height: f32,
-    scale: f32,
-    /// Whether font dimensions have been confirmed (non-zero from sugarloaf).
-    dims_confirmed: bool,
-    /// Send commands to the WebSocket thread.
+    /// Send commands to the WebSocket/PTY thread.
     ws_tx: Option<mpsc::Sender<PtyCommand>>,
-    /// Receive PTY output from the WebSocket thread.
+    /// Receive PTY output from the WebSocket/PTY thread.
     ws_rx: Option<mpsc::Receiver<Vec<u8>>>,
-    /// Session UUID (set after "created" response).
+    /// Session UUID (set after "created" response, remote only).
     session_id: Option<[u8; 16]>,
     /// Whether content needs re-rendering.
     dirty: bool,
@@ -59,38 +50,29 @@ struct TerminalState {
     local_mode: bool,
     /// Android files directory for local shell environment.
     files_dir: Option<String>,
+    /// Tab display name.
+    label: String,
 }
 
-impl TerminalState {
-    fn render_content(&mut self) {
-        // Re-check grid size once font dimensions become available
-        if !self.dims_confirmed {
-            let dims = self.sugarloaf.get_rich_text_dimensions(&self.rt_id);
-            if dims.width > 0.0 {
-                self.dims_confirmed = true;
-                let (cols, rows) = calc_grid(
-                    self.surface_width,
-                    self.surface_height,
-                    self.scale,
-                    &mut self.sugarloaf,
-                    &self.rt_id,
-                );
-                if cols != self.total_cols || rows != self.total_rows {
-                    log::info!(
-                        "Font loaded — resizing grid: {}x{} -> {cols}x{rows}",
-                        self.total_cols,
-                        self.total_rows
-                    );
-                    self.total_cols = cols;
-                    self.total_rows = rows;
-                    self.grid.resize(cols, rows);
-                    self.send_resize(cols, rows);
-                    self.dirty = true;
-                }
-            }
+impl Session {
+    fn new(cols: usize, rows: usize, label: String) -> Self {
+        Self {
+            grid: TerminalGrid::new(cols, rows),
+            parser: copa::Parser::new(),
+            ws_tx: None,
+            ws_rx: None,
+            session_id: None,
+            dirty: true,
+            connected: false,
+            error_msg: None,
+            local_mode: false,
+            files_dir: None,
+            label,
         }
+    }
 
-        // Drain PTY output from WebSocket — collect first to avoid borrow issues
+    /// Drain pending PTY/WebSocket output into the grid.
+    fn drain_output(&mut self) {
         let mut incoming: Vec<Vec<u8>> = Vec::new();
         if let Some(ref rx) = self.ws_rx {
             while let Ok(data) = rx.try_recv() {
@@ -99,7 +81,6 @@ impl TerminalState {
         }
         for data in incoming {
             if self.local_mode {
-                // Local PTY: raw output, no UUID prefix
                 self.parser.advance(&mut self.grid, &data);
                 self.dirty = true;
             } else {
@@ -117,28 +98,6 @@ impl TerminalState {
                 }
             }
         }
-
-        if !self.dirty && self.connected {
-            return;
-        }
-
-        if self.connected && (self.local_mode || self.session_id.is_some()) {
-            // Real terminal: render the grid
-            renderer::render_grid(&mut self.sugarloaf, &self.grid, self.rt_id);
-        } else {
-            // Not connected: show status screen
-            self.render_status_screen();
-        }
-
-        let pad_px = PADDING_DP * self.scale;
-        self.sugarloaf
-            .set_objects(vec![Object::RichText(RichText {
-                id: self.rt_id,
-                position: [pad_px, 0.0],
-                lines: None,
-            })]);
-        self.sugarloaf.render();
-        self.dirty = false;
     }
 
     fn handle_control_message(&mut self, text: &str) {
@@ -171,51 +130,6 @@ impl TerminalState {
         }
     }
 
-    fn render_status_screen(&mut self) {
-        let green = FragmentStyle {
-            color: [0.0, 0.85, 0.4, 1.0],
-            ..FragmentStyle::default()
-        };
-        let white = FragmentStyle {
-            color: [0.9, 0.9, 0.9, 1.0],
-            ..FragmentStyle::default()
-        };
-        let dim = FragmentStyle {
-            color: [0.5, 0.5, 0.5, 1.0],
-            ..FragmentStyle::default()
-        };
-
-        let content = self.sugarloaf.content();
-        content.sel(self.rt_id).clear();
-
-        content.add_text("omni", green);
-        content.add_text("@terminal", white);
-        content.new_line();
-        content.new_line();
-
-        if let Some(ref err) = self.error_msg {
-            let red = FragmentStyle {
-                color: [1.0, 0.3, 0.3, 1.0],
-                ..FragmentStyle::default()
-            };
-            let msg = format!("Error: {err}");
-            for line in wrap_text(&msg, self.total_cols) {
-                content.add_text(&line, red);
-                content.new_line();
-            }
-            content.add_text("Press back to try again", dim);
-        } else if self.connected {
-            content.add_text("Connecting to server...", dim);
-        } else {
-            content.add_text("Not connected", dim);
-            content.new_line();
-            content.add_text("Press back to enter server URL", dim);
-        }
-
-        content.new_line();
-        content.build();
-    }
-
     fn send_input(&self, data: &[u8]) {
         if let Some(ref tx) = self.ws_tx {
             if self.local_mode {
@@ -241,6 +155,208 @@ impl TerminalState {
                 let _ = tx.send(PtyCommand::Resize(msg));
             }
         }
+    }
+
+    fn disconnect(&self) {
+        if let Some(ref tx) = self.ws_tx {
+            let _ = tx.send(PtyCommand::Disconnect);
+        }
+    }
+}
+
+struct TerminalManager {
+    sugarloaf: Sugarloaf<'static>,
+    rt_id: usize,
+    sessions: Vec<Session>,
+    active: usize,
+    total_cols: usize,
+    total_rows: usize,
+    surface_width: f32,
+    surface_height: f32,
+    scale: f32,
+    /// Whether font dimensions have been confirmed (non-zero from sugarloaf).
+    dims_confirmed: bool,
+}
+
+impl TerminalManager {
+    fn active_session(&self) -> Option<&Session> {
+        self.sessions.get(self.active)
+    }
+
+    fn active_session_mut(&mut self) -> Option<&mut Session> {
+        self.sessions.get_mut(self.active)
+    }
+
+    /// Create a new local shell session and switch to it. Returns the new session index.
+    fn create_local_session(&mut self, files_dir: &str) -> usize {
+        let label = self.next_shell_label();
+        let mut session = Session::new(self.total_cols, self.total_rows, label);
+
+        session.files_dir = Some(files_dir.to_string());
+        let (cmd_tx, out_rx) = spawn_local_pty(files_dir, self.total_cols, self.total_rows);
+        session.ws_tx = Some(cmd_tx);
+        session.ws_rx = Some(out_rx);
+        session.connected = true;
+        session.local_mode = true;
+
+        self.sessions.push(session);
+        let idx = self.sessions.len() - 1;
+        self.active = idx;
+        idx
+    }
+
+    /// Create a new remote WebSocket session and switch to it. Returns the new session index.
+    fn create_remote_session(&mut self, url: &str) -> usize {
+        let label = url::Url::parse(url)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| h.to_string()))
+            .unwrap_or_else(|| "Remote".to_string());
+
+        let mut session = Session::new(self.total_cols, self.total_rows, label);
+
+        let (cmd_tx, out_rx) =
+            spawn_ws_thread(url.to_string(), self.total_cols, self.total_rows);
+        session.ws_tx = Some(cmd_tx);
+        session.ws_rx = Some(out_rx);
+        session.connected = true;
+
+        self.sessions.push(session);
+        let idx = self.sessions.len() - 1;
+        self.active = idx;
+        idx
+    }
+
+    /// Generate the next "Shell", "Shell 2", etc. label.
+    fn next_shell_label(&self) -> String {
+        let existing: usize = self
+            .sessions
+            .iter()
+            .filter(|s| s.local_mode)
+            .count();
+        if existing == 0 {
+            "Shell".to_string()
+        } else {
+            format!("Shell {}", existing + 1)
+        }
+    }
+
+    fn render_content(&mut self) {
+        // Re-check grid size once font dimensions become available
+        if !self.dims_confirmed {
+            let dims = self.sugarloaf.get_rich_text_dimensions(&self.rt_id);
+            if dims.width > 0.0 {
+                self.dims_confirmed = true;
+                let (cols, rows) = calc_grid(
+                    self.surface_width,
+                    self.surface_height,
+                    self.scale,
+                    &mut self.sugarloaf,
+                    &self.rt_id,
+                );
+                if cols != self.total_cols || rows != self.total_rows {
+                    log::info!(
+                        "Font loaded — resizing grid: {}x{} -> {cols}x{rows}",
+                        self.total_cols,
+                        self.total_rows
+                    );
+                    self.total_cols = cols;
+                    self.total_rows = rows;
+                    for session in &mut self.sessions {
+                        session.grid.resize(cols, rows);
+                        session.send_resize(cols, rows);
+                        session.dirty = true;
+                    }
+                }
+            }
+        }
+
+        // Drain output from all sessions (background tabs stay up to date)
+        for session in &mut self.sessions {
+            session.drain_output();
+        }
+
+        // Render only the active session
+        let needs_render = if let Some(session) = self.sessions.get(self.active) {
+            session.dirty || !session.connected
+        } else {
+            true
+        };
+
+        if !needs_render {
+            return;
+        }
+
+        if let Some(session) = self.sessions.get(self.active) {
+            if session.connected && (session.local_mode || session.session_id.is_some()) {
+                renderer::render_grid(&mut self.sugarloaf, &session.grid, self.rt_id);
+            } else {
+                self.render_status_screen();
+            }
+        } else {
+            self.render_status_screen();
+        }
+
+        let pad_px = PADDING_DP * self.scale;
+        self.sugarloaf
+            .set_objects(vec![Object::RichText(RichText {
+                id: self.rt_id,
+                position: [pad_px, 0.0],
+                lines: None,
+            })]);
+        self.sugarloaf.render();
+
+        if let Some(session) = self.sessions.get_mut(self.active) {
+            session.dirty = false;
+        }
+    }
+
+    fn render_status_screen(&mut self) {
+        let green = FragmentStyle {
+            color: [0.0, 0.85, 0.4, 1.0],
+            ..FragmentStyle::default()
+        };
+        let white = FragmentStyle {
+            color: [0.9, 0.9, 0.9, 1.0],
+            ..FragmentStyle::default()
+        };
+        let dim = FragmentStyle {
+            color: [0.5, 0.5, 0.5, 1.0],
+            ..FragmentStyle::default()
+        };
+
+        let content = self.sugarloaf.content();
+        content.sel(self.rt_id).clear();
+
+        content.add_text("omni", green);
+        content.add_text("@terminal", white);
+        content.new_line();
+        content.new_line();
+
+        if let Some(session) = self.sessions.get(self.active) {
+            if let Some(ref err) = session.error_msg {
+                let red = FragmentStyle {
+                    color: [1.0, 0.3, 0.3, 1.0],
+                    ..FragmentStyle::default()
+                };
+                let msg = format!("Error: {err}");
+                for line in wrap_text(&msg, self.total_cols) {
+                    content.add_text(&line, red);
+                    content.new_line();
+                }
+                content.add_text("Press back to try again", dim);
+            } else if session.connected {
+                content.add_text("Connecting to server...", dim);
+            } else {
+                content.add_text("Not connected", dim);
+                content.new_line();
+                content.add_text("Press back to enter server URL", dim);
+            }
+        } else {
+            content.add_text("No active session", dim);
+        }
+
+        content.new_line();
+        content.build();
     }
 }
 
@@ -441,6 +557,7 @@ fn ensure_local_dirs(files_dir: &str) {
         format!("{files_dir}/usr/bin"),
         format!("{files_dir}/usr/tmp"),
         format!("{files_dir}/usr/etc"),
+        format!("{files_dir}/usr/share/terminfo"),
     ];
 
     for dir in &dirs {
@@ -535,6 +652,7 @@ fn spawn_local_pty(
                 "TERM=xterm-256color".to_string(),
                 "COLORTERM=truecolor".to_string(),
                 "LANG=en_US.UTF-8".to_string(),
+                format!("TERMINFO={prefix_c}/share/terminfo"),
                 format!("ENV={home_c}/.profile"),
             ]
             .iter()
@@ -797,34 +915,26 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_init(
 
     log::info!("Grid: {cols}x{rows} dims_confirmed={dims_confirmed}");
 
-    let mut state = TerminalState {
+    let mut mgr = TerminalManager {
         sugarloaf,
         rt_id,
-        grid: TerminalGrid::new(cols, rows),
-        parser: copa::Parser::new(),
+        sessions: Vec::new(),
+        active: 0,
         total_cols: cols,
         total_rows: rows,
         surface_width: width as f32,
         surface_height: height as f32,
         scale,
         dims_confirmed,
-        ws_tx: None,
-        ws_rx: None,
-        session_id: None,
-        dirty: true,
-        connected: false,
-        error_msg: None,
-        local_mode: false,
-        files_dir: None,
     };
 
-    state.render_content();
+    mgr.render_content();
 
-    let mut global = TERMINAL_STATE.lock().unwrap();
-    *global = Some(state);
+    let mut global = TERMINAL_MANAGER.lock().unwrap();
+    *global = Some(mgr);
 }
 
-/// Connect to a WebSocket server URL.
+/// Connect to a WebSocket server URL (creates a new remote session).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connect(
     mut env: JNIEnv,
@@ -836,24 +946,14 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connect(
     };
     let url_str: String = url_str.into();
 
-    let mut state = TERMINAL_STATE.lock().unwrap();
-    if let Some(ref mut s) = *state {
-        // Disconnect existing connection
-        if let Some(ref tx) = s.ws_tx {
-            let _ = tx.send(PtyCommand::Disconnect);
-        }
-
-        let (cmd_tx, out_rx) = spawn_ws_thread(url_str, s.total_cols, s.total_rows);
-        s.ws_tx = Some(cmd_tx);
-        s.ws_rx = Some(out_rx);
-        s.session_id = None;
-        s.connected = true;
-        s.dirty = true;
-        s.render_content();
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        m.create_remote_session(&url_str);
+        m.render_content();
     }
 }
 
-/// Connect to a local PTY shell.
+/// Connect to a local PTY shell (creates a new local session).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connectLocal(
     mut env: JNIEnv,
@@ -865,35 +965,22 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connectLocal(
     };
     let files_dir_str: String = files_dir_jstr.into();
 
-    let mut state = TERMINAL_STATE.lock().unwrap();
-    if let Some(ref mut s) = *state {
-        // Disconnect existing connection
-        if let Some(ref tx) = s.ws_tx {
-            let _ = tx.send(PtyCommand::Disconnect);
-        }
-
-        s.files_dir = Some(files_dir_str.clone());
-
-        let (cmd_tx, out_rx) = spawn_local_pty(&files_dir_str, s.total_cols, s.total_rows);
-        s.ws_tx = Some(cmd_tx);
-        s.ws_rx = Some(out_rx);
-        s.session_id = None;
-        s.connected = true;
-        s.local_mode = true;
-        s.dirty = true;
-        s.render_content();
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        m.create_local_session(&files_dir_str);
+        m.render_content();
     }
 }
 
-/// Render a frame — polls WebSocket output and re-renders if dirty.
+/// Render a frame — polls PTY output and re-renders if dirty.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_render(
     _env: JNIEnv,
     _class: JClass,
 ) {
-    let mut state = TERMINAL_STATE.lock().unwrap();
-    if let Some(ref mut s) = *state {
-        s.render_content();
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        m.render_content();
     }
 }
 
@@ -906,28 +993,32 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_resize(
     height: jint,
     scale: jfloat,
 ) {
-    let mut state = TERMINAL_STATE.lock().unwrap();
-    if let Some(ref mut s) = *state {
-        s.sugarloaf.resize(width as u32, height as u32);
-        s.sugarloaf.rescale(scale);
-        s.surface_width = width as f32;
-        s.surface_height = height as f32;
-        s.scale = scale;
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        m.sugarloaf.resize(width as u32, height as u32);
+        m.sugarloaf.rescale(scale);
+        m.surface_width = width as f32;
+        m.surface_height = height as f32;
+        m.scale = scale;
 
         let (cols, rows) =
-            calc_grid(width as f32, height as f32, scale, &mut s.sugarloaf, &s.rt_id);
-        if cols != s.total_cols || rows != s.total_rows {
-            s.total_cols = cols;
-            s.total_rows = rows;
-            s.grid.resize(cols, rows);
-            s.send_resize(cols, rows);
+            calc_grid(width as f32, height as f32, scale, &mut m.sugarloaf, &m.rt_id);
+        if cols != m.total_cols || rows != m.total_rows {
+            m.total_cols = cols;
+            m.total_rows = rows;
+            for session in &mut m.sessions {
+                session.grid.resize(cols, rows);
+                session.send_resize(cols, rows);
+            }
         }
-        s.dirty = true;
-        s.render_content();
+        if let Some(session) = m.sessions.get_mut(m.active) {
+            session.dirty = true;
+        }
+        m.render_content();
     }
 }
 
-/// Send a text string (from soft keyboard IME).
+/// Send a text string (from soft keyboard IME) to the active session.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_sendKey(
     mut env: JNIEnv,
@@ -942,13 +1033,15 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_sendKey(
         return;
     }
 
-    let mut state = TERMINAL_STATE.lock().unwrap();
-    if let Some(ref mut s) = *state {
-        s.send_input(input.as_bytes());
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        if let Some(session) = m.active_session() {
+            session.send_input(input.as_bytes());
+        }
     }
 }
 
-/// Send a special key by code.
+/// Send a special key by code to the active session.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_sendSpecialKey(
     _env: JNIEnv,
@@ -967,9 +1060,11 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_sendSpecialKe
         _ => return,
     };
 
-    let state = TERMINAL_STATE.lock().unwrap();
-    if let Some(ref s) = *state {
-        s.send_input(bytes);
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        if let Some(session) = m.active_session() {
+            session.send_input(bytes);
+        }
     }
 }
 
@@ -980,22 +1075,134 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_setFontAction
     _class: JClass,
     action: jint,
 ) {
-    let mut state = TERMINAL_STATE.lock().unwrap();
-    if let Some(ref mut s) = *state {
-        s.sugarloaf
-            .set_rich_text_font_size_based_on_action(&s.rt_id, action as u8);
-        s.dirty = true;
-        s.render_content();
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        m.sugarloaf
+            .set_rich_text_font_size_based_on_action(&m.rt_id, action as u8);
+        if let Some(session) = m.sessions.get_mut(m.active) {
+            session.dirty = true;
+        }
+        m.render_content();
     }
 }
 
-/// Scroll by lines (no-op until scrollback is implemented).
+/// Scroll the viewport by the given number of lines.
+/// Positive = scroll up (into history), negative = scroll down (toward live output).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_scroll(
     _env: JNIEnv,
     _class: JClass,
-    _lines: jint,
+    lines: jint,
 ) {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        if let Some(session) = m.active_session_mut() {
+            session.grid.scroll_display(lines);
+            session.dirty = true;
+        }
+    }
+}
+
+/// Switch to the session at the given index.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_switchSession(
+    _env: JNIEnv,
+    _class: JClass,
+    index: jint,
+) {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        let idx = index as usize;
+        if idx < m.sessions.len() {
+            m.active = idx;
+            if let Some(session) = m.sessions.get_mut(idx) {
+                session.dirty = true;
+            }
+        }
+    }
+}
+
+/// Close the session at the given index. Returns the number of remaining sessions.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_closeSession(
+    _env: JNIEnv,
+    _class: JClass,
+    index: jint,
+) -> jint {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        let idx = index as usize;
+        if idx < m.sessions.len() {
+            m.sessions[idx].disconnect();
+            m.sessions.remove(idx);
+
+            // Adjust active index
+            if m.sessions.is_empty() {
+                m.active = 0;
+            } else if m.active >= m.sessions.len() {
+                m.active = m.sessions.len() - 1;
+            } else if m.active > idx {
+                m.active -= 1;
+            }
+
+            if let Some(session) = m.sessions.get_mut(m.active) {
+                session.dirty = true;
+            }
+        }
+        m.sessions.len() as jint
+    } else {
+        0
+    }
+}
+
+/// Get the total number of sessions.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getSessionCount(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jint {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        m.sessions.len() as jint
+    } else {
+        0
+    }
+}
+
+/// Get the active session index.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getActiveSession(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jint {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        m.active as jint
+    } else {
+        0
+    }
+}
+
+/// Get the label for the session at the given index.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getSessionLabel<'a>(
+    env: JNIEnv<'a>,
+    _class: JClass<'a>,
+    index: jint,
+) -> JString<'a> {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    let label_owned = if let Some(ref m) = *mgr {
+        m.sessions
+            .get(index as usize)
+            .map(|s| s.label.clone())
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+    drop(mgr);
+
+    env.new_string(&label_owned)
+        .unwrap_or_else(|_| JObject::null().into())
 }
 
 /// Clean up native resources.
@@ -1005,11 +1212,11 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_destroy(
     _class: JClass,
 ) {
     log::info!("Destroying native terminal");
-    let mut state = TERMINAL_STATE.lock().unwrap();
-    if let Some(ref s) = *state {
-        if let Some(ref tx) = s.ws_tx {
-            let _ = tx.send(PtyCommand::Disconnect);
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        for session in &m.sessions {
+            session.disconnect();
         }
     }
-    *state = None;
+    *mgr = None;
 }

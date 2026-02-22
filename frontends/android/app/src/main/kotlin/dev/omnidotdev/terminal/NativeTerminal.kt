@@ -24,6 +24,13 @@ object NativeTerminal {
     // Scroll by lines (positive=down, negative=up)
     external fun scroll(lines: Int)
 
+    // Session management
+    external fun switchSession(index: Int)
+    external fun closeSession(index: Int): Int
+    external fun getSessionCount(): Int
+    external fun getActiveSession(): Int
+    external fun getSessionLabel(index: Int): String
+
     // Special key codes
     const val KEY_ENTER = 1
     const val KEY_BACKSPACE = 2

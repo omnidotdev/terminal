@@ -91,8 +91,18 @@ make -j"$(nproc)" \
 echo "==> Staging archive..."
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR/usr/bin"
+mkdir -p "$STAGING_DIR/usr/share/terminfo"
 
 cp busybox "$STAGING_DIR/usr/bin/busybox"
+
+# Compile terminfo database
+TERMINFO_SRC="${ANDROID_DIR}/../../misc/omni-terminal.terminfo"
+if [ -f "$TERMINFO_SRC" ]; then
+    echo "==> Compiling terminfo..."
+    tic -o "$STAGING_DIR/usr/share/terminfo" "$TERMINFO_SRC"
+else
+    echo "Warning: terminfo source not found at ${TERMINFO_SRC}"
+fi
 
 # Create setup-storage helper script
 cat > "$STAGING_DIR/usr/bin/setup-storage" << 'SETUP_STORAGE'

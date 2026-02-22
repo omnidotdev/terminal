@@ -26,7 +26,7 @@ if [ ! -d "$TOOLCHAIN" ]; then
 fi
 
 CC="${TOOLCHAIN}/bin/aarch64-linux-android${API_LEVEL}-clang"
-CROSS_PREFIX="${TOOLCHAIN}/bin/llvm-"
+SYSROOT="${TOOLCHAIN}/sysroot"
 
 echo "==> Downloading busybox ${BUSYBOX_VERSION}..."
 mkdir -p "$BUILD_DIR"
@@ -38,26 +38,55 @@ fi
 
 cd "busybox-${BUSYBOX_VERSION}"
 
-echo "==> Configuring busybox..."
-make defconfig
+# Clean any previous build
+make clean 2>/dev/null || true
 
-# Enable ash prompt expansion for PS1 escapes
-sed -i 's/# CONFIG_ASH_EXPAND_PRMT is not set/CONFIG_ASH_EXPAND_PRMT=y/' .config
+echo "==> Configuring busybox (android_ndk_defconfig)..."
+# Use the bundled Android NDK config — disables bionic-incompatible features
+make android_ndk_defconfig
 
-# Force static build
+# Override stale toolchain settings (config is from busybox 1.24/GCC era)
+sed -i 's|^CONFIG_CROSS_COMPILER_PREFIX=.*|CONFIG_CROSS_COMPILER_PREFIX=""|' .config
+sed -i "s|^CONFIG_SYSROOT=.*|CONFIG_SYSROOT=\"${SYSROOT}\"|" .config
+sed -i 's|^CONFIG_EXTRA_CFLAGS=.*|CONFIG_EXTRA_CFLAGS="-DANDROID -D__ANDROID__ -fPIC"|' .config
+sed -i 's|^CONFIG_EXTRA_LDFLAGS=.*|CONFIG_EXTRA_LDFLAGS=""|' .config
+sed -i 's|^CONFIG_EXTRA_LDLIBS=.*|CONFIG_EXTRA_LDLIBS=""|' .config
+
+# Enable static build
 sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
-# Disable features that won't work on Android
-sed -i 's/CONFIG_FEATURE_HAVE_RPC=y/# CONFIG_FEATURE_HAVE_RPC is not set/' .config
-sed -i 's/CONFIG_FEATURE_INETD_RPC=y/# CONFIG_FEATURE_INETD_RPC is not set/' .config
-sed -i 's/CONFIG_FEATURE_UTMP=y/# CONFIG_FEATURE_UTMP is not set/' .config
-sed -i 's/CONFIG_FEATURE_WTMP=y/# CONFIG_FEATURE_WTMP is not set/' .config
+
+# Enable ash shell with useful features
+sed -i 's/# CONFIG_ASH is not set/CONFIG_ASH=y/' .config
+sed -i 's/# CONFIG_ASH_BASH_COMPAT is not set/CONFIG_ASH_BASH_COMPAT=y/' .config
+sed -i 's/# CONFIG_ASH_JOB_CONTROL is not set/CONFIG_ASH_JOB_CONTROL=y/' .config
+sed -i 's/# CONFIG_ASH_ALIAS is not set/CONFIG_ASH_ALIAS=y/' .config
+sed -i 's/# CONFIG_ASH_RANDOM_SUPPORT is not set/CONFIG_ASH_RANDOM_SUPPORT=y/' .config
+sed -i 's/# CONFIG_ASH_EXPAND_PRMT is not set/CONFIG_ASH_EXPAND_PRMT=y/' .config
+sed -i 's/# CONFIG_ASH_ECHO is not set/CONFIG_ASH_ECHO=y/' .config
+sed -i 's/# CONFIG_ASH_PRINTF is not set/CONFIG_ASH_PRINTF=y/' .config
+sed -i 's/# CONFIG_ASH_TEST is not set/CONFIG_ASH_TEST=y/' .config
+sed -i 's/# CONFIG_ASH_GETOPTS is not set/CONFIG_ASH_GETOPTS=y/' .config
+sed -i 's/# CONFIG_ASH_CMDCMD is not set/CONFIG_ASH_CMDCMD=y/' .config
+
+# Disable features incompatible with Android bionic
+sed -i 's/CONFIG_FEATURE_SYSLOG=y/# CONFIG_FEATURE_SYSLOG is not set/' .config
+sed -i 's/CONFIG_TC=y/# CONFIG_TC is not set/' .config
+sed -i 's/CONFIG_SEEDRNG=y/# CONFIG_SEEDRNG is not set/' .config
+sed -i 's/CONFIG_SWAPON=y/# CONFIG_SWAPON is not set/' .config
+sed -i 's/CONFIG_SWAPOFF=y/# CONFIG_SWAPOFF is not set/' .config
+
+# Resolve any new config options from version drift (1.24 -> 1.36)
+# yes exits with SIGPIPE when make closes stdin — ignore it
+set +o pipefail
+yes "" | make oldconfig CC="$CC" HOSTCC=gcc
+set -o pipefail
 
 echo "==> Building busybox (static, aarch64)..."
 make -j"$(nproc)" \
     CC="$CC" \
-    CROSS_COMPILE="$CROSS_PREFIX" \
-    LDFLAGS="--static" \
-    CONFIG_STATIC=y
+    HOSTCC=gcc \
+    STRIP="${TOOLCHAIN}/bin/llvm-strip" \
+    LDFLAGS="-static -Wl,--allow-multiple-definition"
 
 echo "==> Staging archive..."
 rm -rf "$STAGING_DIR"

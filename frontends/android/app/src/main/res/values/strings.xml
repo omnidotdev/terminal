@@ -14,4 +14,6 @@
     <string name="bootstrap_failed">Bootstrap failed: %1$s</string>
     <string name="storage_created">Storage symlinks created in ~/storage/</string>
     <string name="storage_denied">Storage permission denied</string>
+    <string name="new_session">New Session</string>
+    <string name="remote_connection">Remote Connection</string>
 </resources>

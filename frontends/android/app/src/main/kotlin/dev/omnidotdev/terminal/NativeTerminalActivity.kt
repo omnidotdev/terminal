@@ -1,6 +1,7 @@
 package dev.omnidotdev.terminal
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.view.GestureDetector
@@ -10,6 +11,7 @@ import android.view.ScaleGestureDetector
 import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup.LayoutParams
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
@@ -24,6 +26,8 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private lateinit var root: FrameLayout
     private lateinit var surfaceView: TerminalSurfaceView
     private lateinit var toolbar: LinearLayout
+    private lateinit var tabBar: LinearLayout
+    private lateinit var tabContainer: LinearLayout
     private lateinit var scaleDetector: ScaleGestureDetector
     private lateinit var gestureDetector: GestureDetector
     private var initialized = false
@@ -54,20 +58,38 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         root = FrameLayout(this)
         root.setBackgroundColor(0xFF0D0D1A.toInt())
 
+        // Vertical container: tab bar + surface + toolbar
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // Tab bar
+        tabBar = createTabBar()
+        container.addView(tabBar, LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            LayoutParams.WRAP_CONTENT,
+        ))
+
+        // Terminal surface
         surfaceView = TerminalSurfaceView(this)
         surfaceView.holder.addCallback(this)
-        root.addView(surfaceView, FrameLayout.LayoutParams(
+        container.addView(surfaceView, LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            0,
+            1f,
+        ))
+
+        // Toolbar
+        toolbar = createToolbar()
+        container.addView(toolbar, LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            LayoutParams.WRAP_CONTENT,
+        ))
+
+        root.addView(container, FrameLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
             LayoutParams.MATCH_PARENT,
         ))
-
-        toolbar = createToolbar()
-        val toolbarParams = FrameLayout.LayoutParams(
-            LayoutParams.MATCH_PARENT,
-            LayoutParams.WRAP_CONTENT,
-            Gravity.BOTTOM,
-        )
-        root.addView(toolbar, toolbarParams)
 
         setContentView(root)
 
@@ -92,6 +114,165 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
         scaleDetector = ScaleGestureDetector(this, PinchListener())
         gestureDetector = GestureDetector(this, ScrollListener())
+    }
+
+    private fun createTabBar(): LinearLayout {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(0xDD1A1A2E.toInt())
+            setPadding(8, 4, 8, 4)
+        }
+
+        val scroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        tabContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        scroll.addView(tabContainer)
+        bar.addView(scroll)
+
+        // "+" button to add new session
+        bar.addView(createTabButton("+") {
+            showNewSessionDialog()
+        })
+
+        return bar
+    }
+
+    private fun refreshTabBar() {
+        tabContainer.removeAllViews()
+        val count = NativeTerminal.getSessionCount()
+        val active = NativeTerminal.getActiveSession()
+
+        for (i in 0 until count) {
+            val label = NativeTerminal.getSessionLabel(i)
+            val tab = createTabButton(label) {
+                NativeTerminal.switchSession(i)
+                refreshTabBar()
+            }
+
+            if (i == active) {
+                tab.setBackgroundColor(0xFF4444AA.toInt())
+                tab.setTextColor(0xFFFFFFFF.toInt())
+            }
+
+            // Long-press to close
+            tab.setOnLongClickListener {
+                closeSessionAt(i)
+                true
+            }
+
+            tabContainer.addView(tab)
+        }
+    }
+
+    private fun createTabButton(label: String, onClick: () -> Unit): TextView {
+        return TextView(this).apply {
+            text = label
+            setTextColor(0xFFCCCCCC.toInt())
+            setBackgroundResource(android.R.drawable.dialog_holo_dark_frame)
+            setPadding(24, 12, 24, 12)
+            textSize = 13f
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
+            ).apply { setMargins(4, 0, 4, 0) }
+            setOnClickListener { onClick() }
+        }
+    }
+
+    private fun showNewSessionDialog() {
+        val items = arrayOf(
+            getString(R.string.local_shell),
+            getString(R.string.remote_connection),
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.new_session)
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> createLocalSession()
+                    1 -> showRemoteUrlDialog()
+                }
+            }
+            .show()
+    }
+
+    private fun createLocalSession() {
+        if (!BootstrapInstaller.isInstalled(this)) {
+            val dialog = AlertDialog.Builder(this)
+                .setTitle(R.string.bootstrap_title)
+                .setMessage(R.string.bootstrap_extracting)
+                .setCancelable(false)
+                .create()
+            dialog.show()
+
+            Thread {
+                try {
+                    BootstrapInstaller.install(this) { status ->
+                        runOnUiThread { dialog.setMessage(status) }
+                    }
+                    runOnUiThread {
+                        dialog.dismiss()
+                        NativeTerminal.connectLocal(filesDir.absolutePath)
+                        refreshTabBar()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        dialog.dismiss()
+                        android.widget.Toast.makeText(
+                            this,
+                            getString(R.string.bootstrap_failed, e.message),
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            }.start()
+            return
+        }
+        NativeTerminal.connectLocal(filesDir.absolutePath)
+        refreshTabBar()
+    }
+
+    private fun showRemoteUrlDialog() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.server_url_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_URI
+            setPadding(48, 24, 48, 24)
+        }
+
+        // Pre-fill with last used URL
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        input.setText(prefs.getString(ConnectActivity.PREF_SERVER_URL, ""))
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.remote_connection)
+            .setView(input)
+            .setPositiveButton(R.string.connect) { _, _ ->
+                val raw = input.text?.toString()?.trim().orEmpty()
+                if (raw.isNotEmpty()) {
+                    val wsUrl = ConnectActivity.normalizeWsUrl(raw)
+                    prefs.edit().putString(ConnectActivity.PREF_SERVER_URL, raw).apply()
+                    NativeTerminal.connect(wsUrl)
+                    refreshTabBar()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun closeSessionAt(index: Int) {
+        val remaining = NativeTerminal.closeSession(index)
+        if (remaining == 0) {
+            finish()
+        } else {
+            refreshTabBar()
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -238,7 +419,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             NativeTerminal.init(holder.surface, width, height, scale)
             initialized = true
 
-            // Connect based on mode
+            // Create first session based on intent mode
             val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
             if (mode == "local") {
                 NativeTerminal.connectLocal(filesDir.absolutePath)
@@ -249,7 +430,9 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 }
             }
 
-            // Start render loop to poll WebSocket output
+            refreshTabBar()
+
+            // Start render loop to poll output
             renderHandler.post(renderRunnable)
 
             surfaceView.showKeyboard()

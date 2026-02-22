@@ -130,10 +130,11 @@ impl TerminalState {
             self.render_status_screen();
         }
 
+        let pad_px = PADDING_DP * self.scale;
         self.sugarloaf
             .set_objects(vec![Object::RichText(RichText {
                 id: self.rt_id,
-                position: [0.0, 0.0],
+                position: [pad_px, 0.0],
                 lines: None,
             })]);
         self.sugarloaf.render();
@@ -187,7 +188,7 @@ impl TerminalState {
         let content = self.sugarloaf.content();
         content.sel(self.rt_id).clear();
 
-        content.add_text(" omni", green);
+        content.add_text("omni", green);
         content.add_text("@terminal", white);
         content.new_line();
         content.new_line();
@@ -197,18 +198,18 @@ impl TerminalState {
                 color: [1.0, 0.3, 0.3, 1.0],
                 ..FragmentStyle::default()
             };
-            let msg = format!(" Error: {err}");
+            let msg = format!("Error: {err}");
             for line in wrap_text(&msg, self.total_cols) {
                 content.add_text(&line, red);
                 content.new_line();
             }
-            content.add_text(" Press back to try again", dim);
+            content.add_text("Press back to try again", dim);
         } else if self.connected {
-            content.add_text(" Connecting to server...", dim);
+            content.add_text("Connecting to server...", dim);
         } else {
-            content.add_text(" Not connected", dim);
+            content.add_text("Not connected", dim);
             content.new_line();
-            content.add_text(" Press back to enter server URL", dim);
+            content.add_text("Press back to enter server URL", dim);
         }
 
         content.new_line();
@@ -420,7 +421,7 @@ fn wrap_text(text: &str, cols: usize) -> Vec<String> {
             line.push_str(word);
         } else {
             lines.push(line);
-            line = format!(" {word}");
+            line = word.to_string();
         }
     }
     if !line.is_empty() {
@@ -663,6 +664,9 @@ fn pty_thread_main(
     log::info!("PTY thread exiting");
 }
 
+/// Horizontal padding in density-independent pixels (applied on each side).
+const PADDING_DP: f32 = 6.0;
+
 /// Calculate grid columns and rows from surface dimensions.
 fn calc_grid(
     width: f32,
@@ -691,7 +695,10 @@ fn calc_grid(
         18.0 * 1.2 * scale
     };
 
-    let cols = (width / cell_w).floor().max(1.0) as usize;
+    // Subtract horizontal padding from available width
+    let usable_width = (width - 2.0 * PADDING_DP * scale).max(cell_w);
+
+    let cols = (usable_width / cell_w).floor().max(1.0) as usize;
     let rows = (height / cell_h).floor().max(1.0) as usize;
 
     log::info!("calc_grid: result={cols}x{rows} cell_w={cell_w} cell_h={cell_h}");

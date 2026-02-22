@@ -12,16 +12,16 @@ use sugarloaf::layout::RootStyle;
 use sugarloaf::{Object, RichText, Sugarloaf, SugarloafRenderer, SugarloafWindow, SugarloafWindowSize};
 use terminal::{MouseMode, TerminalGrid};
 use wasm_bindgen::prelude::*;
-use web_sys::{HtmlCanvasElement, HtmlDivElement, HtmlTextAreaElement};
+use web_sys::{HtmlCanvasElement, HtmlDivElement, HtmlElement, HtmlTextAreaElement};
 
 /// Height of the tab bar in CSS pixels
 const TAB_BAR_HEIGHT: u32 = 28;
 
-fn get_or_create_canvas() -> (HtmlCanvasElement, u32) {
+fn get_or_create_canvas(container: &HtmlElement) -> (HtmlCanvasElement, u32) {
     let window = web_sys::window().expect("no window");
     let document = window.document().expect("no document");
 
-    if let Some(existing) = document.get_element_by_id("terminal-canvas") {
+    if let Ok(Some(existing)) = container.query_selector("#terminal-canvas") {
         let canvas: HtmlCanvasElement = existing.unchecked_into();
         let id = 1u32;
         canvas
@@ -43,12 +43,11 @@ fn get_or_create_canvas() -> (HtmlCanvasElement, u32) {
     canvas
         .set_attribute(
             "style",
-            &format!("width: 100vw; height: calc(100vh - {}px); display: block;", TAB_BAR_HEIGHT),
+            &format!("width: 100%; height: calc(100% - {}px); display: block;", TAB_BAR_HEIGHT),
         )
         .unwrap();
 
-    let body = document.body().expect("no body");
-    body.append_child(&canvas).unwrap();
+    container.append_child(&canvas).unwrap();
 
     let dpr = window.device_pixel_ratio();
     let width = (canvas.client_width() as f64 * dpr) as u32;
@@ -60,10 +59,8 @@ fn get_or_create_canvas() -> (HtmlCanvasElement, u32) {
 }
 
 /// Create hidden textarea (IME target) and preedit overlay div
-fn create_ime_elements() -> (HtmlTextAreaElement, HtmlDivElement) {
-    let window = web_sys::window().expect("no window");
-    let document = window.document().expect("no document");
-    let body = document.body().expect("no body");
+fn create_ime_elements(container: &HtmlElement) -> (HtmlTextAreaElement, HtmlDivElement) {
+    let document = web_sys::window().expect("no window").document().expect("no document");
 
     // Hidden textarea -- the OS sends composition events here
     let textarea: HtmlTextAreaElement = document
@@ -81,7 +78,7 @@ fn create_ime_elements() -> (HtmlTextAreaElement, HtmlDivElement) {
     textarea.set_attribute("autocomplete", "off").unwrap();
     textarea.set_attribute("autocorrect", "off").unwrap();
     textarea.set_attribute("spellcheck", "false").unwrap();
-    body.append_child(&textarea).unwrap();
+    container.append_child(&textarea).unwrap();
 
     // Preedit overlay -- show the composition string during active IME input
     let overlay: HtmlDivElement = document
@@ -95,25 +92,9 @@ fn create_ime_elements() -> (HtmlTextAreaElement, HtmlDivElement) {
             "position: absolute; display: none; color: white; background: rgba(30, 30, 30, 0.9); font-family: monospace; font-size: 16px; border-bottom: 2px solid white; pointer-events: none; white-space: pre; padding: 2px 4px; z-index: 1000;",
         )
         .unwrap();
-    body.append_child(&overlay).unwrap();
+    container.append_child(&overlay).unwrap();
 
     (textarea, overlay)
-}
-
-fn ws_url() -> String {
-    let window = web_sys::window().unwrap();
-    let location = window.location();
-    let protocol = if location
-        .protocol()
-        .unwrap()
-        .starts_with("https")
-    {
-        "wss"
-    } else {
-        "ws"
-    };
-    let host = location.host().unwrap();
-    format!("{protocol}://{host}/ws")
 }
 
 /// Shared state for the WebSocket connection, accessible by all handlers
@@ -258,9 +239,8 @@ fn pixel_to_cell(offset_x: i32, offset_y: i32, cell_width: f32, cell_height: f32
 }
 
 /// Create the tab bar DOM element above the canvas
-fn create_tab_bar() {
+fn create_tab_bar(container: &HtmlElement) {
     let document = web_sys::window().unwrap().document().unwrap();
-    let body = document.body().unwrap();
 
     let tab_bar: HtmlDivElement = document
         .create_element("div")
@@ -277,9 +257,9 @@ fn create_tab_bar() {
         )
         .unwrap();
 
-    // Insert tab bar before the canvas (first child of body)
-    let first_child = body.first_child();
-    body.insert_before(&tab_bar, first_child.as_ref()).unwrap();
+    // Insert tab bar as first child of container
+    let first_child = container.first_child();
+    container.insert_before(&tab_bar, first_child.as_ref()).unwrap();
 }
 
 /// Rebuild the tab bar buttons from current TabManager state.
@@ -454,8 +434,9 @@ fn rebuild_tab_bar(
 fn connect_ws(
     ws_state: &Rc<RefCell<WsState>>,
     tabs: &Rc<RefCell<TabManager>>,
+    url: &Rc<String>,
 ) {
-    let url = ws_url();
+    let url = url.clone();
     let ws = web_sys::WebSocket::new(&url).expect("Failed to create WebSocket");
     ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
 
@@ -583,9 +564,10 @@ fn connect_ws(
     {
         let ws_state_close = ws_state.clone();
         let tabs_close = tabs.clone();
+        let url_close = url.clone();
         let on_close = Closure::<dyn FnMut()>::new(move || {
             log::info!("WebSocket closed, scheduling reconnect");
-            schedule_reconnect(&ws_state_close, &tabs_close);
+            schedule_reconnect(&ws_state_close, &tabs_close, &url_close);
         });
         ws.set_onclose(Some(on_close.as_ref().unchecked_ref()));
         on_close.forget();
@@ -594,9 +576,10 @@ fn connect_ws(
     {
         let ws_state_err = ws_state.clone();
         let tabs_err = tabs.clone();
+        let url_err = url.clone();
         let on_error = Closure::<dyn FnMut()>::new(move || {
             log::info!("WebSocket error, scheduling reconnect");
-            schedule_reconnect(&ws_state_err, &tabs_err);
+            schedule_reconnect(&ws_state_err, &tabs_err, &url_err);
         });
         ws.set_onerror(Some(on_error.as_ref().unchecked_ref()));
         on_error.forget();
@@ -608,6 +591,7 @@ fn connect_ws(
 fn schedule_reconnect(
     ws_state: &Rc<RefCell<WsState>>,
     tabs: &Rc<RefCell<TabManager>>,
+    url: &Rc<String>,
 ) {
     let mut state = ws_state.borrow_mut();
     // Exponential backoff: 1s, 2s, 4s, 8s, ... max 30s
@@ -621,8 +605,9 @@ fn schedule_reconnect(
 
     let ws_state = ws_state.clone();
     let tabs = tabs.clone();
+    let url = url.clone();
     let cb = Closure::<dyn FnMut()>::new(move || {
-        connect_ws(&ws_state, &tabs);
+        connect_ws(&ws_state, &tabs, &url);
     });
     web_sys::window()
         .unwrap()
@@ -652,22 +637,30 @@ fn ws_send_binary(ws_state: &RefCell<WsState>, session_id: &[u8; 16], payload: &
     let _ = ws.send_with_array_buffer_view(&array);
 }
 
-#[wasm_bindgen(start)]
-pub fn run() {
+/// Initialize a terminal inside the given container element
+#[wasm_bindgen]
+pub fn create_terminal(container_id: String, ws_url: String, font_size: f32) {
     console_error_panic_hook::set_once();
-    console_log::init_with_level(log::Level::Info)
-        .expect("error initializing logger");
+    console_log::init_with_level(log::Level::Info).ok();
 
-    wasm_bindgen_futures::spawn_local(async_main());
+    wasm_bindgen_futures::spawn_local(async_main(container_id, ws_url, font_size));
 }
 
-async fn async_main() {
-    // Create tab bar first so canvas sits below it
-    create_tab_bar();
-
-    let (canvas, canvas_id) = get_or_create_canvas();
-    let (ime_textarea, ime_overlay) = create_ime_elements();
+async fn async_main(container_id: String, ws_url: String, font_size: f32) {
     let window = web_sys::window().unwrap();
+    let document = window.document().unwrap();
+    let container: HtmlElement = document
+        .get_element_by_id(&container_id)
+        .unwrap_or_else(|| panic!("no element with id '{container_id}'"))
+        .unchecked_into();
+    container.style().set_property("position", "relative").unwrap();
+    container.style().set_property("overflow", "hidden").unwrap();
+
+    // Create tab bar first so canvas sits below it
+    create_tab_bar(&container);
+
+    let (canvas, canvas_id) = get_or_create_canvas(&container);
+    let (ime_textarea, ime_overlay) = create_ime_elements(&container);
     let dpr = window.device_pixel_ratio() as f32;
 
     let width = canvas.width() as f32;
@@ -681,7 +674,7 @@ async fn async_main() {
     };
 
     let layout = RootStyle {
-        font_size: 16.0,
+        font_size,
         line_height: 1.2,
         scale_factor: dpr,
     };
@@ -723,11 +716,12 @@ async fn async_main() {
     }));
 
     // WebSocket connection with auto-reconnect
+    let ws_url = Rc::new(ws_url);
     let ws_state = Rc::new(RefCell::new(WsState {
         ws: None,
         backoff_ms: 0,
     }));
-    connect_ws(&ws_state, &tabs);
+    connect_ws(&ws_state, &tabs, &ws_url);
 
     // Build the initial tab bar
     rebuild_tab_bar(&tabs, &ws_state);

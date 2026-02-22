@@ -7,14 +7,16 @@
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0d1a; }
+      #terminal { width: 100%; height: 100%; }
     </style>
   </head>
   <body>
+    <div id="terminal"></div>
     <script type="module">
-      import init from "./wasm/omni_terminal_wasm.js";
-      init()
-        .then(() => console.log("Omni Terminal loaded"))
-        .catch(err => console.error("Failed to load Omni Terminal:", err));
+      import init, { create_terminal } from "./wasm/omni_terminal_wasm.js";
+      await init();
+      const wsProto = location.protocol === "https:" ? "wss" : "ws";
+      create_terminal("terminal", `${wsProto}://${location.host}/ws`, 16.0);
     </script>
   </body>
 </html>

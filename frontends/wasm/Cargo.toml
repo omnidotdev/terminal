@@ -22,9 +22,7 @@ tracing = { workspace = true }
 log = "0.4"
 uuid = { version = "1", features = ["v4", "js"] }
 web-sys = { version = "0.3.62", features = [
-    "Location",
     "Document",
-    "Navigator",
     "Node",
     "NodeList",
     "Window",

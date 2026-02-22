@@ -93,6 +93,10 @@ install-debian-wayland:
 release-windows:
     cargo wix -p omni-terminal
 
+# Build npm package (@omnidotdev/terminal)
+wasm-pack:
+    cd frontends/wasm && bun run build
+
 # Install wasm frontend dependencies (Binaryen/wasm-opt also required: https://github.com/WebAssembly/binaryen)
 wasm-install:
     cargo install cargo-server

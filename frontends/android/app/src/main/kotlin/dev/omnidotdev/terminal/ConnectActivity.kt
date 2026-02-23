@@ -163,7 +163,7 @@ class ConnectActivity : AppCompatActivity() {
                 trimmed.startsWith("ws://") || trimmed.startsWith("wss://") -> trimmed
                 trimmed.startsWith("http://") -> "ws://" + trimmed.removePrefix("http://")
                 trimmed.startsWith("https://") -> "wss://" + trimmed.removePrefix("https://")
-                else -> "ws://$trimmed"
+                else -> "wss://$trimmed"
             }
             // Append /ws path if not already present
             return if (base.endsWith("/ws")) base else "$base/ws"

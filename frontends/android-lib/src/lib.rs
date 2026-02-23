@@ -429,8 +429,9 @@ fn ws_thread_main(
             return;
         }
     };
-    let host = parsed.host_str().unwrap_or("localhost");
-    let port = parsed.port().unwrap_or(80);
+    let host = parsed.host_str().unwrap_or("localhost").to_string();
+    let default_port = if parsed.scheme() == "wss" { 443 } else { 80 };
+    let port = parsed.port().unwrap_or(default_port);
     let addr = format!("{host}:{port}");
 
     log::info!("Resolving {addr}");
@@ -476,17 +477,57 @@ fn ws_thread_main(
         }
     };
 
-    // Upgrade TCP to WebSocket
-    let Ok((mut ws, _response)) =
-        tungstenite::client(parsed.as_str(), tcp_stream)
-    else {
-        log::error!("WebSocket handshake failed for {ws_url}");
-        let _ = out_tx.send(
-            br#"{"type":"error","message":"WebSocket handshake failed"}"#.to_vec(),
+    // Upgrade to WebSocket, wrapping with TLS for wss:// URLs
+    let use_tls = parsed.scheme() == "wss";
+
+    macro_rules! ws_handshake {
+        ($stream:expr) => {
+            match tungstenite::client(parsed.as_str(), $stream) {
+                Ok((ws, _response)) => ws,
+                Err(e) => {
+                    log::error!("WebSocket handshake failed for {ws_url}: {e}");
+                    let _ = out_tx.send(
+                        br#"{"type":"error","message":"WebSocket handshake failed"}"#.to_vec(),
+                    );
+                    return;
+                }
+            }
+        };
+    }
+
+    if use_tls {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        let tls_config = rustls::ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(std::sync::Arc::new(AcceptAnyCert))
+            .with_no_client_auth();
+        let connector = rustls::StreamOwned::new(
+            rustls::ClientConnection::new(
+                std::sync::Arc::new(tls_config),
+                host.try_into().unwrap_or_else(|_| "localhost".try_into().unwrap()),
+            )
+            .expect("failed to create TLS connection"),
+            tcp_stream,
         );
-        return;
+        let mut ws = ws_handshake!(connector);
+        let _ = ws.get_ref().sock.set_nonblocking(true);
+        ws_event_loop(&mut ws, cols, rows, cmd_rx, out_tx);
+    } else {
+        let mut ws = ws_handshake!(tcp_stream);
+        let _ = ws.get_ref().set_nonblocking(true);
+        ws_event_loop(&mut ws, cols, rows, cmd_rx, out_tx);
     };
 
+    log::info!("WebSocket thread exiting");
+}
+
+fn ws_event_loop<S: std::io::Read + std::io::Write>(
+    ws: &mut tungstenite::WebSocket<S>,
+    cols: usize,
+    rows: usize,
+    cmd_rx: &mpsc::Receiver<PtyCommand>,
+    out_tx: &mpsc::Sender<Vec<u8>>,
+) {
     log::info!("WebSocket connected");
 
     // Send create session request
@@ -495,9 +536,6 @@ fn ws_thread_main(
         log::error!("Failed to send create message");
         return;
     }
-
-    // Set non-blocking so we can poll both WebSocket input and command channel
-    let _ = ws.get_ref().set_nonblocking(true);
 
     loop {
         // Check for commands from JNI
@@ -546,8 +584,47 @@ fn ws_thread_main(
             }
         }
     }
+}
 
-    log::info!("WebSocket thread exiting");
+/// Accept any TLS certificate (needed for self-signed dev certs)
+#[derive(Debug)]
+struct AcceptAnyCert;
+
+impl rustls::client::danger::ServerCertVerifier for AcceptAnyCert {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
 }
 
 /// Word-wrap text to fit within `cols` columns.

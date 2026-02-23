@@ -7,6 +7,10 @@ android {
     namespace = "dev.omnidotdev.terminal"
     compileSdk = 35
 
+    androidResources {
+        noCompress += "gz"
+    }
+
     defaultConfig {
         applicationId = "dev.omnidotdev.terminal"
         minSdk = 26

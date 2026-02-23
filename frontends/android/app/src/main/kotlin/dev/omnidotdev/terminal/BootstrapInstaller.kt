@@ -63,14 +63,9 @@ object BootstrapInstaller {
 
     private fun createBusyboxSymlinks(busybox: File) {
         val binDir = busybox.parentFile ?: return
-        val process = ProcessBuilder(busybox.absolutePath, "--list")
-            .redirectErrorStream(true)
-            .start()
-        val applets = process.inputStream.bufferedReader().readText().trim()
-        process.waitFor()
+        val applets = queryBusyboxApplets(busybox)
 
-        for (applet in applets.lines()) {
-            val name = applet.trim()
+        for (name in applets) {
             if (name.isEmpty() || name == "busybox") continue
             val link = File(binDir, name)
             if (!link.exists()) {
@@ -82,6 +77,35 @@ object BootstrapInstaller {
             }
         }
     }
+
+    /** Query busybox for its applet list, falling back to a common set
+     *  when execution is blocked (Android noexec on app data dirs). */
+    private fun queryBusyboxApplets(busybox: File): List<String> {
+        try {
+            val process = ProcessBuilder(busybox.absolutePath, "--list")
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.bufferedReader().readText().trim()
+            process.waitFor()
+            if (output.isNotEmpty()) return output.lines().map { it.trim() }
+        } catch (_: Exception) {
+            // Execution blocked (noexec mount on Android 10+)
+        }
+        return FALLBACK_APPLETS
+    }
+
+    // Common busybox applets for android_ndk_defconfig + ash shell features
+    private val FALLBACK_APPLETS = listOf(
+        "ash", "sh",
+        "cat", "chmod", "chown", "cp", "cut", "date", "dd", "df",
+        "dirname", "du", "echo", "env", "expr", "false", "find",
+        "grep", "egrep", "fgrep", "head", "id", "kill", "ln", "ls",
+        "mkdir", "mktemp", "mv", "nice", "nohup", "od", "patch",
+        "printf", "ps", "pwd", "readlink", "realpath", "rm", "rmdir",
+        "sed", "seq", "sleep", "sort", "stat", "strings", "tail",
+        "tar", "tee", "test", "touch", "tr", "true", "tty",
+        "uname", "uniq", "wc", "which", "whoami", "xargs", "yes",
+    )
 
     private fun writeProfile(homeDir: File) {
         val profile = File(homeDir, ".profile")

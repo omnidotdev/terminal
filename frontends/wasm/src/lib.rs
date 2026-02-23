@@ -1139,7 +1139,7 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             on_mousemove.forget();
         }
 
-        // wheel -- report scroll events to the PTY
+        // wheel -- scrollback when mouse mode is off, otherwise report to PTY
         {
             let tabs = tabs.clone();
             let ws_state = ws_state.clone();
@@ -1149,6 +1149,15 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                 move |event: web_sys::WheelEvent| {
                     let mouse_event: &web_sys::MouseEvent = event.as_ref();
                     let (col, row) = pixel_to_cell(mouse_event.offset_x(), mouse_event.offset_y(), cw, ch);
+
+                    // When mouse mode is off, scroll the viewport instead
+                    let mode = tabs.borrow().active_tab().grid.mouse_mode();
+                    if mode == MouseMode::None {
+                        let lines = if event.delta_y() < 0.0 { 3 } else { -3 };
+                        tabs.borrow_mut().active_tab_mut().grid.scroll_display(lines);
+                        event.prevent_default();
+                        return;
+                    }
 
                     let button: u8 = if event.delta_y() < 0.0 { 64 } else { 65 };
                     let mods = mouse_modifiers(mouse_event);

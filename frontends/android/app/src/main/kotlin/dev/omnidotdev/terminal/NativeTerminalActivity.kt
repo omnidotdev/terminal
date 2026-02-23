@@ -2,6 +2,8 @@ package dev.omnidotdev.terminal
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.view.GestureDetector
@@ -42,6 +44,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             }
         }
     }
+    private var serviceStarted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -220,6 +223,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                         dialog.dismiss()
                         NativeTerminal.connectLocal(filesDir.absolutePath)
                         refreshTabBar()
+                        startTerminalService()
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
@@ -236,6 +240,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
         NativeTerminal.connectLocal(filesDir.absolutePath)
         refreshTabBar()
+        startTerminalService()
     }
 
     private fun showRemoteUrlDialog() {
@@ -260,6 +265,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                     prefs.edit().putString(ConnectActivity.PREF_SERVER_URL, raw).apply()
                     NativeTerminal.connect(wsUrl)
                     refreshTabBar()
+                    startTerminalService()
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -272,7 +278,43 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             finish()
         } else {
             refreshTabBar()
+            updateTerminalService()
         }
+    }
+
+    private fun startTerminalService() {
+        if (serviceStarted) return
+        val count = NativeTerminal.getSessionCount()
+        if (count <= 0) return
+
+        val intent = Intent(this, TerminalService::class.java).apply {
+            putExtra(TerminalService.EXTRA_SESSION_COUNT, count)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+        serviceStarted = true
+    }
+
+    private fun updateTerminalService() {
+        if (!serviceStarted) return
+        val count = NativeTerminal.getSessionCount()
+        if (count <= 0) {
+            stopTerminalService()
+            return
+        }
+        val intent = Intent(this, TerminalService::class.java).apply {
+            putExtra(TerminalService.EXTRA_SESSION_COUNT, count)
+        }
+        startService(intent)
+    }
+
+    private fun stopTerminalService() {
+        if (!serviceStarted) return
+        stopService(Intent(this, TerminalService::class.java))
+        serviceStarted = false
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -431,6 +473,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             }
 
             refreshTabBar()
+            startTerminalService()
 
             // Start render loop to poll output
             renderHandler.post(renderRunnable)
@@ -449,6 +492,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     override fun onDestroy() {
+        stopTerminalService()
         renderHandler.removeCallbacks(renderRunnable)
         if (initialized) {
             NativeTerminal.destroy()

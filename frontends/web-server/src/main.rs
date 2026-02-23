@@ -14,6 +14,7 @@ use session::{SessionId, SessionManager};
 use std::collections::HashMap;
 use axum_server::tls_rustls::RustlsConfig;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tower_http::services::ServeDir;
 
@@ -56,33 +57,46 @@ async fn main() {
         .unwrap_or(3000);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    let tls_config = match (
+    let (cert_pem, key_pem) = match (
         std::env::var("TLS_CERT").ok(),
         std::env::var("TLS_KEY").ok(),
     ) {
-        (Some(cert), Some(key)) => {
+        (Some(cert_path), Some(key_path)) => {
             tracing::info!("using provided TLS certificate");
-            RustlsConfig::from_pem_file(&cert, &key)
-                .await
-                .expect("failed to load TLS cert/key")
+            (
+                std::fs::read(&cert_path).expect("failed to read TLS cert file"),
+                std::fs::read(&key_path).expect("failed to read TLS key file"),
+            )
         }
         _ => {
             tracing::info!("generating self-signed TLS certificate");
-            let cert = rcgen::generate_simple_self_signed(vec![
+            let generated = rcgen::generate_simple_self_signed(vec![
                 "localhost".to_string(),
                 "127.0.0.1".to_string(),
                 "0.0.0.0".to_string(),
             ])
             .expect("failed to generate self-signed certificate");
 
-            RustlsConfig::from_pem(
-                cert.cert.pem().into(),
-                cert.key_pair.serialize_pem().into(),
+            (
+                generated.cert.pem().into_bytes(),
+                generated.key_pair.serialize_pem().into_bytes(),
             )
-            .await
-            .expect("failed to create TLS config from generated certificate")
         }
     };
+
+    // Force HTTP/1.1 only — h2 ALPN negotiation breaks WebSocket upgrades
+    let certs: Vec<_> = rustls_pemfile::certs(&mut &*cert_pem)
+        .collect::<Result<_, _>>()
+        .expect("invalid certificate PEM");
+    let key = rustls_pemfile::private_key(&mut &*key_pem)
+        .expect("invalid private key PEM")
+        .expect("no private key found in PEM");
+    let mut server_config = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)
+        .expect("invalid certificate/key pair");
+    server_config.alpn_protocols = vec![b"http/1.1".to_vec()];
+    let tls_config = RustlsConfig::from_config(Arc::new(server_config));
 
     tracing::info!("Omni Terminal web server listening on https://{addr}");
     axum_server::bind_rustls(addr, tls_config)

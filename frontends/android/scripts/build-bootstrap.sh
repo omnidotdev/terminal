@@ -118,6 +118,15 @@ echo "Storage symlinks created in ~/storage/"
 SETUP_STORAGE
 chmod +x "$STAGING_DIR/usr/bin/setup-storage"
 
+# Download static proot binary for aarch64
+PROOT_VERSION="5.4.0"
+PROOT_URL="https://github.com/proot-me/proot/releases/download/v${PROOT_VERSION}/proot-v${PROOT_VERSION}-aarch64-static"
+PROOT_BIN="$STAGING_DIR/usr/bin/proot"
+
+echo "==> Downloading proot v${PROOT_VERSION}..."
+curl -L -o "$PROOT_BIN" "$PROOT_URL"
+chmod +x "$PROOT_BIN"
+
 echo "==> Packaging bootstrap archive..."
 mkdir -p "$ASSETS_DIR"
 tar czf "$ASSETS_DIR/bootstrap-aarch64.tar.gz" -C "$STAGING_DIR" .

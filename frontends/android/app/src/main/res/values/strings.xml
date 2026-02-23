@@ -16,4 +16,9 @@
     <string name="storage_denied">Storage permission denied</string>
     <string name="new_session">New Session</string>
     <string name="remote_connection">Remote Connection</string>
+    <string name="notification_channel_name">Terminal Sessions</string>
+    <string name="notification_channel_description">Keeps terminal sessions alive in the background</string>
+    <string name="notification_title">Terminal running</string>
+    <string name="notification_text_one">1 active session</string>
+    <string name="notification_text_many">%1$d active sessions</string>
 </resources>

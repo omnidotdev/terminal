@@ -814,6 +814,7 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                 };
                 drop(tabs_ref);
                 ws_send_binary(&ws_state_key, &sid, &bytes);
+                tabs_key.borrow_mut().active_tab_mut().grid.scroll_to_bottom();
             },
         );
         textarea_target

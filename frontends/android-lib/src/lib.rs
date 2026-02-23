@@ -1211,10 +1211,14 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_sendKey(
         return;
     }
 
-    let mgr = TERMINAL_MANAGER.lock().unwrap();
-    if let Some(ref m) = *mgr {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
         if let Some(session) = m.active_session() {
             session.send_input(input.as_bytes());
+        }
+        // Snap to bottom on user input
+        if let Some(session) = m.active_session_mut() {
+            session.grid.scroll_to_bottom();
         }
     }
 }
@@ -1238,10 +1242,14 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_sendSpecialKe
         _ => return,
     };
 
-    let mgr = TERMINAL_MANAGER.lock().unwrap();
-    if let Some(ref m) = *mgr {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
         if let Some(session) = m.active_session() {
             session.send_input(bytes);
+        }
+        // Snap to bottom on user input
+        if let Some(session) = m.active_session_mut() {
+            session.grid.scroll_to_bottom();
         }
     }
 }

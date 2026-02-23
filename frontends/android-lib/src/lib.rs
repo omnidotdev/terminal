@@ -1550,8 +1550,8 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getCellWidth(
     _env: JNIEnv,
     _class: JClass,
 ) -> jfloat {
-    let mgr = TERMINAL_MANAGER.lock().unwrap();
-    if let Some(ref m) = *mgr {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
         let dims = m.sugarloaf.get_rich_text_dimensions(&m.rt_id);
         return dims.width;
     }
@@ -1564,8 +1564,8 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getCellHeight
     _env: JNIEnv,
     _class: JClass,
 ) -> jfloat {
-    let mgr = TERMINAL_MANAGER.lock().unwrap();
-    if let Some(ref m) = *mgr {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
         let dims = m.sugarloaf.get_rich_text_dimensions(&m.rt_id);
         return dims.height;
     }

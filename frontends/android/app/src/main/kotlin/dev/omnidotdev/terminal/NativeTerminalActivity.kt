@@ -522,6 +522,16 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             NativeTerminal.init(holder.surface, width, height, scale)
             initialized = true
 
+            // Apply saved font size
+            val savedFontSize = TerminalPreferences.getFontSize(this)
+            if (savedFontSize != TerminalPreferences.DEFAULT_FONT_SIZE) {
+                NativeTerminal.setFontSize(savedFontSize)
+            }
+
+            // Apply saved theme
+            val theme = TerminalPreferences.getTheme(this)
+            applyTheme(theme)
+
             // Create first session based on intent mode
             val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
             if (mode == "local") {
@@ -563,15 +573,34 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         super.onDestroy()
     }
 
+    private fun applyTheme(theme: String) {
+        when (theme) {
+            "dark" -> {
+                NativeTerminal.setBackgroundColor(0.05f, 0.05f, 0.1f)
+                root.setBackgroundColor(0xFF0D0D1A.toInt())
+            }
+            "solarized" -> {
+                NativeTerminal.setBackgroundColor(0.0f, 0.169f, 0.212f)
+                root.setBackgroundColor(0xFF002B36.toInt())
+            }
+            "light" -> {
+                NativeTerminal.setBackgroundColor(0.99f, 0.96f, 0.89f)
+                root.setBackgroundColor(0xFFFDF6E3.toInt())
+            }
+        }
+    }
+
     private inner class PinchListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             scaleFactor *= detector.scaleFactor
             if (scaleFactor > 1.15f) {
                 NativeTerminal.setFontAction(2)
                 scaleFactor = 1.0f
+                TerminalPreferences.setFontSize(this@NativeTerminalActivity, NativeTerminal.getFontSize())
             } else if (scaleFactor < 0.85f) {
                 NativeTerminal.setFontAction(1)
                 scaleFactor = 1.0f
+                TerminalPreferences.setFontSize(this@NativeTerminalActivity, NativeTerminal.getFontSize())
             }
             return true
         }

@@ -22,5 +22,9 @@ dist/
 # node
 node_modules/
 
+# build artifacts
+frontends/android/scripts/.build/
+frontends/wasm/wasm/
+
 # worktrees
 .worktrees/

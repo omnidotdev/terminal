@@ -106,12 +106,12 @@ wasm-install:
 # Build wasm frontend (debug)
 wasm-build:
     cargo build -p omni-terminal-wasm --target wasm32-unknown-unknown
-    wasm-bindgen target/wasm32-unknown-unknown/debug/omni_terminal_wasm.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
+    ~/.cargo/bin/wasm-bindgen target/wasm32-unknown-unknown/debug/omni_terminal_wasm.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
 
 # Build wasm frontend (release)
 wasm-build-release:
     cargo build -p omni-terminal-wasm --target wasm32-unknown-unknown --release
-    wasm-bindgen target/wasm32-unknown-unknown/release/omni_terminal_wasm.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
+    ~/.cargo/bin/wasm-bindgen target/wasm32-unknown-unknown/release/omni_terminal_wasm.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
 
 # Optimize wasm binary size
 wasm-opt:
@@ -143,7 +143,7 @@ sugarloaf-dev:
 # Build sugarloaf wasm
 sugarloaf-build:
     cargo build -p sugarloaf-wasm --target wasm32-unknown-unknown
-    wasm-bindgen target/wasm32-unknown-unknown/debug/sugarloaf_wasm.wasm --out-dir sugarloaf/wasm --target web --no-typescript
+    ~/.cargo/bin/wasm-bindgen target/wasm32-unknown-unknown/debug/sugarloaf_wasm.wasm --out-dir sugarloaf/wasm --target web --no-typescript
 
 # Serve sugarloaf wasm
 sugarloaf-run: sugarloaf-build

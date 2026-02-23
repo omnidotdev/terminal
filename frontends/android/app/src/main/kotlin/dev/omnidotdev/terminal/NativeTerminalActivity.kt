@@ -48,6 +48,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
     }
     private var serviceStarted = false
+    private var selecting = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -517,8 +518,19 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         surfaceView.setOnTouchListener { _, event ->
             scaleDetector.onTouchEvent(event)
             gestureDetector.onTouchEvent(event)
-            if (event.action == MotionEvent.ACTION_UP && !scaleDetector.isInProgress) {
-                surfaceView.showKeyboard()
+            if (event.action == MotionEvent.ACTION_UP) {
+                if (selecting) {
+                    selecting = false
+                    val text = NativeTerminal.getSelectedText()
+                    if (text.isNotEmpty()) {
+                        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("terminal", text))
+                        android.widget.Toast.makeText(this, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    NativeTerminal.selectionClear()
+                } else if (!scaleDetector.isInProgress) {
+                    surfaceView.showKeyboard()
+                }
             }
             true
         }
@@ -595,6 +607,15 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         scrollIndicator.layoutParams = params
     }
 
+    private fun pixelToCell(x: Float, y: Float): Pair<Int, Int> {
+        val cellW = NativeTerminal.getCellWidth()
+        val cellH = NativeTerminal.getCellHeight()
+        val padPx = 6f * resources.displayMetrics.density
+        val col = if (cellW > 0) ((x - padPx) / cellW).toInt().coerceAtLeast(0) else 0
+        val row = if (cellH > 0) (y / cellH).toInt().coerceAtLeast(0) else 0
+        return Pair(col, row)
+    }
+
     private inner class PinchListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             scaleFactor *= detector.scaleFactor
@@ -617,6 +638,13 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             return true
         }
 
+        override fun onLongPress(e: MotionEvent) {
+            selecting = true
+            val (col, row) = pixelToCell(e.x, e.y)
+            NativeTerminal.selectionBegin(col, row)
+            surfaceView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        }
+
         override fun onScroll(
             e1: MotionEvent?,
             e2: MotionEvent,
@@ -624,6 +652,12 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             distanceY: Float,
         ): Boolean {
             if (scaleDetector.isInProgress) return false
+
+            if (selecting) {
+                val (col, row) = pixelToCell(e2.x, e2.y)
+                NativeTerminal.selectionUpdate(col, row)
+                return true
+            }
 
             // Convert pixel distance to lines (font_size=18 * line_height=1.2 * density)
             val lineHeight = 18f * 1.2f * resources.displayMetrics.density

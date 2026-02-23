@@ -1423,6 +1423,99 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getSessionLab
         .unwrap_or_else(|_| JObject::null().into())
 }
 
+/// Begin a text selection at the given grid coordinates.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_selectionBegin(
+    _env: JNIEnv,
+    _class: JClass,
+    col: jint,
+    row: jint,
+) {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        if let Some(session) = m.active_session_mut() {
+            session.grid.selection_begin(col as usize, row as usize);
+        }
+    }
+}
+
+/// Update the end of the current text selection.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_selectionUpdate(
+    _env: JNIEnv,
+    _class: JClass,
+    col: jint,
+    row: jint,
+) {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        if let Some(session) = m.active_session_mut() {
+            session.grid.selection_update(col as usize, row as usize);
+        }
+    }
+}
+
+/// Clear the current text selection.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_selectionClear(
+    _env: JNIEnv,
+    _class: JClass,
+) {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        if let Some(session) = m.active_session_mut() {
+            session.grid.selection_clear();
+        }
+    }
+}
+
+/// Get the currently selected text.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getSelectedText<'a>(
+    env: JNIEnv<'a>,
+    _class: JClass<'a>,
+) -> JString<'a> {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    let text = if let Some(ref m) = *mgr {
+        m.active_session()
+            .map(|s| s.grid.selected_text())
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+    drop(mgr);
+    env.new_string(&text)
+        .unwrap_or_else(|_| JObject::null().into())
+}
+
+/// Get cell width in physical pixels.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getCellWidth(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jfloat {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        let dims = m.sugarloaf.get_rich_text_dimensions(&m.rt_id);
+        return dims.width;
+    }
+    0.0
+}
+
+/// Get cell height in physical pixels.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getCellHeight(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jfloat {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        let dims = m.sugarloaf.get_rich_text_dimensions(&m.rt_id);
+        return dims.height;
+    }
+    0.0
+}
+
 /// Clean up native resources.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_destroy(

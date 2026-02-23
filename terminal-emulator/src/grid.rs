@@ -75,6 +75,10 @@ pub struct TerminalGrid {
 
     // Bytes to send back to the PTY (mouse reports, etc.). Drained by lib.rs each frame.
     pub pending_writes: Vec<u8>,
+
+    // Selection state
+    pub selection_start: Option<(usize, usize)>, // (col, row) in grid coordinates
+    pub selection_end: Option<(usize, usize)>,
 }
 
 impl TerminalGrid {
@@ -104,6 +108,8 @@ impl TerminalGrid {
             mouse_motion: false,
             mouse_sgr: false,
             pending_writes: Vec::new(),
+            selection_start: None,
+            selection_end: None,
         }
     }
 
@@ -181,6 +187,87 @@ impl TerminalGrid {
             self.display_offset = 0;
             self.dirty = true;
         }
+    }
+
+    /// Begin a text selection at the given grid coordinates.
+    pub fn selection_begin(&mut self, col: usize, row: usize) {
+        self.selection_start = Some((col, row));
+        self.selection_end = Some((col, row));
+        self.dirty = true;
+    }
+
+    /// Update the end of the current selection.
+    pub fn selection_update(&mut self, col: usize, row: usize) {
+        self.selection_end = Some((col, row));
+        self.dirty = true;
+    }
+
+    /// Clear the selection.
+    pub fn selection_clear(&mut self) {
+        self.selection_start = None;
+        self.selection_end = None;
+        self.dirty = true;
+    }
+
+    /// Return whether the cell at (col, row) is within the current selection.
+    pub fn is_selected(&self, col: usize, row: usize) -> bool {
+        let (Some(start), Some(end)) = (self.selection_start, self.selection_end) else {
+            return false;
+        };
+
+        // Normalize so start <= end
+        let (start, end) = if start.1 < end.1 || (start.1 == end.1 && start.0 <= end.0) {
+            (start, end)
+        } else {
+            (end, start)
+        };
+
+        if row < start.1 || row > end.1 {
+            return false;
+        }
+        if start.1 == end.1 {
+            // Single-line selection
+            col >= start.0 && col <= end.0
+        } else if row == start.1 {
+            col >= start.0
+        } else if row == end.1 {
+            col <= end.0
+        } else {
+            true // Middle rows are fully selected
+        }
+    }
+
+    /// Extract the selected text as a string.
+    pub fn selected_text(&self) -> String {
+        let (Some(start), Some(end)) = (self.selection_start, self.selection_end) else {
+            return String::new();
+        };
+
+        let (start, end) = if start.1 < end.1 || (start.1 == end.1 && start.0 <= end.0) {
+            (start, end)
+        } else {
+            (end, start)
+        };
+
+        let mut result = String::new();
+        for row_idx in start.1..=end.1 {
+            let row = self.visible_row(row_idx);
+            let col_start = if row_idx == start.1 { start.0 } else { 0 };
+            let col_end = if row_idx == end.1 { end.0 + 1 } else { row.len() };
+            let col_end = col_end.min(row.len());
+
+            let line: String = row[col_start..col_end]
+                .iter()
+                .map(|c| c.c)
+                .collect::<String>()
+                .trim_end()
+                .to_string();
+            result.push_str(&line);
+            if row_idx < end.1 {
+                result.push('\n');
+            }
+        }
+        result
     }
 
     fn scroll_up(&mut self) {

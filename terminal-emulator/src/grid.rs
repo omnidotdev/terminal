@@ -27,7 +27,6 @@ impl Default for Cell {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)]
 pub enum MouseMode {
     None,
     Click,
@@ -36,7 +35,7 @@ pub enum MouseMode {
 }
 
 /// Maximum number of lines kept in scrollback history.
-const MAX_SCROLLBACK: usize = 1000;
+pub const MAX_SCROLLBACK: usize = 1000;
 
 /// Simple terminal grid state driven by ANSI escape sequences
 pub struct TerminalGrid {
@@ -75,7 +74,6 @@ pub struct TerminalGrid {
     mouse_sgr: bool,    // Mode 1006: SGR extended encoding
 
     // Bytes to send back to the PTY (mouse reports, etc.). Drained by lib.rs each frame.
-    #[allow(dead_code)]
     pub pending_writes: Vec<u8>,
 }
 
@@ -109,7 +107,6 @@ impl TerminalGrid {
         }
     }
 
-    #[allow(dead_code)]
     pub fn mouse_mode(&self) -> MouseMode {
         if self.mouse_motion {
             MouseMode::AllMotion
@@ -165,6 +162,19 @@ impl TerminalGrid {
             &self.scrollback[abs_idx]
         } else {
             &self.cells[abs_idx - self.scrollback.len()]
+        }
+    }
+
+    /// Return true when the viewport is at the bottom (showing live output).
+    pub fn viewport_at_bottom(&self) -> bool {
+        self.display_offset == 0
+    }
+
+    /// Snap the viewport back to the bottom (live output).
+    pub fn scroll_to_bottom(&mut self) {
+        if self.display_offset != 0 {
+            self.display_offset = 0;
+            self.dirty = true;
         }
     }
 
@@ -265,7 +275,7 @@ impl TerminalGrid {
 }
 
 // Standard 256-color palette (first 16 colors)
-fn ansi_color(idx: u16) -> [f32; 4] {
+pub fn ansi_color(idx: u16) -> [f32; 4] {
     match idx {
         0 => [0.0, 0.0, 0.0, 1.0],       // Black
         1 => [0.8, 0.0, 0.0, 1.0],        // Red
@@ -659,13 +669,6 @@ impl TerminalGrid {
     }
 
     /// Generate an SGR mouse report and push it to pending_writes.
-    ///
-    /// Only SGR encoding (mode 1006) is supported; legacy X10 encoding is not implemented.
-    /// `button` uses X11 convention: 0=left, 1=middle, 2=right, 64=wheel_up, 65=wheel_down.
-    /// `modifiers` is a bitmask: 4=shift, 8=alt, 16=ctrl.
-    /// `col` and `row` are 0-indexed grid coordinates.
-    /// `pressed` is true for press/motion, false for release.
-    #[allow(dead_code)]
     pub fn mouse_report(
         &mut self,
         button: u8,

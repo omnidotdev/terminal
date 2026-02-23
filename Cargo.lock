@@ -3280,6 +3280,7 @@ dependencies = [
  "raw-window-handle",
  "serde_json",
  "sugarloaf",
+ "terminal-emulator",
  "tracing",
  "tracing-subscriber",
  "tungstenite 0.26.2",
@@ -3300,6 +3301,7 @@ dependencies = [
  "log 0.4.29",
  "raw-window-handle",
  "sugarloaf",
+ "terminal-emulator",
  "tracing",
  "uuid",
  "wasm-bindgen",
@@ -4536,6 +4538,14 @@ dependencies = [
  "unicode-width-16",
  "url",
  "wgpu",
+]
+
+[[package]]
+name = "terminal-emulator"
+version = "0.2.37"
+dependencies = [
+ "copa",
+ "sugarloaf",
 ]
 
 [[package]]

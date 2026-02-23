@@ -1,5 +1,4 @@
-mod renderer;
-mod terminal;
+use terminal_emulator::{TerminalGrid, render_grid};
 
 use jni::objects::{JClass, JObject, JString};
 use jni::sys::{jfloat, jint};
@@ -16,7 +15,6 @@ use sugarloaf::{
     FragmentStyle, Object, RichText, Sugarloaf, SugarloafRenderer,
     SugarloafWindow, SugarloafWindowSize,
 };
-use terminal::TerminalGrid;
 use tungstenite::Message;
 
 static TERMINAL_MANAGER: Mutex<Option<TerminalManager>> = Mutex::new(None);
@@ -286,7 +284,7 @@ impl TerminalManager {
 
         if let Some(session) = self.sessions.get(self.active) {
             if session.connected && (session.local_mode || session.session_id.is_some()) {
-                renderer::render_grid(&mut self.sugarloaf, &session.grid, self.rt_id);
+                render_grid(&mut self.sugarloaf, &session.grid, self.rt_id);
             } else {
                 self.render_status_screen();
             }

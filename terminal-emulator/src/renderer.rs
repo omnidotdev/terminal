@@ -1,4 +1,4 @@
-use crate::terminal::TerminalGrid;
+use crate::grid::TerminalGrid;
 use sugarloaf::{FragmentStyle, FragmentStyleDecoration, Sugarloaf, UnderlineInfo, UnderlineShape};
 
 /// Render the terminal grid into sugarloaf content

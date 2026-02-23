@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 sugarloaf = { path = "../../sugarloaf" }
 copa = { path = "../../copa" }
+terminal-emulator = { path = "../../terminal-emulator" }
 raw-window-handle = { workspace = true }
 wgpu = { workspace = true }
 jni = "0.21"

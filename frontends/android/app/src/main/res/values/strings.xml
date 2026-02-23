@@ -21,4 +21,11 @@
     <string name="notification_title">Terminal running</string>
     <string name="notification_text_one">1 active session</string>
     <string name="notification_text_many">%1$d active sessions</string>
+    <string name="arch_install_prompt">Install Arch Linux for a full dev environment?</string>
+    <string name="arch_install_size">~170MB download</string>
+    <string name="arch_install_button">Install</string>
+    <string name="arch_not_now">Not now</string>
+    <string name="arch_installing">Installing Arch Linux ARM...</string>
+    <string name="arch_install_done">Arch Linux installed. New shells will use it</string>
+    <string name="arch_install_failed">Installation failed: %1$s</string>
 </resources>

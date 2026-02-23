@@ -32,6 +32,14 @@ object NativeTerminal {
     external fun getActiveSession(): Int
     external fun getSessionLabel(index: Int): String
 
+    // Text selection
+    external fun selectionBegin(col: Int, row: Int)
+    external fun selectionUpdate(col: Int, row: Int)
+    external fun selectionClear()
+    external fun getSelectedText(): String
+    external fun getCellWidth(): Float
+    external fun getCellHeight(): Float
+
     // Special key codes
     const val KEY_ENTER = 1
     const val KEY_BACKSPACE = 2

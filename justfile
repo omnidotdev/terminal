@@ -157,7 +157,7 @@ sugarloaf-test:
 sugarloaf-test-firefox:
     GECKODRIVER=geckodriver cargo test -p sugarloaf --tests --target wasm32-unknown-unknown
 
-# Build busybox bootstrap archive for Android aarch64
+# Build bootstrap archive (busybox + proot) for Android aarch64
 android-bootstrap:
     frontends/android/scripts/build-bootstrap.sh
 

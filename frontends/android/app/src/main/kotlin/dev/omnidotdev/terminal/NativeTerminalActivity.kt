@@ -219,7 +219,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                     }
                     runOnUiThread {
                         dialog.dismiss()
-                        NativeTerminal.connectLocal(filesDir.absolutePath)
+                        connectLocalOrProot()
                         refreshTabBar()
                     }
                 } catch (e: Exception) {
@@ -235,7 +235,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             }.start()
             return
         }
-        NativeTerminal.connectLocal(filesDir.absolutePath)
+        connectLocalOrProot()
         refreshTabBar()
     }
 
@@ -265,6 +265,18 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun connectLocalOrProot() {
+        if (ProotEnvironment.isInstalled(this) && ProotEnvironment.isProotAvailable(this)) {
+            NativeTerminal.connectLocalProot(
+                filesDir.absolutePath,
+                ProotEnvironment.rootfsPath(this),
+                ProotEnvironment.prootPath(this),
+            )
+        } else {
+            NativeTerminal.connectLocal(filesDir.absolutePath)
+        }
     }
 
     private fun closeSessionAt(index: Int) {
@@ -471,7 +483,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             // Create first session based on intent mode
             val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
             if (mode == "local") {
-                NativeTerminal.connectLocal(filesDir.absolutePath)
+                connectLocalOrProot()
                 showArchInstallBanner()
             } else {
                 serverUrl = intent.getStringExtra(ConnectActivity.EXTRA_SERVER_URL)

@@ -136,7 +136,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private fun createTabBar(): LinearLayout {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(0xDD1A1A2E.toInt())
+            setBackgroundColor(0xDD141414.toInt())
             setPadding(8, 4, 8, 4)
         }
 
@@ -173,7 +173,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             }
 
             if (i == active) {
-                tab.setBackgroundColor(0xFF4444AA.toInt())
+                tab.setBackgroundResource(R.drawable.btn_terminal_active)
                 tab.setTextColor(0xFFFFFFFF.toInt())
             }
 
@@ -190,8 +190,8 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private fun createTabButton(label: String, onClick: () -> Unit): TextView {
         return TextView(this).apply {
             text = label
-            setTextColor(0xFFCCCCCC.toInt())
-            setBackgroundResource(android.R.drawable.dialog_holo_dark_frame)
+            setTextColor(0xFFE5E5E5.toInt())
+            setBackgroundResource(R.drawable.btn_terminal)
             setPadding(24, 12, 24, 12)
             textSize = 13f
             gravity = Gravity.CENTER
@@ -395,7 +395,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private fun createToolbar(): LinearLayout {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(0xDD1A1A2E.toInt())
+            setBackgroundColor(0xDD141414.toInt())
             setPadding(8, 4, 8, 4)
         }
 
@@ -461,8 +461,8 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private fun createActionButton(label: String, onClick: () -> Unit): TextView {
         return TextView(this).apply {
             text = label
-            setTextColor(0xFFCCCCCC.toInt())
-            setBackgroundResource(android.R.drawable.dialog_holo_dark_frame)
+            setTextColor(0xFFE5E5E5.toInt())
+            setBackgroundResource(R.drawable.btn_terminal)
             setPadding(24, 16, 24, 16)
             textSize = 14f
             gravity = Gravity.CENTER
@@ -482,8 +482,8 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private fun createModifierButton(label: String, onToggle: (Boolean) -> Unit): TextView {
         return TextView(this).apply {
             text = label
-            setTextColor(0xFFCCCCCC.toInt())
-            setBackgroundResource(android.R.drawable.dialog_holo_dark_frame)
+            setTextColor(0xFFE5E5E5.toInt())
+            setBackgroundResource(R.drawable.btn_terminal)
             setPadding(24, 16, 24, 16)
             textSize = 14f
             gravity = Gravity.CENTER
@@ -496,11 +496,11 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             setOnClickListener {
                 active = !active
                 if (active) {
-                    setBackgroundColor(0xFF4444AA.toInt())
+                    setBackgroundResource(R.drawable.btn_terminal_active)
                     setTextColor(0xFFFFFFFF.toInt())
                 } else {
-                    setBackgroundResource(android.R.drawable.dialog_holo_dark_frame)
-                    setTextColor(0xFFCCCCCC.toInt())
+                    setBackgroundResource(R.drawable.btn_terminal)
+                    setTextColor(0xFFE5E5E5.toInt())
                 }
                 onToggle(active)
             }
@@ -509,7 +509,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun createSeparator(): View {
         return View(this).apply {
-            setBackgroundColor(0xFF444444.toInt())
+            setBackgroundColor(0xFF2A2A2A.toInt())
             layoutParams = LinearLayout.LayoutParams(2, LayoutParams.MATCH_PARENT).apply {
                 setMargins(8, 8, 8, 8)
             }

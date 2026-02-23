@@ -12,6 +12,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
+        android:fontFamily="monospace"
         android:text="@string/app_name"
         android:textColor="@color/on_background"
         android:textSize="24sp"
@@ -21,6 +22,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="32dp"
+        android:fontFamily="monospace"
         android:text="Connect to a terminal server"
         android:textColor="@color/on_surface" />
 
@@ -45,15 +47,18 @@
         android:id="@+id/connectButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:backgroundTint="@color/primary"
+        android:backgroundTint="@color/terminal_accent"
+        android:fontFamily="monospace"
         android:text="@string/connect"
-        android:textColor="@color/on_primary" />
+        android:textColor="@color/on_primary"
+        app:cornerRadius="6dp" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
+        android:fontFamily="monospace"
         android:text="or"
         android:textColor="@color/on_surface" />
 
@@ -61,17 +66,27 @@
         android:id="@+id/localButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:backgroundTint="@color/terminal_surface"
+        android:fontFamily="monospace"
         android:text="@string/local_shell"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:textColor="@color/primary" />
+        android:textColor="@color/terminal_text"
+        app:cornerRadius="6dp"
+        app:strokeColor="@color/terminal_border"
+        app:strokeWidth="1dp"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/storageButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        android:backgroundTint="@color/terminal_surface"
+        android:fontFamily="monospace"
         android:text="@string/setup_storage"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:textColor="@color/on_surface" />
+        android:textColor="@color/terminal_text"
+        app:cornerRadius="6dp"
+        app:strokeColor="@color/terminal_border"
+        app:strokeWidth="1dp"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
 </LinearLayout>

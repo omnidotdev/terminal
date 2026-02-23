@@ -8,4 +8,10 @@
     <color name="on_background">#E5E5E5</color>
     <color name="on_surface">#A3A3A3</color>
     <color name="error">#EF4444</color>
+
+    <!-- Terminal UI brand colors (match keyboard/tab buttons) -->
+    <color name="terminal_accent">#7C3AED</color>
+    <color name="terminal_surface">#141414</color>
+    <color name="terminal_text">#E5E5E5</color>
+    <color name="terminal_border">#2A2A2A</color>
 </resources>

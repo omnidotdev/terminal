@@ -1281,6 +1281,36 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_scroll(
     }
 }
 
+/// Get the current scroll offset (0 = at bottom/live).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getScrollOffset(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jint {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        if let Some(session) = m.active_session() {
+            return session.grid.display_offset as jint;
+        }
+    }
+    0
+}
+
+/// Get the maximum scroll offset (total scrollback lines).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getScrollMax(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jint {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        if let Some(session) = m.active_session() {
+            return session.grid.scrollback_len() as jint;
+        }
+    }
+    0
+}
+
 /// Switch to the session at the given index.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_switchSession(

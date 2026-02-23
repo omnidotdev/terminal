@@ -170,6 +170,11 @@ impl TerminalGrid {
         self.display_offset == 0
     }
 
+    /// Return the number of lines in the scrollback buffer.
+    pub fn scrollback_len(&self) -> usize {
+        self.scrollback.len()
+    }
+
     /// Snap the viewport back to the bottom (live output).
     pub fn scroll_to_bottom(&mut self) {
         if self.display_offset != 0 {

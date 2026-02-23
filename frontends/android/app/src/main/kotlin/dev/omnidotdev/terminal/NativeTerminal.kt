@@ -25,6 +25,10 @@ object NativeTerminal {
     // Scroll by lines (positive=up into history, negative=down toward live)
     external fun scroll(lines: Int)
 
+    // Scroll position queries
+    external fun getScrollOffset(): Int
+    external fun getScrollMax(): Int
+
     // Session management
     external fun switchSession(index: Int)
     external fun closeSession(index: Int): Int

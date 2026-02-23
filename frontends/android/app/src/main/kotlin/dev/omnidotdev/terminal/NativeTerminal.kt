@@ -10,6 +10,7 @@ object NativeTerminal {
     external fun init(surface: Surface, width: Int, height: Int, scale: Float)
     external fun connect(url: String)
     external fun connectLocal(filesDir: String)
+    external fun connectLocalProot(filesDir: String, rootfsPath: String, prootPath: String)
     external fun render()
     external fun resize(width: Int, height: Int, scale: Float)
     external fun destroy()

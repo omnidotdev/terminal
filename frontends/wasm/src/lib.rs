@@ -1,7 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
-mod renderer;
-mod terminal;
+use terminal_emulator::{MouseMode, TerminalGrid, render_grid};
 
 use raw_window_handle::{
     RawDisplayHandle, RawWindowHandle, WebDisplayHandle, WebWindowHandle,
@@ -10,7 +9,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use sugarloaf::layout::RootStyle;
 use sugarloaf::{Object, RichText, Sugarloaf, SugarloafRenderer, SugarloafWindow, SugarloafWindowSize};
-use terminal::{MouseMode, TerminalGrid};
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, HtmlDivElement, HtmlElement, HtmlTextAreaElement};
 
@@ -1351,7 +1349,7 @@ fn render_loop(
             let active = tabs_ref.active_tab_mut();
             if active.grid.dirty {
                 let mut sugarloaf = sugarloaf.borrow_mut();
-                renderer::render_grid(&mut sugarloaf, &active.grid, rt_id);
+                render_grid(&mut sugarloaf, &active.grid, rt_id);
                 sugarloaf.set_objects(vec![Object::RichText(RichText {
                     id: rt_id,
                     position: [0.0, 0.0],

@@ -16,6 +16,7 @@ crate-type = ["cdylib"]
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 sugarloaf = { workspace = true }
 copa = { workspace = true }
+terminal-emulator = { workspace = true }
 js-sys = "0.3.64"
 wgpu = { workspace = true }
 tracing = { workspace = true }

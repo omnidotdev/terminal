@@ -31,6 +31,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private lateinit var toolbar: LinearLayout
     private lateinit var tabBar: LinearLayout
     private lateinit var tabContainer: LinearLayout
+    private lateinit var scrollIndicator: View
     private lateinit var scaleDetector: ScaleGestureDetector
     private lateinit var gestureDetector: GestureDetector
     private var initialized = false
@@ -41,6 +42,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         override fun run() {
             if (initialized) {
                 NativeTerminal.render()
+                updateScrollIndicator()
                 renderHandler.postDelayed(this, 16) // ~60fps
             }
         }
@@ -93,6 +95,16 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         root.addView(container, FrameLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
             LayoutParams.MATCH_PARENT,
+        ))
+
+        scrollIndicator = View(this).apply {
+            setBackgroundColor(0x66FFFFFF.toInt())
+            visibility = View.GONE
+        }
+        root.addView(scrollIndicator, FrameLayout.LayoutParams(
+            4,
+            40,
+            Gravity.END,
         ))
 
         setContentView(root)
@@ -561,6 +573,26 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             initialized = false
         }
         super.onDestroy()
+    }
+
+    private fun updateScrollIndicator() {
+        val offset = NativeTerminal.getScrollOffset()
+        val max = NativeTerminal.getScrollMax()
+        if (offset == 0 || max == 0) {
+            scrollIndicator.visibility = View.GONE
+            return
+        }
+        scrollIndicator.visibility = View.VISIBLE
+
+        val surfaceHeight = surfaceView.height
+        val indicatorHeight = (surfaceHeight * surfaceView.height / (surfaceHeight + max * 20)).coerceAtLeast(20)
+        val position = ((max - offset).toFloat() / max * (surfaceHeight - indicatorHeight)).toInt()
+
+        val params = scrollIndicator.layoutParams as FrameLayout.LayoutParams
+        params.height = indicatorHeight
+        params.topMargin = position + tabBar.height
+        params.gravity = Gravity.END
+        scrollIndicator.layoutParams = params
     }
 
     private inner class PinchListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {

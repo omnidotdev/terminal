@@ -207,6 +207,40 @@ impl TerminalManager {
         idx
     }
 
+    /// Create a new proot session and switch to it.
+    fn create_proot_session(
+        &mut self,
+        files_dir: &str,
+        rootfs_path: &str,
+        proot_path: &str,
+    ) -> usize {
+        self.shell_counter += 1;
+        let label = if self.shell_counter == 1 {
+            "Arch".to_string()
+        } else {
+            format!("Arch {}", self.shell_counter)
+        };
+        let mut session = Session::new(self.total_cols, self.total_rows, label);
+
+        session.files_dir = Some(files_dir.to_string());
+        let (cmd_tx, out_rx) = spawn_proot_pty(
+            files_dir,
+            rootfs_path,
+            proot_path,
+            self.total_cols,
+            self.total_rows,
+        );
+        session.ws_tx = Some(cmd_tx);
+        session.ws_rx = Some(out_rx);
+        session.connected = true;
+        session.local_mode = true;
+
+        self.sessions.push(session);
+        let idx = self.sessions.len() - 1;
+        self.active = idx;
+        idx
+    }
+
     /// Create a new remote WebSocket session and switch to it. Returns the new session index.
     fn create_remote_session(&mut self, url: &str) -> usize {
         let label = url::Url::parse(url)
@@ -693,6 +727,122 @@ fn spawn_local_pty(
     (cmd_tx, out_rx)
 }
 
+/// Spawn a local PTY running through proot with the Arch Linux rootfs.
+fn spawn_proot_pty(
+    files_dir: &str,
+    rootfs_path: &str,
+    proot_path: &str,
+    cols: usize,
+    rows: usize,
+) -> (mpsc::Sender<PtyCommand>, mpsc::Receiver<Vec<u8>>) {
+    use nix::pty::openpty;
+    use nix::unistd::{dup2, execve, fork, setsid, ForkResult};
+    use std::ffi::CString;
+    use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+
+    ensure_local_dirs(files_dir);
+
+    let (cmd_tx, cmd_rx) = mpsc::channel::<PtyCommand>();
+    let (out_tx, out_rx) = mpsc::channel::<Vec<u8>>();
+
+    let pty = openpty(None, None).expect("openpty failed");
+    let master_fd = pty.master;
+    let slave_fd = pty.slave;
+
+    set_winsize(master_fd.as_raw_fd(), cols as u16, rows as u16);
+
+    let proot_path = proot_path.to_string();
+    let rootfs_path = rootfs_path.to_string();
+    let files_dir = files_dir.to_string();
+
+    match unsafe { fork() } {
+        #[allow(unreachable_code)]
+        Ok(ForkResult::Child) => {
+            drop(master_fd);
+
+            setsid().expect("setsid failed");
+
+            unsafe {
+                libc::ioctl(slave_fd.as_raw_fd(), libc::TIOCSCTTY, 0);
+            }
+
+            dup2(slave_fd.as_raw_fd(), 0).expect("dup2 stdin failed");
+            dup2(slave_fd.as_raw_fd(), 1).expect("dup2 stdout failed");
+            dup2(slave_fd.as_raw_fd(), 2).expect("dup2 stderr failed");
+
+            if slave_fd.as_raw_fd() > 2 {
+                drop(slave_fd);
+            }
+
+            let proot = CString::new(proot_path.as_str()).unwrap();
+            let rootfs_arg = format!("--rootfs={rootfs_path}");
+
+            let argv_strs = [
+                "proot",
+                &rootfs_arg,
+                "--bind=/dev",
+                "--bind=/proc",
+                "--bind=/sys",
+                "--bind=/sdcard",
+                "-0",
+                "-w",
+                "/root",
+                "/bin/bash",
+                "-l",
+            ];
+            let argv: Vec<CString> = argv_strs
+                .iter()
+                .filter_map(|s| CString::new(*s).ok())
+                .collect();
+            let argv_refs: Vec<&CString> = argv.iter().collect();
+
+            let tmp_dir = format!("{files_dir}/usr/tmp");
+            let env_vars: Vec<CString> = [
+                "HOME=/root".to_string(),
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+                "TERM=xterm-256color".to_string(),
+                "COLORTERM=truecolor".to_string(),
+                "LANG=en_US.UTF-8".to_string(),
+                format!("PROOT_TMP_DIR={tmp_dir}"),
+            ]
+            .iter()
+            .filter_map(|s| CString::new(s.as_str()).ok())
+            .collect();
+
+            let env_refs: Vec<&CString> = env_vars.iter().collect();
+            execve(&proot, &argv_refs, &env_refs).expect("execve proot failed");
+        }
+        Ok(ForkResult::Parent { child }) => {
+            drop(slave_fd);
+
+            unsafe {
+                let flags = libc::fcntl(master_fd.as_raw_fd(), libc::F_GETFL);
+                libc::fcntl(
+                    master_fd.as_raw_fd(),
+                    libc::F_SETFL,
+                    flags | libc::O_NONBLOCK,
+                );
+            }
+
+            let master_raw = master_fd.as_raw_fd();
+            std::mem::forget(master_fd);
+
+            thread::Builder::new()
+                .name("pty-proot".into())
+                .spawn(move || {
+                    let master = unsafe { OwnedFd::from_raw_fd(master_raw) };
+                    pty_thread_main(master, child, &cmd_rx, &out_tx);
+                })
+                .expect("Failed to spawn proot PTY thread");
+        }
+        Err(e) => {
+            log::error!("fork failed: {e}");
+        }
+    }
+
+    (cmd_tx, out_rx)
+}
+
 /// Set terminal window size via ioctl.
 fn set_winsize(fd: i32, cols: u16, rows: u16) {
     let ws = libc::winsize {
@@ -967,6 +1117,37 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connectLocal(
     let mut mgr = TERMINAL_MANAGER.lock().unwrap();
     if let Some(ref mut m) = *mgr {
         m.create_local_session(&files_dir_str);
+        m.render_content();
+    }
+}
+
+/// Connect to a local PTY through proot (creates a new proot session).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connectLocalProot(
+    mut env: JNIEnv,
+    _class: JClass,
+    files_dir: JString,
+    rootfs_path: JString,
+    proot_path: JString,
+) {
+    let Ok(files_dir_jstr) = env.get_string(&files_dir) else {
+        return;
+    };
+    let files_dir_str: String = files_dir_jstr.into();
+
+    let Ok(rootfs_jstr) = env.get_string(&rootfs_path) else {
+        return;
+    };
+    let rootfs_str: String = rootfs_jstr.into();
+
+    let Ok(proot_jstr) = env.get_string(&proot_path) else {
+        return;
+    };
+    let proot_str: String = proot_jstr.into();
+
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        m.create_proot_session(&files_dir_str, &rootfs_str, &proot_str);
         m.render_content();
     }
 }

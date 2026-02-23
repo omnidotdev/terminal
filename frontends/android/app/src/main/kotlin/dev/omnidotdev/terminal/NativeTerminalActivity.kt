@@ -17,6 +17,7 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.preference.PreferenceManager
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -247,7 +248,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
 
         // Pre-fill with last used URL
-        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         input.setText(prefs.getString(ConnectActivity.PREF_SERVER_URL, ""))
 
         AlertDialog.Builder(this)
@@ -273,6 +274,54 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         } else {
             refreshTabBar()
         }
+    }
+
+    private fun showArchInstallBanner() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (prefs.getBoolean("arch_banner_dismissed", false)) return
+        if (ProotEnvironment.isInstalled(this)) return
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.arch_install_prompt)
+            .setMessage(R.string.arch_install_size)
+            .setPositiveButton(R.string.arch_install_button) { _, _ ->
+                installArchLinux()
+            }
+            .setNegativeButton(R.string.arch_not_now) { _, _ ->
+                prefs.edit().putBoolean("arch_banner_dismissed", true).apply()
+            }
+            .setCancelable(true)
+            .show()
+    }
+
+    private fun installArchLinux() {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.arch_installing)
+            .setMessage("Starting...")
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
+        Thread {
+            try {
+                ProotEnvironment.install(this) { status, _ ->
+                    runOnUiThread { dialog.setMessage(status) }
+                }
+                runOnUiThread {
+                    dialog.dismiss()
+                    android.widget.Toast.makeText(this, R.string.arch_install_done, android.widget.Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    dialog.dismiss()
+                    android.widget.Toast.makeText(
+                        this,
+                        getString(R.string.arch_install_failed, e.message),
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }.start()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -423,6 +472,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
             if (mode == "local") {
                 NativeTerminal.connectLocal(filesDir.absolutePath)
+                showArchInstallBanner()
             } else {
                 serverUrl = intent.getStringExtra(ConnectActivity.EXTRA_SERVER_URL)
                 if (serverUrl != null) {

@@ -166,12 +166,26 @@ android-native:
     cargo ndk -t aarch64-linux-android build -p omni-terminal-android
     mkdir -p frontends/android/app/src/main/jniLibs/arm64-v8a
     cp target/aarch64-linux-android/debug/libomni_terminal_android.so frontends/android/app/src/main/jniLibs/arm64-v8a/
+    # Extract binaries into jniLibs (noexec workaround for Android 10+)
+    mkdir -p /tmp/omni-bootstrap-staging && tar xzf frontends/android/app/src/main/assets/bootstrap-aarch64.tar.gz -C /tmp/omni-bootstrap-staging ./usr/bin/busybox ./usr/bin/proot ./usr/lib/libtalloc.so ./usr/libexec/proot/loader
+    cp /tmp/omni-bootstrap-staging/usr/bin/busybox frontends/android/app/src/main/jniLibs/arm64-v8a/libbusybox.so
+    cp /tmp/omni-bootstrap-staging/usr/bin/proot frontends/android/app/src/main/jniLibs/arm64-v8a/libproot.so
+    cp /tmp/omni-bootstrap-staging/usr/lib/libtalloc.so frontends/android/app/src/main/jniLibs/arm64-v8a/libtalloc.so
+    cp /tmp/omni-bootstrap-staging/usr/libexec/proot/loader frontends/android/app/src/main/jniLibs/arm64-v8a/libproot-loader.so
+    rm -rf /tmp/omni-bootstrap-staging
 
 # Build native library for Android arm64 (release, optimized)
 android-native-release:
     cargo ndk -t aarch64-linux-android build -p omni-terminal-android --release
     mkdir -p frontends/android/app/src/main/jniLibs/arm64-v8a
     cp target/aarch64-linux-android/release/libomni_terminal_android.so frontends/android/app/src/main/jniLibs/arm64-v8a/
+    # Extract binaries into jniLibs (noexec workaround for Android 10+)
+    mkdir -p /tmp/omni-bootstrap-staging && tar xzf frontends/android/app/src/main/assets/bootstrap-aarch64.tar.gz -C /tmp/omni-bootstrap-staging ./usr/bin/busybox ./usr/bin/proot ./usr/lib/libtalloc.so ./usr/libexec/proot/loader
+    cp /tmp/omni-bootstrap-staging/usr/bin/busybox frontends/android/app/src/main/jniLibs/arm64-v8a/libbusybox.so
+    cp /tmp/omni-bootstrap-staging/usr/bin/proot frontends/android/app/src/main/jniLibs/arm64-v8a/libproot.so
+    cp /tmp/omni-bootstrap-staging/usr/lib/libtalloc.so frontends/android/app/src/main/jniLibs/arm64-v8a/libtalloc.so
+    cp /tmp/omni-bootstrap-staging/usr/libexec/proot/loader frontends/android/app/src/main/jniLibs/arm64-v8a/libproot-loader.so
+    rm -rf /tmp/omni-bootstrap-staging
 
 # Build Android debug APK (native library + Kotlin shell)
 android-build: android-native

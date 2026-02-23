@@ -24,7 +24,11 @@
     <string name="arch_install_prompt">Install Arch Linux for a full dev environment?</string>
     <string name="arch_install_size">~170MB download</string>
     <string name="arch_install_button">Install</string>
+    <string name="arch_install_button_full">Install Arch Linux</string>
     <string name="arch_not_now">Not now</string>
+    <string name="arch_remove">Remove Arch Linux</string>
+    <string name="arch_remove_confirm">This will delete the Arch Linux rootfs</string>
+    <string name="arch_removed">Arch Linux removed</string>
     <string name="arch_installing">Installing Arch Linux ARM...</string>
     <string name="arch_install_done">Arch Linux installed. New shells will use it</string>
     <string name="arch_install_failed">Installation failed: %1$s</string>

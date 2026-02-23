@@ -7,10 +7,6 @@ android {
     namespace = "dev.omnidotdev.terminal"
     compileSdk = 35
 
-    androidResources {
-        noCompress += "gz"
-    }
-
     defaultConfig {
         applicationId = "dev.omnidotdev.terminal"
         minSdk = 26
@@ -38,6 +34,12 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 dependencies {
@@ -46,4 +48,5 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.preference:preference-ktx:1.2.1")
+    implementation("org.tukaani:xz:1.10")
 }

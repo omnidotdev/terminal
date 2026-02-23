@@ -2,9 +2,11 @@ package dev.omnidotdev.terminal
 
 import android.content.Context
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
+import org.tukaani.xz.XZInputStream
 
 object ProotEnvironment {
     private const val ARCH_VERSION = "1"
@@ -12,9 +14,9 @@ object ProotEnvironment {
     private const val VERSION_FILE = ".archlinux_version"
     private const val PROOT_BINARY = "usr/bin/proot"
 
-    // proot-distro's CDN for stripped Arch Linux ARM rootfs
+    // proot-distro's CDN for Arch Linux ARM rootfs
     private const val ROOTFS_URL =
-        "https://github.com/niclas-AQT/proot-distro-package-mirror/releases/download/archlinux-aarch64-pd-v5.6.0/archlinux-aarch64-pd-v5.6.0.tar.xz"
+        "https://easycli.sh/proot-distro/archlinux-aarch64-pd-v4.37.0.tar.xz"
 
     fun isInstalled(context: Context): Boolean {
         val filesDir = context.filesDir
@@ -107,24 +109,13 @@ object ProotEnvironment {
         }
     }
 
-    private fun extractTarXz(archive: File, destDir: File, context: Context) {
-        // Use busybox tar with xz decompression (busybox supports it)
-        val busybox = File(context.filesDir, "usr/bin/busybox")
-        if (!busybox.exists()) {
-            throw IllegalStateException("BusyBox not installed — install bootstrap first")
-        }
-
-        val pb = ProcessBuilder(
-            busybox.absolutePath, "tar", "xf", archive.absolutePath,
-            "-C", destDir.absolutePath,
-        )
-        pb.environment()["XZ_OPT"] = "-T0" // multi-threaded decompression
-        pb.redirectErrorStream(true)
-        val proc = pb.start()
-        proc.inputStream.bufferedReader().readText() // drain output
-        val exit = proc.waitFor()
-        if (exit != 0) {
-            throw RuntimeException("tar extraction failed with exit code $exit")
+    private fun extractTarXz(archive: File, destDir: File, @Suppress("UNUSED_PARAMETER") context: Context) {
+        // Pure Java extraction to avoid noexec restrictions on Android 10+
+        // Strip top-level dir (e.g. archlinux-aarch64/) from the proot-distro archive
+        FileInputStream(archive).use { fis ->
+            XZInputStream(fis).use { xz ->
+                BootstrapInstaller.extractTar(xz, destDir, stripComponents = 1)
+            }
         }
     }
 

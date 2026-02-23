@@ -118,14 +118,33 @@ echo "Storage symlinks created in ~/storage/"
 SETUP_STORAGE
 chmod +x "$STAGING_DIR/usr/bin/setup-storage"
 
-# Download static proot binary for aarch64
-PROOT_VERSION="5.3.0"
-PROOT_URL="https://github.com/proot-me/proot/releases/download/v${PROOT_VERSION}/proot-v${PROOT_VERSION}-aarch64-static"
-PROOT_BIN="$STAGING_DIR/usr/bin/proot"
+# Download Termux's proot + libtalloc (has SIGSYS handler for Android's Zygote seccomp filter)
+PROOT_DEB_URL="https://packages.termux.dev/apt/termux-main/pool/main/p/proot/proot_5.1.107-70_aarch64.deb"
+TALLOC_DEB_URL="https://packages.termux.dev/apt/termux-main/pool/main/libt/libtalloc/libtalloc_2.4.3_aarch64.deb"
+DEB_EXTRACT_DIR="${BUILD_DIR}/deb-extract"
 
-echo "==> Downloading proot v${PROOT_VERSION}..."
-curl -fL -o "$PROOT_BIN" "$PROOT_URL"
-chmod +x "$PROOT_BIN"
+echo "==> Downloading Termux proot..."
+mkdir -p "$DEB_EXTRACT_DIR"
+curl -fsSL -o "$DEB_EXTRACT_DIR/proot.deb" "$PROOT_DEB_URL"
+curl -fsSL -o "$DEB_EXTRACT_DIR/libtalloc.deb" "$TALLOC_DEB_URL"
+
+# Extract binaries from .deb packages (ar + tar, no dpkg needed)
+mkdir -p "$DEB_EXTRACT_DIR/proot" "$DEB_EXTRACT_DIR/talloc"
+ar x "$DEB_EXTRACT_DIR/proot.deb" --output="$DEB_EXTRACT_DIR/proot"
+ar x "$DEB_EXTRACT_DIR/libtalloc.deb" --output="$DEB_EXTRACT_DIR/talloc"
+tar xf "$DEB_EXTRACT_DIR/proot/data.tar.xz" -C "$DEB_EXTRACT_DIR/proot"
+tar xf "$DEB_EXTRACT_DIR/talloc/data.tar.xz" -C "$DEB_EXTRACT_DIR/talloc"
+
+cp "$DEB_EXTRACT_DIR/proot/data/data/com.termux/files/usr/bin/proot" "$STAGING_DIR/usr/bin/proot"
+chmod +x "$STAGING_DIR/usr/bin/proot"
+
+# Ship libtalloc and proot loader alongside proot
+mkdir -p "$STAGING_DIR/usr/lib" "$STAGING_DIR/usr/libexec/proot"
+cp "$DEB_EXTRACT_DIR/talloc/data/data/com.termux/files/usr/lib/libtalloc.so.2.4.3" "$STAGING_DIR/usr/lib/libtalloc.so"
+cp "$DEB_EXTRACT_DIR/proot/data/data/com.termux/files/usr/libexec/proot/loader" "$STAGING_DIR/usr/libexec/proot/loader"
+chmod +x "$STAGING_DIR/usr/libexec/proot/loader"
+
+rm -rf "$DEB_EXTRACT_DIR"
 
 echo "==> Packaging bootstrap archive..."
 mkdir -p "$ASSETS_DIR"

@@ -43,6 +43,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             if (initialized) {
                 NativeTerminal.render()
                 updateScrollIndicator()
+                reapExitedSessions()
                 renderHandler.postDelayed(this, 16) // ~60fps
             }
         }
@@ -287,14 +288,16 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     private fun connectLocalOrProot() {
-        if (ProotEnvironment.isInstalled(this) && ProotEnvironment.isProotAvailable(this)) {
+        val nativeLibDir = applicationInfo.nativeLibraryDir
+        if (ProotEnvironment.isInstalled(this)) {
             NativeTerminal.connectLocalProot(
                 filesDir.absolutePath,
                 ProotEnvironment.rootfsPath(this),
-                ProotEnvironment.prootPath(this),
+                "$nativeLibDir/libproot.so",
+                nativeLibDir,
             )
         } else {
-            NativeTerminal.connectLocal(filesDir.absolutePath)
+            NativeTerminal.connectLocal(filesDir.absolutePath, nativeLibDir)
         }
     }
 
@@ -305,6 +308,19 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         } else {
             refreshTabBar()
             updateTerminalService()
+        }
+    }
+
+    /** Close sessions whose backing process has exited (e.g. user typed `exit`). */
+    private fun reapExitedSessions() {
+        val count = NativeTerminal.getSessionCount()
+        // Iterate in reverse so removal indices stay valid
+        for (i in (count - 1) downTo 0) {
+            if (!NativeTerminal.isSessionAlive(i)) {
+                // Keep exited session visible so user can read error output
+                closeSessionAt(i)
+                return // finish() may have been called; re-check next frame
+            }
         }
     }
 
@@ -341,24 +357,6 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         if (!serviceStarted) return
         stopService(Intent(this, TerminalService::class.java))
         serviceStarted = false
-    }
-
-    private fun showArchInstallBanner() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        if (prefs.getBoolean("arch_banner_dismissed", false)) return
-        if (ProotEnvironment.isInstalled(this)) return
-
-        AlertDialog.Builder(this)
-            .setTitle(R.string.arch_install_prompt)
-            .setMessage(R.string.arch_install_size)
-            .setPositiveButton(R.string.arch_install_button) { _, _ ->
-                installArchLinux()
-            }
-            .setNegativeButton(R.string.arch_not_now) { _, _ ->
-                prefs.edit().putBoolean("arch_banner_dismissed", true).apply()
-            }
-            .setCancelable(true)
-            .show()
     }
 
     private fun installArchLinux() {
@@ -563,7 +561,6 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
             if (mode == "local") {
                 connectLocalOrProot()
-                showArchInstallBanner()
             } else {
                 serverUrl = intent.getStringExtra(ConnectActivity.EXTRA_SERVER_URL)
                 if (serverUrl != null) {
@@ -630,6 +627,39 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     private fun showSettingsDialog() {
+        val items = mutableListOf<String>()
+        val actions = mutableListOf<() -> Unit>()
+
+        // Theme
+        items.add(getString(R.string.theme))
+        actions.add { showThemeDialog() }
+
+        // Arch Linux install/remove
+        if (ProotEnvironment.isInstalled(this)) {
+            items.add(getString(R.string.arch_remove))
+            actions.add {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.arch_remove)
+                    .setMessage(R.string.arch_remove_confirm)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        ProotEnvironment.remove(this)
+                        android.widget.Toast.makeText(this, R.string.arch_removed, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        } else {
+            items.add(getString(R.string.arch_install_button_full))
+            actions.add { installArchLinux() }
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings)
+            .setItems(items.toTypedArray()) { _, which -> actions[which]() }
+            .show()
+    }
+
+    private fun showThemeDialog() {
         val currentTheme = TerminalPreferences.getTheme(this)
 
         val themes = arrayOf(
@@ -641,7 +671,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         val selectedTheme = themeValues.indexOf(currentTheme).coerceAtLeast(0)
 
         AlertDialog.Builder(this)
-            .setTitle(R.string.settings)
+            .setTitle(R.string.theme)
             .setSingleChoiceItems(themes, selectedTheme) { _, which ->
                 val theme = themeValues[which]
                 TerminalPreferences.setTheme(this, theme)

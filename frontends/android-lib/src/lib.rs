@@ -1,7 +1,7 @@
 use terminal_emulator::{TerminalGrid, render_grid};
 
 use jni::objects::{JClass, JObject, JString};
-use jni::sys::{jfloat, jint};
+use jni::sys::{jboolean, jfloat, jint};
 use jni::JNIEnv;
 use raw_window_handle::{
     AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
@@ -50,6 +50,8 @@ struct Session {
     files_dir: Option<String>,
     /// Tab display name.
     label: String,
+    /// Whether the backing process/connection has exited.
+    exited: bool,
 }
 
 impl Session {
@@ -66,6 +68,7 @@ impl Session {
             local_mode: false,
             files_dir: None,
             label,
+            exited: false,
         }
     }
 
@@ -73,8 +76,15 @@ impl Session {
     fn drain_output(&mut self) {
         let mut incoming: Vec<Vec<u8>> = Vec::new();
         if let Some(ref rx) = self.ws_rx {
-            while let Ok(data) = rx.try_recv() {
-                incoming.push(data);
+            loop {
+                match rx.try_recv() {
+                    Ok(data) => incoming.push(data),
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        self.exited = true;
+                        break;
+                    }
+                }
             }
         }
         for data in incoming {
@@ -188,12 +198,13 @@ impl TerminalManager {
     }
 
     /// Create a new local shell session and switch to it. Returns the new session index.
-    fn create_local_session(&mut self, files_dir: &str) -> usize {
+    fn create_local_session(&mut self, files_dir: &str, native_lib_dir: &str) -> usize {
         let label = self.next_shell_label();
         let mut session = Session::new(self.total_cols, self.total_rows, label);
 
         session.files_dir = Some(files_dir.to_string());
-        let (cmd_tx, out_rx) = spawn_local_pty(files_dir, self.total_cols, self.total_rows);
+        let (cmd_tx, out_rx) =
+            spawn_local_pty(files_dir, native_lib_dir, self.total_cols, self.total_rows);
         session.ws_tx = Some(cmd_tx);
         session.ws_rx = Some(out_rx);
         session.connected = true;
@@ -211,6 +222,7 @@ impl TerminalManager {
         files_dir: &str,
         rootfs_path: &str,
         proot_path: &str,
+        native_lib_dir: &str,
     ) -> usize {
         self.shell_counter += 1;
         let label = if self.shell_counter == 1 {
@@ -225,6 +237,7 @@ impl TerminalManager {
             files_dir,
             rootfs_path,
             proot_path,
+            native_lib_dir,
             self.total_cols,
             self.total_rows,
         );
@@ -679,6 +692,7 @@ fn ensure_local_dirs(files_dir: &str) {
 /// Spawn a local PTY shell process.
 fn spawn_local_pty(
     files_dir: &str,
+    native_lib_dir: &str,
     cols: usize,
     rows: usize,
 ) -> (mpsc::Sender<PtyCommand>, mpsc::Receiver<Vec<u8>>) {
@@ -705,6 +719,7 @@ fn spawn_local_pty(
     // Clone strings for the child process (pre-fork)
     let home_c = home.clone();
     let prefix_c = prefix.clone();
+    let native_lib_dir_c = native_lib_dir.to_string();
 
     match unsafe { fork() } {
         #[allow(unreachable_code)]
@@ -727,18 +742,6 @@ fn spawn_local_pty(
                 drop(slave_fd);
             }
 
-            // Detect best available shell
-            let bash_path = format!("{prefix_c}/bin/bash");
-            let ash_path = format!("{prefix_c}/bin/ash");
-
-            let (shell_path, argv0) = if std::path::Path::new(&bash_path).exists() {
-                (bash_path, "-bash")
-            } else if std::path::Path::new(&ash_path).exists() {
-                (ash_path, "-ash")
-            } else {
-                ("/system/bin/sh".to_string(), "sh")
-            };
-
             // chdir to $HOME
             if let Ok(c_home) = CString::new(home_c.as_str()) {
                 unsafe {
@@ -746,28 +749,70 @@ fn spawn_local_pty(
                 }
             }
 
-            let shell = CString::new(shell_path.as_str()).unwrap();
-            let argv0 = CString::new(argv0).unwrap();
-            let argv = [argv0];
+            // Build env with bootstrap path first
+            let make_env = |path_val: &str| -> Vec<CString> {
+                [
+                    format!("HOME={home_c}"),
+                    path_val.to_string(),
+                    format!("PREFIX={prefix_c}"),
+                    format!("TMPDIR={prefix_c}/tmp"),
+                    "TERM=xterm-256color".to_string(),
+                    "COLORTERM=truecolor".to_string(),
+                    "LANG=en_US.UTF-8".to_string(),
+                    format!("TERMINFO={prefix_c}/share/terminfo"),
+                    format!("ENV={home_c}/.profile"),
+                ]
+                .iter()
+                .filter_map(|s| CString::new(s.as_str()).ok())
+                .collect()
+            };
 
-            let path_val = format!("PATH={prefix_c}/bin:/system/bin");
-            let env_vars: Vec<CString> = [
-                format!("HOME={home_c}"),
-                path_val,
-                format!("PREFIX={prefix_c}"),
-                format!("TMPDIR={prefix_c}/tmp"),
-                "TERM=xterm-256color".to_string(),
-                "COLORTERM=truecolor".to_string(),
-                "LANG=en_US.UTF-8".to_string(),
-                format!("TERMINFO={prefix_c}/share/terminfo"),
-                format!("ENV={home_c}/.profile"),
-            ]
-            .iter()
-            .filter_map(|s| CString::new(s.as_str()).ok())
-            .collect();
+            // Try busybox from native lib dir first (always executable,
+            // not affected by noexec restrictions on app data dirs)
+            let bootstrap_path = format!("PATH={prefix_c}/bin:/system/bin");
+            let bootstrap_env = make_env(&bootstrap_path);
+            let bootstrap_refs: Vec<&CString> = bootstrap_env.iter().collect();
 
-            let env_refs: Vec<&CString> = env_vars.iter().collect();
-            execve(&shell, &argv, &env_refs).expect("execve failed");
+            {
+                let busybox_path = format!("{native_lib_dir_c}/libbusybox.so");
+                if std::path::Path::new(&busybox_path).exists() {
+                    if let Ok(shell) = CString::new(busybox_path.as_str()) {
+                        let argv0 = CString::new("-ash").unwrap();
+                        let argv = [argv0];
+                        let _ = execve(&shell, &argv, &bootstrap_refs);
+                    }
+                }
+            }
+
+            // Try bootstrap shells from prefix (may fail on noexec mounts)
+            for (path, arg0) in [
+                (format!("{prefix_c}/bin/bash"), "-bash"),
+                (format!("{prefix_c}/bin/ash"), "-ash"),
+            ] {
+                if !std::path::Path::new(&path).exists() {
+                    continue;
+                }
+                if let Ok(shell) = CString::new(path.as_str()) {
+                    let argv0 = CString::new(arg0).unwrap();
+                    let argv = [argv0];
+                    let _ = execve(&shell, &argv, &bootstrap_refs);
+                }
+            }
+
+            // Bootstrap shells failed (noexec); fall back to system shell
+            // with /system/bin first so system commands aren't shadowed
+            let fallback_path = format!("PATH=/system/bin:{prefix_c}/bin");
+            let fallback_env = make_env(&fallback_path);
+            let fallback_refs: Vec<&CString> = fallback_env.iter().collect();
+
+            let sys_shell = CString::new("/system/bin/sh").unwrap();
+            let sys_argv0 = CString::new("sh").unwrap();
+            let sys_argv = [sys_argv0];
+            let _ = execve(&sys_shell, &sys_argv, &fallback_refs);
+
+            // All candidates failed
+            eprintln!("fatal: no usable shell found");
+            unsafe { libc::_exit(127) };
         }
         Ok(ForkResult::Parent { child }) => {
             drop(slave_fd);
@@ -807,6 +852,7 @@ fn spawn_proot_pty(
     files_dir: &str,
     rootfs_path: &str,
     proot_path: &str,
+    native_lib_dir: &str,
     cols: usize,
     rows: usize,
 ) -> (mpsc::Sender<PtyCommand>, mpsc::Receiver<Vec<u8>>) {
@@ -829,6 +875,9 @@ fn spawn_proot_pty(
     let proot_path = proot_path.to_string();
     let rootfs_path = rootfs_path.to_string();
     let files_dir = files_dir.to_string();
+    let native_lib_dir = native_lib_dir.to_string();
+
+    log::info!("spawn_proot_pty: proot={proot_path} rootfs={rootfs_path}");
 
     match unsafe { fork() } {
         #[allow(unreachable_code)]
@@ -845,9 +894,28 @@ fn spawn_proot_pty(
             dup2(slave_fd.as_raw_fd(), 1).expect("dup2 stdout failed");
             dup2(slave_fd.as_raw_fd(), 2).expect("dup2 stderr failed");
 
-            if slave_fd.as_raw_fd() > 2 {
+            let slave_raw = slave_fd.as_raw_fd();
+            if slave_raw > 2 {
                 drop(slave_fd);
             }
+
+            // Close all inherited FDs > 2 (Android graphics FDs, etc.)
+            unsafe {
+                for fd in 3..256 {
+                    if fd != slave_raw {
+                        libc::close(fd);
+                    }
+                }
+            }
+
+            // Create libtalloc.so.2 symlink so the dynamic linker can find it
+            // (Termux's proot links against libtalloc.so.2 but we ship libtalloc.so)
+            let lib_dir = format!("{files_dir}/usr/lib");
+            let _ = std::fs::create_dir_all(&lib_dir);
+            let symlink_path = format!("{lib_dir}/libtalloc.so.2");
+            let target_path = format!("{native_lib_dir}/libtalloc.so");
+            let _ = std::fs::remove_file(&symlink_path);
+            let _ = std::os::unix::fs::symlink(&target_path, &symlink_path);
 
             let proot = CString::new(proot_path.as_str()).unwrap();
             let rootfs_arg = format!("--rootfs={rootfs_path}");
@@ -858,11 +926,10 @@ fn spawn_proot_pty(
                 "--bind=/dev",
                 "--bind=/proc",
                 "--bind=/sys",
-                "--bind=/sdcard",
                 "-0",
                 "-w",
                 "/root",
-                "/bin/bash",
+                "/usr/bin/bash",
                 "-l",
             ];
             let argv: Vec<CString> = argv_strs
@@ -872,6 +939,7 @@ fn spawn_proot_pty(
             let argv_refs: Vec<&CString> = argv.iter().collect();
 
             let tmp_dir = format!("{files_dir}/usr/tmp");
+            let loader_path = format!("{native_lib_dir}/libproot-loader.so");
             let env_vars: Vec<CString> = [
                 "HOME=/root".to_string(),
                 "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
@@ -879,13 +947,22 @@ fn spawn_proot_pty(
                 "COLORTERM=truecolor".to_string(),
                 "LANG=en_US.UTF-8".to_string(),
                 format!("PROOT_TMP_DIR={tmp_dir}"),
+                format!("PROOT_LOADER={loader_path}"),
+                format!("LD_LIBRARY_PATH={lib_dir}:{native_lib_dir}"),
             ]
             .iter()
             .filter_map(|s| CString::new(s.as_str()).ok())
             .collect();
 
             let env_refs: Vec<&CString> = env_vars.iter().collect();
-            execve(&proot, &argv_refs, &env_refs).expect("execve proot failed");
+            match execve(&proot, &argv_refs, &env_refs) {
+                Ok(_) => unreachable!(),
+                Err(e) => {
+                    let msg = format!("execve failed: {e}\n");
+                    let _ = nix::unistd::write(std::io::stderr(), msg.as_bytes());
+                    unsafe { libc::_exit(1) };
+                }
+            }
         }
         Ok(ForkResult::Parent { child }) => {
             drop(slave_fd);
@@ -993,9 +1070,23 @@ fn pty_thread_main(
 
         // Check if child has exited
         match waitpid(child, Some(WaitPidFlag::WNOHANG)) {
-            Ok(nix::sys::wait::WaitStatus::Exited(_, _))
-            | Ok(nix::sys::wait::WaitStatus::Signaled(_, _, _)) => {
-                log::info!("Shell process exited");
+            Ok(nix::sys::wait::WaitStatus::Exited(_, code)) => {
+                log::error!("Shell process exited with code {code}");
+                // Drain any remaining output before exiting
+                loop {
+                    match Read::read(&mut file, &mut buf) {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => {
+                            let output = String::from_utf8_lossy(&buf[..n]);
+                            log::error!("Shell final output: {output}");
+                            let _ = out_tx.send(buf[..n].to_vec());
+                        }
+                    }
+                }
+                break;
+            }
+            Ok(nix::sys::wait::WaitStatus::Signaled(_, sig, _)) => {
+                log::error!("Shell process killed by signal {sig}");
                 break;
             }
             _ => {}
@@ -1183,15 +1274,21 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connectLocal(
     mut env: JNIEnv,
     _class: JClass,
     files_dir: JString,
+    native_lib_dir: JString,
 ) {
     let Ok(files_dir_jstr) = env.get_string(&files_dir) else {
         return;
     };
     let files_dir_str: String = files_dir_jstr.into();
 
+    let Ok(native_lib_jstr) = env.get_string(&native_lib_dir) else {
+        return;
+    };
+    let native_lib_str: String = native_lib_jstr.into();
+
     let mut mgr = TERMINAL_MANAGER.lock().unwrap();
     if let Some(ref mut m) = *mgr {
-        m.create_local_session(&files_dir_str);
+        m.create_local_session(&files_dir_str, &native_lib_str);
         m.render_content();
     }
 }
@@ -1204,6 +1301,7 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connectLocalP
     files_dir: JString,
     rootfs_path: JString,
     proot_path: JString,
+    native_lib_dir: JString,
 ) {
     let Ok(files_dir_jstr) = env.get_string(&files_dir) else {
         return;
@@ -1220,9 +1318,14 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_connectLocalP
     };
     let proot_str: String = proot_jstr.into();
 
+    let Ok(native_lib_jstr) = env.get_string(&native_lib_dir) else {
+        return;
+    };
+    let native_lib_str: String = native_lib_jstr.into();
+
     let mut mgr = TERMINAL_MANAGER.lock().unwrap();
     if let Some(ref mut m) = *mgr {
-        m.create_proot_session(&files_dir_str, &rootfs_str, &proot_str);
+        m.create_proot_session(&files_dir_str, &rootfs_str, &proot_str, &native_lib_str);
         m.render_content();
     }
 }
@@ -1531,6 +1634,22 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getSessionLab
 
     env.new_string(&label_owned)
         .unwrap_or_else(|_| JObject::null().into())
+}
+
+/// Check whether the session at the given index is still alive (process has not exited).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_isSessionAlive(
+    _env: JNIEnv,
+    _class: JClass,
+    index: jint,
+) -> jboolean {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        if let Some(session) = m.sessions.get(index as usize) {
+            return if session.exited { 0 } else { 1 };
+        }
+    }
+    0
 }
 
 /// Begin a text selection at the given grid coordinates.

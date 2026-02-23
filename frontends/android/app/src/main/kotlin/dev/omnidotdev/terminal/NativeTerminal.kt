@@ -9,8 +9,8 @@ object NativeTerminal {
 
     external fun init(surface: Surface, width: Int, height: Int, scale: Float)
     external fun connect(url: String)
-    external fun connectLocal(filesDir: String)
-    external fun connectLocalProot(filesDir: String, rootfsPath: String, prootPath: String)
+    external fun connectLocal(filesDir: String, nativeLibDir: String)
+    external fun connectLocalProot(filesDir: String, rootfsPath: String, prootPath: String, nativeLibDir: String)
     external fun render()
     external fun resize(width: Int, height: Int, scale: Float)
     external fun destroy()
@@ -42,6 +42,7 @@ object NativeTerminal {
     external fun getSessionCount(): Int
     external fun getActiveSession(): Int
     external fun getSessionLabel(index: Int): String
+    external fun isSessionAlive(index: Int): Boolean
 
     // Text selection
     external fun selectionBegin(col: Int, row: Int)

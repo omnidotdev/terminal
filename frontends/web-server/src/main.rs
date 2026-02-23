@@ -12,6 +12,7 @@ use axum::{
 use futures::{SinkExt, StreamExt};
 use session::{SessionId, SessionManager};
 use std::collections::HashMap;
+use axum_server::tls_rustls::RustlsConfig;
 use std::net::SocketAddr;
 use tokio::sync::mpsc;
 use tower_http::services::ServeDir;
@@ -55,10 +56,39 @@ async fn main() {
         .unwrap_or(3000);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    tracing::info!("Omni Terminal web server listening on http://{addr}");
+    let tls_config = match (
+        std::env::var("TLS_CERT").ok(),
+        std::env::var("TLS_KEY").ok(),
+    ) {
+        (Some(cert), Some(key)) => {
+            tracing::info!("using provided TLS certificate");
+            RustlsConfig::from_pem_file(&cert, &key)
+                .await
+                .expect("failed to load TLS cert/key")
+        }
+        _ => {
+            tracing::info!("generating self-signed TLS certificate");
+            let cert = rcgen::generate_simple_self_signed(vec![
+                "localhost".to_string(),
+                "127.0.0.1".to_string(),
+                "0.0.0.0".to_string(),
+            ])
+            .expect("failed to generate self-signed certificate");
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+            RustlsConfig::from_pem(
+                cert.cert.pem().into(),
+                cert.key_pair.serialize_pem().into(),
+            )
+            .await
+            .expect("failed to create TLS config from generated certificate")
+        }
+    };
+
+    tracing::info!("Omni Terminal web server listening on https://{addr}");
+    axum_server::bind_rustls(addr, tls_config)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
 
 async fn ws_handler(

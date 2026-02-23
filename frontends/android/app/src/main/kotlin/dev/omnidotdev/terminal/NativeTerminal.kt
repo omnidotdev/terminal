@@ -19,6 +19,10 @@ object NativeTerminal {
     external fun sendKey(text: String)
     external fun sendSpecialKey(keyCode: Int)
 
+    // Font size
+    external fun setFontSize(size: Float)
+    external fun getFontSize(): Float
+
     // Font size: 0=reset, 1=decrease, 2=increase
     external fun setFontAction(action: Int)
 

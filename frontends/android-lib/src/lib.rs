@@ -1246,6 +1246,39 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_sendSpecialKe
     }
 }
 
+/// Set the font size to an exact value (in CSS px).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_setFontSize(
+    _env: JNIEnv,
+    _class: JClass,
+    size: jfloat,
+) {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        m.sugarloaf.set_rich_text_font_size(&m.rt_id, size);
+
+        // Recalculate grid dimensions
+        m.dims_confirmed = false;
+        if let Some(session) = m.sessions.get_mut(m.active) {
+            session.dirty = true;
+        }
+        m.render_content();
+    }
+}
+
+/// Get the current font size.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getFontSize(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jfloat {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        return m.sugarloaf.rich_text_layout(&m.rt_id).font_size;
+    }
+    18.0
+}
+
 /// Adjust font size. 0=reset, 1=decrease, 2=increase.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_setFontAction(

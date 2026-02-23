@@ -6,6 +6,7 @@ members = [
     "copa",
     "terminal-proc-macros",
     "terminal-backend",
+    "terminal-emulator",
     "terminal-window",
     "frontends/omni-terminal",
     "frontends/wasm",
@@ -34,6 +35,7 @@ readme = "README.md"
 teletypewriter = { path = "teletypewriter", version = "0.2.37" }
 terminal-backend = { path = "terminal-backend", version = "0.2.37" }
 terminal-window = { path = "terminal-window", version = "0.2.37", default-features = false }
+terminal-emulator = { path = "terminal-emulator", version = "0.2.37" }
 sugarloaf = { path = "sugarloaf", version = "0.2.37" }
 
 # Own dependencies

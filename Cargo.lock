@@ -4539,6 +4539,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "terminal-emulator"
+version = "0.2.37"
+dependencies = [
+ "copa",
+ "sugarloaf",
+]
+
+[[package]]
 name = "terminal-proc-macros"
 version = "0.2.37"
 dependencies = [

@@ -29,6 +29,16 @@ pub fn render_grid(
                 (cell.fg, cell.bg)
             };
 
+            // Selection highlight: swap fg/bg
+            let (fg, bg) = if grid.is_selected(run_start, row_idx) {
+                (
+                    bg.unwrap_or([0.05, 0.05, 0.1, 1.0]),
+                    Some(fg),
+                )
+            } else {
+                (fg, bg)
+            };
+
             let decoration = if cell.underline {
                 Some(FragmentStyleDecoration::Underline(UnderlineInfo {
                     is_doubled: false,
@@ -62,6 +72,7 @@ pub fn render_grid(
                     && next.bold == cell.bold
                     && next.italic == cell.italic
                     && next.underline == cell.underline
+                    && grid.is_selected(run_end, row_idx) == grid.is_selected(run_start, row_idx)
                 {
                     run_end += 1;
                 } else {

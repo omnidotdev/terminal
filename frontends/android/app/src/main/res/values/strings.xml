@@ -28,4 +28,10 @@
     <string name="arch_installing">Installing Arch Linux ARM...</string>
     <string name="arch_install_done">Arch Linux installed. New shells will use it</string>
     <string name="arch_install_failed">Installation failed: %1$s</string>
+    <string name="settings">Settings</string>
+    <string name="font_size">Font Size</string>
+    <string name="theme">Theme</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_solarized">Solarized Dark</string>
+    <string name="theme_light">Light</string>
 </resources>

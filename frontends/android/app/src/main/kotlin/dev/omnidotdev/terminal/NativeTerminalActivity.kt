@@ -437,6 +437,9 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         // Disconnect / back
         inner.addView(createActionButton("\u2716") { finish() })
 
+        // Settings
+        inner.addView(createActionButton("\u2699") { showSettingsDialog() })
+
         scroll.addView(inner)
         bar.addView(scroll)
         return bar
@@ -571,6 +574,28 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             initialized = false
         }
         super.onDestroy()
+    }
+
+    private fun showSettingsDialog() {
+        val currentTheme = TerminalPreferences.getTheme(this)
+
+        val themes = arrayOf(
+            getString(R.string.theme_dark),
+            getString(R.string.theme_solarized),
+            getString(R.string.theme_light),
+        )
+        val themeValues = arrayOf("dark", "solarized", "light")
+        val selectedTheme = themeValues.indexOf(currentTheme).coerceAtLeast(0)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings)
+            .setSingleChoiceItems(themes, selectedTheme) { _, which ->
+                val theme = themeValues[which]
+                TerminalPreferences.setTheme(this, theme)
+                applyTheme(theme)
+            }
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     private fun applyTheme(theme: String) {

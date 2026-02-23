@@ -803,6 +803,9 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                 }
                 event.prevent_default();
 
+                // Clear any active text selection on keyboard input
+                tabs_key.borrow_mut().active_tab_mut().grid.selection_clear();
+
                 let bytes = key_event_to_bytes(&event);
                 if bytes.is_empty() {
                     return;
@@ -990,11 +993,15 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             buttons_down: 0,
         }));
 
-        // mousedown -- report press events to the PTY
+        // Text selection state
+        let selecting = Rc::new(RefCell::new(false));
+
+        // mousedown -- report press events to the PTY or start text selection
         {
             let tabs = tabs.clone();
             let ws_state = ws_state.clone();
             let mouse_state = mouse_state.clone();
+            let selecting = selecting.clone();
             let cw = cell_width;
             let ch = cell_height;
             let on_mousedown = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
@@ -1013,6 +1020,16 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
 
                     let mut tabs_ref = tabs.borrow_mut();
                     let active = tabs_ref.active_tab_mut();
+
+                    // Start text selection when mouse mode is off
+                    let mode = active.grid.mouse_mode();
+                    if mode == MouseMode::None {
+                        active.grid.selection_begin(col, row);
+                        *selecting.borrow_mut() = true;
+                        drop(tabs_ref);
+                        return;
+                    }
+
                     active.grid.mouse_report(button, mods, col, row, true);
                     let writes: Vec<u8> = active.grid.pending_writes.drain(..).collect();
                     let sid = active.session_id;
@@ -1035,11 +1052,12 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             on_mousedown.forget();
         }
 
-        // mouseup -- report release events to the PTY
+        // mouseup -- report release events to the PTY or finish text selection
         {
             let tabs = tabs.clone();
             let ws_state = ws_state.clone();
             let mouse_state = mouse_state.clone();
+            let selecting = selecting.clone();
             let cw = cell_width;
             let ch = cell_height;
             let on_mouseup = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
@@ -1050,6 +1068,22 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                     let mods = mouse_modifiers(&event);
 
                     mouse_state.borrow_mut().buttons_down &= !(1 << button);
+
+                    // Finish text selection and copy to clipboard
+                    if *selecting.borrow() {
+                        *selecting.borrow_mut() = false;
+                        let mut tabs_ref = tabs.borrow_mut();
+                        let active = tabs_ref.active_tab_mut();
+                        active.grid.selection_update(col, row);
+                        let text = active.grid.selected_text();
+                        drop(tabs_ref);
+
+                        if !text.is_empty() {
+                            let clipboard = web_sys::window().unwrap().navigator().clipboard();
+                            let _ = clipboard.write_text(&text);
+                        }
+                        return;
+                    }
 
                     let mut tabs_ref = tabs.borrow_mut();
                     let active = tabs_ref.active_tab_mut();
@@ -1079,11 +1113,20 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             let tabs = tabs.clone();
             let ws_state = ws_state.clone();
             let mouse_state = mouse_state.clone();
+            let selecting = selecting.clone();
             let cw = cell_width;
             let ch = cell_height;
             let on_mousemove = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
                 move |event: web_sys::MouseEvent| {
                     let (col, row) = pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
+
+                    // Update text selection during drag
+                    if *selecting.borrow() {
+                        let mut tabs_ref = tabs.borrow_mut();
+                        let active = tabs_ref.active_tab_mut();
+                        active.grid.selection_update(col, row);
+                        return;
+                    }
 
                     let mut ms = mouse_state.borrow_mut();
 

@@ -13,7 +13,7 @@ use futures::{SinkExt, StreamExt};
 use session::{SessionId, SessionManager};
 use std::collections::HashMap;
 use axum_server::tls_rustls::RustlsConfig;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tower_http::services::ServeDir;
@@ -69,13 +69,13 @@ async fn main() {
             )
         }
         _ => {
-            tracing::info!("generating self-signed TLS certificate");
-            let generated = rcgen::generate_simple_self_signed(vec![
-                "localhost".to_string(),
-                "127.0.0.1".to_string(),
-                "0.0.0.0".to_string(),
-            ])
-            .expect("failed to generate self-signed certificate");
+            let mut sans: Vec<String> = vec!["localhost".into()];
+            for ip in local_ip_addresses() {
+                sans.push(ip.to_string());
+            }
+            tracing::info!("generating self-signed TLS certificate for {sans:?}");
+            let generated = rcgen::generate_simple_self_signed(sans)
+                .expect("failed to generate self-signed certificate");
 
             (
                 generated.cert.pem().into_bytes(),
@@ -312,4 +312,37 @@ async fn handle_control_message(
         }
         _ => Err(format!("Unknown message type: {msg_type}")),
     }
+}
+
+/// Enumerate all local network interface IP addresses via `getifaddrs`
+fn local_ip_addresses() -> Vec<IpAddr> {
+    let mut addrs = Vec::new();
+    unsafe {
+        let mut ifaddrs: *mut libc::ifaddrs = std::ptr::null_mut();
+        if libc::getifaddrs(&mut ifaddrs) != 0 {
+            return addrs;
+        }
+        let mut ifa = ifaddrs;
+        while !ifa.is_null() {
+            let addr = (*ifa).ifa_addr;
+            if !addr.is_null() {
+                match i32::from((*addr).sa_family) {
+                    libc::AF_INET => {
+                        let sa = &*(addr as *const libc::sockaddr_in);
+                        addrs.push(IpAddr::V4(Ipv4Addr::from(
+                            u32::from_be(sa.sin_addr.s_addr),
+                        )));
+                    }
+                    libc::AF_INET6 => {
+                        let sa = &*(addr as *const libc::sockaddr_in6);
+                        addrs.push(IpAddr::V6(Ipv6Addr::from(sa.sin6_addr.s6_addr)));
+                    }
+                    _ => {}
+                }
+            }
+            ifa = (*ifa).ifa_next;
+        }
+        libc::freeifaddrs(ifaddrs);
+    }
+    addrs
 }

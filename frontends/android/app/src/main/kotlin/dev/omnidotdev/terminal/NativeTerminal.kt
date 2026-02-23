@@ -51,6 +51,7 @@ object NativeTerminal {
     external fun getSelectedText(): String
     external fun getCellWidth(): Float
     external fun getCellHeight(): Float
+    external fun getGridOffsetX(): Float
 
     // Special key codes
     const val KEY_ENTER = 1

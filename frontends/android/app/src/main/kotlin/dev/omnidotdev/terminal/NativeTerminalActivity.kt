@@ -135,10 +135,13 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     private fun createTabBar(): LinearLayout {
+        val density = resources.displayMetrics.density
+        val hPad = (2 * density).toInt() // Match terminal PADDING_DP
+        val vPad = (6 * density).toInt()
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(0xDD141414.toInt())
-            setPadding(8, 4, 8, 4)
+            setPadding(hPad, vPad, hPad, vPad)
         }
 
         val scroll = HorizontalScrollView(this).apply {
@@ -189,17 +192,21 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     private fun createTabButton(label: String, onClick: () -> Unit): TextView {
+        val density = resources.displayMetrics.density
+        val hPad = (10 * density).toInt()
+        val vPad = (6 * density).toInt()
+        val margin = (3 * density).toInt()
         return TextView(this).apply {
             text = label
             setTextColor(0xFFE5E5E5.toInt())
             setBackgroundResource(R.drawable.btn_terminal)
-            setPadding(24, 12, 24, 12)
+            setPadding(hPad, vPad, hPad, vPad)
             textSize = 13f
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
                 LayoutParams.WRAP_CONTENT,
                 LayoutParams.WRAP_CONTENT,
-            ).apply { setMargins(4, 0, 4, 0) }
+            ).apply { setMargins(margin, 0, margin, 0) }
             setOnClickListener { onClick() }
         }
     }
@@ -620,8 +627,8 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private fun pixelToCell(x: Float, y: Float): Pair<Int, Int> {
         val cellW = NativeTerminal.getCellWidth()
         val cellH = NativeTerminal.getCellHeight()
-        val padPx = 6f * resources.displayMetrics.density
-        val col = if (cellW > 0) ((x - padPx) / cellW).toInt().coerceAtLeast(0) else 0
+        val offsetX = NativeTerminal.getGridOffsetX()
+        val col = if (cellW > 0) ((x - offsetX) / cellW).toInt().coerceAtLeast(0) else 0
         val row = if (cellH > 0) (y / cellH).toInt().coerceAtLeast(0) else 0
         return Pair(col, row)
     }

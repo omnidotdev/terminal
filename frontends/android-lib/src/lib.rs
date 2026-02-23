@@ -339,11 +339,18 @@ impl TerminalManager {
             self.render_status_screen();
         }
 
+        // Center the grid horizontally: distribute leftover space equally
         let pad_px = PADDING_DP * self.scale;
+        let dims = self.sugarloaf.get_rich_text_dimensions(&self.rt_id);
+        let cell_w = if dims.width > 0.0 { dims.width } else { 18.0 * 0.6 * self.scale };
+        let text_width = self.total_cols as f32 * cell_w;
+        let leftover = self.surface_width - text_width - 2.0 * pad_px;
+        let x_offset = pad_px + (leftover / 2.0).max(0.0);
+
         self.sugarloaf
             .set_objects(vec![Object::RichText(RichText {
                 id: self.rt_id,
-                position: [pad_px, 0.0],
+                position: [x_offset, 0.0],
                 lines: None,
             })]);
         self.sugarloaf.render();
@@ -947,6 +954,8 @@ fn spawn_proot_pty(
                 "TERM=xterm-256color".to_string(),
                 "COLORTERM=truecolor".to_string(),
                 "LANG=en_US.UTF-8".to_string(),
+                format!("COLUMNS={cols}"),
+                format!("LINES={rows}"),
                 format!("PROOT_TMP_DIR={tmp_dir}"),
                 format!("PROOT_LOADER={loader_path}"),
                 format!("LD_LIBRARY_PATH={lib_dir}:{native_lib_dir}"),
@@ -1098,7 +1107,7 @@ fn pty_thread_main(
 }
 
 /// Horizontal padding in density-independent pixels (applied on each side).
-const PADDING_DP: f32 = 6.0;
+const PADDING_DP: f32 = 2.0;
 
 /// Calculate grid columns and rows from surface dimensions.
 fn calc_grid(
@@ -1765,6 +1774,24 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getCellHeight
     if let Some(ref mut m) = *mgr {
         let dims = m.sugarloaf.get_rich_text_dimensions(&m.rt_id);
         return dims.height;
+    }
+    0.0
+}
+
+/// Get horizontal pixel offset where the grid starts (accounts for centering).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getGridOffsetX(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jfloat {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        let pad_px = PADDING_DP * m.scale;
+        let dims = m.sugarloaf.get_rich_text_dimensions(&m.rt_id);
+        let cell_w = if dims.width > 0.0 { dims.width } else { 18.0 * 0.6 * m.scale };
+        let text_width = m.total_cols as f32 * cell_w;
+        let leftover = m.surface_width - text_width - 2.0 * pad_px;
+        return pad_px + (leftover / 2.0_f32).max(0.0);
     }
     0.0
 }

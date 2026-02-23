@@ -926,6 +926,7 @@ fn spawn_proot_pty(
                 "--bind=/dev",
                 "--bind=/proc",
                 "--bind=/sys",
+                "--bind=/sdcard",
                 "-0",
                 "-w",
                 "/root",

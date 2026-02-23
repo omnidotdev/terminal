@@ -1418,6 +1418,29 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getSessionLab
         .unwrap_or_else(|_| JObject::null().into())
 }
 
+/// Set the terminal background color (r, g, b as 0.0-1.0).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_setBackgroundColor(
+    _env: JNIEnv,
+    _class: JClass,
+    r: jfloat,
+    g: jfloat,
+    b: jfloat,
+) {
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref mut m) = *mgr {
+        m.sugarloaf.set_background_color(Some(wgpu::Color {
+            r: r as f64,
+            g: g as f64,
+            b: b as f64,
+            a: 1.0,
+        }));
+        if let Some(session) = m.sessions.get_mut(m.active) {
+            session.dirty = true;
+        }
+    }
+}
+
 /// Clean up native resources.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_destroy(

@@ -19,8 +19,15 @@ object NativeTerminal {
     external fun sendKey(text: String)
     external fun sendSpecialKey(keyCode: Int)
 
+    // Font size
+    external fun setFontSize(size: Float)
+    external fun getFontSize(): Float
+
     // Font size: 0=reset, 1=decrease, 2=increase
     external fun setFontAction(action: Int)
+
+    // Background color
+    external fun setBackgroundColor(r: Float, g: Float, b: Float)
 
     // Scroll by lines (positive=up into history, negative=down toward live)
     external fun scroll(lines: Int)

@@ -450,6 +450,9 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         // Disconnect / back
         inner.addView(createActionButton("\u2716") { finish() })
 
+        // Settings
+        inner.addView(createActionButton("\u2699") { showSettingsDialog() })
+
         scroll.addView(inner)
         bar.addView(scroll)
         return bar
@@ -546,6 +549,16 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             NativeTerminal.init(holder.surface, width, height, scale)
             initialized = true
 
+            // Apply saved font size
+            val savedFontSize = TerminalPreferences.getFontSize(this)
+            if (savedFontSize != TerminalPreferences.DEFAULT_FONT_SIZE) {
+                NativeTerminal.setFontSize(savedFontSize)
+            }
+
+            // Apply saved theme
+            val theme = TerminalPreferences.getTheme(this)
+            applyTheme(theme)
+
             // Create first session based on intent mode
             val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
             if (mode == "local") {
@@ -616,15 +629,56 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         return Pair(col, row)
     }
 
+    private fun showSettingsDialog() {
+        val currentTheme = TerminalPreferences.getTheme(this)
+
+        val themes = arrayOf(
+            getString(R.string.theme_dark),
+            getString(R.string.theme_solarized),
+            getString(R.string.theme_light),
+        )
+        val themeValues = arrayOf("dark", "solarized", "light")
+        val selectedTheme = themeValues.indexOf(currentTheme).coerceAtLeast(0)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings)
+            .setSingleChoiceItems(themes, selectedTheme) { _, which ->
+                val theme = themeValues[which]
+                TerminalPreferences.setTheme(this, theme)
+                applyTheme(theme)
+            }
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun applyTheme(theme: String) {
+        when (theme) {
+            "dark" -> {
+                NativeTerminal.setBackgroundColor(0.05f, 0.05f, 0.1f)
+                root.setBackgroundColor(0xFF0D0D1A.toInt())
+            }
+            "solarized" -> {
+                NativeTerminal.setBackgroundColor(0.0f, 0.169f, 0.212f)
+                root.setBackgroundColor(0xFF002B36.toInt())
+            }
+            "light" -> {
+                NativeTerminal.setBackgroundColor(0.99f, 0.96f, 0.89f)
+                root.setBackgroundColor(0xFFFDF6E3.toInt())
+            }
+        }
+    }
+
     private inner class PinchListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             scaleFactor *= detector.scaleFactor
             if (scaleFactor > 1.15f) {
                 NativeTerminal.setFontAction(2)
                 scaleFactor = 1.0f
+                TerminalPreferences.setFontSize(this@NativeTerminalActivity, NativeTerminal.getFontSize())
             } else if (scaleFactor < 0.85f) {
                 NativeTerminal.setFontAction(1)
                 scaleFactor = 1.0f
+                TerminalPreferences.setFontSize(this@NativeTerminalActivity, NativeTerminal.getFontSize())
             }
             return true
         }

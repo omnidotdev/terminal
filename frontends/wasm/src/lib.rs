@@ -13,7 +13,7 @@ use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, HtmlDivElement, HtmlElement, HtmlTextAreaElement};
 
 /// Height of the tab bar in CSS pixels
-const TAB_BAR_HEIGHT: u32 = 28;
+const TAB_BAR_HEIGHT: u32 = 36;
 
 fn get_or_create_canvas(container: &HtmlElement) -> (HtmlCanvasElement, u32) {
     let window = web_sys::window().expect("no window");
@@ -249,7 +249,7 @@ fn create_tab_bar(container: &HtmlElement) {
         .set_attribute(
             "style",
             &format!(
-                "display: flex; background: #1a1a2e; border-bottom: 1px solid #333; height: {}px; align-items: center; padding: 0 4px; gap: 2px; user-select: none; flex-shrink: 0;",
+                "display: flex; background: #1a1a2e; border-bottom: 1px solid #333; height: {}px; align-items: center; padding: 6px 0; gap: 4px; user-select: none; flex-shrink: 0;",
                 TAB_BAR_HEIGHT
             ),
         )
@@ -293,7 +293,7 @@ fn rebuild_tab_bar(
             .set_attribute(
                 "style",
                 &format!(
-                    "padding: 4px 12px; cursor: pointer; color: #ccc; font-family: monospace; font-size: 12px; border-radius: 4px 4px 0 0; background: {}; display: flex; align-items: center; gap: 6px;",
+                    "padding: 5px 8px; cursor: pointer; color: #ccc; font-family: monospace; font-size: 12px; border-radius: 4px; background: {}; display: flex; align-items: center; gap: 6px;",
                     bg
                 ),
             )
@@ -383,7 +383,7 @@ fn rebuild_tab_bar(
     add_btn
         .set_attribute(
             "style",
-            "padding: 4px 8px; cursor: pointer; color: #888; font-family: monospace; font-size: 14px; border-radius: 4px 4px 0 0;",
+            "padding: 5px 8px; cursor: pointer; color: #888; font-family: monospace; font-size: 14px; border-radius: 4px;",
         )
         .unwrap();
     add_btn.set_text_content(Some("+"));

@@ -12,10 +12,10 @@ use axum::{
 use futures::{SinkExt, StreamExt};
 use session::{SessionId, SessionManager};
 use std::collections::HashMap;
-use axum_server::tls_rustls::RustlsConfig;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio_rustls::TlsAcceptor;
 use tower_http::services::ServeDir;
 
 #[derive(Clone)]
@@ -84,7 +84,6 @@ async fn main() {
         }
     };
 
-    // Force HTTP/1.1 only — h2 ALPN negotiation breaks WebSocket upgrades
     let certs: Vec<_> = rustls_pemfile::certs(&mut &*cert_pem)
         .collect::<Result<_, _>>()
         .expect("invalid certificate PEM");
@@ -95,14 +94,18 @@ async fn main() {
         .with_no_client_auth()
         .with_single_cert(certs, key)
         .expect("invalid certificate/key pair");
+    // Force HTTP/1.1 only — h2 ALPN negotiation breaks WebSocket upgrades
     server_config.alpn_protocols = vec![b"http/1.1".to_vec()];
-    let tls_config = RustlsConfig::from_config(Arc::new(server_config));
+
+    let tls_acceptor = TlsAcceptor::from(Arc::new(server_config));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let tls_listener = TlsListener {
+        inner: listener,
+        acceptor: tls_acceptor,
+    };
 
     tracing::info!("Omni Terminal web server listening on https://{addr}");
-    axum_server::bind_rustls(addr, tls_config)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    axum::serve(tls_listener, app).await.unwrap();
 }
 
 async fn ws_handler(
@@ -311,6 +314,34 @@ async fn handle_control_message(
             Ok(true)
         }
         _ => Err(format!("Unknown message type: {msg_type}")),
+    }
+}
+
+/// TLS wrapper around `TcpListener` that implements axum's `Listener` trait,
+/// keeping WebSocket upgrades on axum's native code path
+struct TlsListener {
+    inner: tokio::net::TcpListener,
+    acceptor: TlsAcceptor,
+}
+
+impl axum::serve::Listener for TlsListener {
+    type Io = tokio_rustls::server::TlsStream<tokio::net::TcpStream>;
+    type Addr = SocketAddr;
+
+    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+        loop {
+            match self.inner.accept().await {
+                Ok((stream, addr)) => match self.acceptor.accept(stream).await {
+                    Ok(tls) => return (tls, addr),
+                    Err(e) => tracing::debug!("TLS handshake failed: {e}"),
+                },
+                Err(e) => tracing::error!("TCP accept failed: {e}"),
+            }
+        }
+    }
+
+    fn local_addr(&self) -> std::io::Result<SocketAddr> {
+        self.inner.local_addr()
     }
 }
 

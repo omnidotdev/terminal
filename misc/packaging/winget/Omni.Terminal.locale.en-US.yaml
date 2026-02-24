@@ -1,0 +1,12 @@
+PackageIdentifier: Omni.Terminal
+PackageVersion: 0.2.37
+PackageLocale: en-US
+Publisher: Omni LLC
+PublisherUrl: https://omni.dev
+PackageName: Omni Terminal
+PackageUrl: https://terminal.omni.dev
+License: MIT
+LicenseUrl: https://github.com/omnidotdev/terminal/blob/master/LICENSE
+ShortDescription: GPU-accelerated terminal emulator built to run everywhere
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

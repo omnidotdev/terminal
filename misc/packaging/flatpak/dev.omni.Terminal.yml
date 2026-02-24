@@ -1,0 +1,30 @@
+app-id: dev.omni.Terminal
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: omni-terminal
+finish-args:
+  - --device=dri
+  - --socket=wayland
+  - --socket=x11
+  - --socket=pulseaudio
+  - --share=ipc
+  - --share=network
+  - --talk-name=org.freedesktop.Flatpak
+modules:
+  - name: omni-terminal
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+    build-commands:
+      - cargo build --release -p omni-terminal --no-default-features --features wayland
+      - install -Dm755 target/release/omni-terminal /app/bin/omni-terminal
+      - install -Dm644 misc/omni-terminal.desktop /app/share/applications/dev.omni.Terminal.desktop
+      - install -Dm644 misc/logo.svg /app/share/icons/hicolor/scalable/apps/dev.omni.Terminal.svg
+      - install -Dm644 misc/dev.omni.Terminal.metainfo.xml /app/share/metainfo/dev.omni.Terminal.metainfo.xml
+    sources:
+      - type: archive
+        url: https://github.com/omnidotdev/terminal/archive/v0.2.37.tar.gz
+        sha256: PLACEHOLDER

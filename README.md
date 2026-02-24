@@ -18,20 +18,27 @@
 
 ## Platforms
 
-| Name | Details |
+| Platform | Status |
 | --- | --- |
-| macOS | Desktop application |
-| Linux | Desktop application |
-| Windows | Desktop application |
-| Web Browser (WebAssembly) | In progress |
+| macOS | Stable |
+| Linux | Stable |
+| Windows | Stable |
+| Web (WebAssembly) | In progress |
+| Android | Experimental |
 
 ## Installation
 
-```bash
-cargo install omni-terminal
-```
+| Platform | Channel | Command |
+| --- | --- | --- |
+| Universal | [GitHub Releases](https://github.com/omnidotdev/terminal/releases) | Download from releases page |
+| Rust | crates.io | `cargo install omni-terminal` |
+| macOS | Homebrew | `brew install --cask omnidotdev/tap/omni-terminal` |
+| Arch Linux | AUR | `yay -S omni-terminal` |
+| Linux | Flatpak | `flatpak install flathub dev.omni.Terminal` |
+| Debian/Ubuntu | .deb | Download from releases page |
+| Windows | Winget | `winget install Omni.Terminal` |
 
-Or build from source:
+### Build from source
 
 ```bash
 git clone https://github.com/omnidotdev/terminal

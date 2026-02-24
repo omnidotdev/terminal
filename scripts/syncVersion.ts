@@ -1,9 +1,9 @@
 /**
- * @file Sync version from `package.json` to `Cargo.toml` (`workspace.package.version`), useful in CI.
+ * @file Sync version from `frontends/wasm/package.json` to `Cargo.toml` (`workspace.package.version`), useful in CI.
  * Run with `bun scripts/syncVersion.ts`
  */
 
-const pkg = await Bun.file("package.json").json();
+const pkg = await Bun.file("frontends/wasm/package.json").json();
 const version = pkg.version;
 
 const cargo = await Bun.file("Cargo.toml").text();

@@ -1,9 +1,9 @@
 PackageIdentifier: Omni.Terminal
-PackageVersion: 0.2.37
+PackageVersion: 0.1.0
 Installers:
   - Architecture: x64
     InstallerType: wix
-    InstallerUrl: https://github.com/omnidotdev/terminal/releases/download/v0.2.37/OmniTerminal-v0.2.37.msi
+    InstallerUrl: https://github.com/omnidotdev/terminal/releases/download/v0.1.0/OmniTerminal-v0.1.0.msi
     InstallerSha256: PLACEHOLDER
 ManifestType: installer
 ManifestVersion: 1.6.0

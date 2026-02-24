@@ -16,7 +16,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.2.37"
+version = "0.1.0"
 authors = ["Omni LLC <hello@omni.dev>"]
 edition = "2021"
 license = "MIT"
@@ -32,16 +32,16 @@ readme = "README.md"
 # Note: https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#multiple-locations
 # Sugarloaf example uses path when used locally, but uses
 # version from crates.io when published.
-teletypewriter = { path = "teletypewriter", version = "0.2.37" }
-terminal-backend = { path = "terminal-backend", version = "0.2.37" }
-terminal-window = { path = "terminal-window", version = "0.2.37", default-features = false }
-terminal-emulator = { path = "terminal-emulator", version = "0.2.37" }
-sugarloaf = { path = "sugarloaf", version = "0.2.37" }
+teletypewriter = { path = "teletypewriter", version = "0.1.0" }
+terminal-backend = { path = "terminal-backend", version = "0.1.0" }
+terminal-window = { path = "terminal-window", version = "0.1.0", default-features = false }
+terminal-emulator = { path = "terminal-emulator", version = "0.1.0" }
+sugarloaf = { path = "sugarloaf", version = "0.1.0" }
 
 # Own dependencies
-copa = { path = "copa", default-features = true, version = "0.2.37" }
-terminal-proc-macros = { path = "terminal-proc-macros", version = "0.2.37" }
-corcovado = { path = "corcovado", version = "0.2.37" }
+copa = { path = "copa", default-features = true, version = "0.1.0" }
+terminal-proc-macros = { path = "terminal-proc-macros", version = "0.1.0" }
+corcovado = { path = "corcovado", version = "0.1.0" }
 raw-window-handle = { version = "0.6.2", features = ["std"] }
 parking_lot = { version = "0.12.4", features = [
     "nightly",

@@ -253,7 +253,11 @@ impl TerminalGrid {
         for row_idx in start.1..=end.1 {
             let row = self.visible_row(row_idx);
             let col_start = if row_idx == start.1 { start.0 } else { 0 };
-            let col_end = if row_idx == end.1 { end.0 + 1 } else { row.len() };
+            let col_end = if row_idx == end.1 {
+                end.0 + 1
+            } else {
+                row.len()
+            };
             let col_end = col_end.min(row.len());
 
             let line: String = row[col_start..col_end]
@@ -369,22 +373,22 @@ impl TerminalGrid {
 // Standard 256-color palette (first 16 colors)
 pub fn ansi_color(idx: u16) -> [f32; 4] {
     match idx {
-        0 => [0.0, 0.0, 0.0, 1.0],       // Black
-        1 => [0.8, 0.0, 0.0, 1.0],        // Red
-        2 => [0.0, 0.8, 0.0, 1.0],        // Green
-        3 => [0.8, 0.8, 0.0, 1.0],        // Yellow
-        4 => [0.0, 0.0, 0.8, 1.0],        // Blue
-        5 => [0.8, 0.0, 0.8, 1.0],        // Magenta
-        6 => [0.0, 0.8, 0.8, 1.0],        // Cyan
-        7 => [0.75, 0.75, 0.75, 1.0],     // White
-        8 => [0.5, 0.5, 0.5, 1.0],        // Bright black
-        9 => [1.0, 0.0, 0.0, 1.0],        // Bright red
-        10 => [0.0, 1.0, 0.0, 1.0],       // Bright green
-        11 => [1.0, 1.0, 0.0, 1.0],       // Bright yellow
-        12 => [0.0, 0.0, 1.0, 1.0],       // Bright blue
-        13 => [1.0, 0.0, 1.0, 1.0],       // Bright magenta
-        14 => [0.0, 1.0, 1.0, 1.0],       // Bright cyan
-        15 => [1.0, 1.0, 1.0, 1.0],       // Bright white
+        0 => [0.0, 0.0, 0.0, 1.0],    // Black
+        1 => [0.8, 0.0, 0.0, 1.0],    // Red
+        2 => [0.0, 0.8, 0.0, 1.0],    // Green
+        3 => [0.8, 0.8, 0.0, 1.0],    // Yellow
+        4 => [0.0, 0.0, 0.8, 1.0],    // Blue
+        5 => [0.8, 0.0, 0.8, 1.0],    // Magenta
+        6 => [0.0, 0.8, 0.8, 1.0],    // Cyan
+        7 => [0.75, 0.75, 0.75, 1.0], // White
+        8 => [0.5, 0.5, 0.5, 1.0],    // Bright black
+        9 => [1.0, 0.0, 0.0, 1.0],    // Bright red
+        10 => [0.0, 1.0, 0.0, 1.0],   // Bright green
+        11 => [1.0, 1.0, 0.0, 1.0],   // Bright yellow
+        12 => [0.0, 0.0, 1.0, 1.0],   // Bright blue
+        13 => [1.0, 0.0, 1.0, 1.0],   // Bright magenta
+        14 => [0.0, 1.0, 1.0, 1.0],   // Bright cyan
+        15 => [1.0, 1.0, 1.0, 1.0],   // Bright white
         16..=231 => {
             // 6x6x6 color cube
             let idx = idx - 16;
@@ -436,7 +440,7 @@ impl Perform for TerminalGrid {
                 self.cursor_col = next_tab.min(self.cols - 1);
             }
             // Line feed / Vertical tab / Form feed
-            0x0A | 0x0B | 0x0C => {
+            0x0A..=0x0C => {
                 self.cursor_row += 1;
                 if self.cursor_row > self.scroll_bottom {
                     self.cursor_row = self.scroll_bottom;
@@ -742,9 +746,7 @@ impl TerminalGrid {
                 // Bright foreground
                 90..=97 => self.cur_fg = ansi_color(params_vec[i] - 90 + 8),
                 // Bright background
-                100..=107 => {
-                    self.cur_bg = Some(ansi_color(params_vec[i] - 100 + 8))
-                }
+                100..=107 => self.cur_bg = Some(ansi_color(params_vec[i] - 100 + 8)),
                 _ => {}
             }
             i += 1;
@@ -760,7 +762,10 @@ impl TerminalGrid {
         self.cur_inverse = false;
     }
 
-    /// Generate an SGR mouse report and push it to pending_writes.
+    /// Generate a mouse report and push it to pending_writes.
+    ///
+    /// Uses SGR encoding when mode 1006 is active, otherwise falls back
+    /// to legacy X10 encoding.
     pub fn mouse_report(
         &mut self,
         button: u8,
@@ -769,15 +774,25 @@ impl TerminalGrid {
         row: usize,
         pressed: bool,
     ) {
-        if self.mouse_mode() == MouseMode::None || !self.mouse_sgr {
+        if self.mouse_mode() == MouseMode::None {
             return;
         }
 
         let col = col.min(self.cols.saturating_sub(1));
         let row = row.min(self.rows.saturating_sub(1));
         let cb = button | modifiers;
-        let suffix = if pressed { 'M' } else { 'm' };
-        let seq = format!("\x1b[<{};{};{}{}", cb, col + 1, row + 1, suffix);
-        self.pending_writes.extend_from_slice(seq.as_bytes());
+
+        if self.mouse_sgr {
+            // SGR encoding: \x1b[<button;col;row{M|m}
+            let suffix = if pressed { 'M' } else { 'm' };
+            let seq = format!("\x1b[<{};{};{}{}", cb, col + 1, row + 1, suffix);
+            self.pending_writes.extend_from_slice(seq.as_bytes());
+        } else {
+            // Legacy X10 encoding: \x1b[M(cb+32)(col+33)(row+33)
+            self.pending_writes.extend_from_slice(b"\x1b[M");
+            self.pending_writes.push(cb + 32);
+            self.pending_writes.push(((col + 33) & 0xFF) as u8);
+            self.pending_writes.push(((row + 33) & 0xFF) as u8);
+        }
     }
 }

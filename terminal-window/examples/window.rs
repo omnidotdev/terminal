@@ -738,8 +738,8 @@ impl WindowState {
         event_loop: &ActiveEventLoop,
         custom_cursors: &[CustomCursor],
     ) {
-        use terminal_window::platform::web::CustomCursorExtWebSys;
         use std::time::Duration;
+        use terminal_window::platform::web::CustomCursorExtWebSys;
 
         let cursors = vec![
             custom_cursors[0].clone(),

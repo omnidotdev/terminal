@@ -29,8 +29,8 @@ object NativeTerminal {
     // Background color
     external fun setBackgroundColor(r: Float, g: Float, b: Float)
 
-    // Scroll by lines (positive=up into history, negative=down toward live)
-    external fun scroll(lines: Int)
+    // Scroll by lines or forward mouse wheel to app (positive=up, negative=down)
+    external fun scroll(lines: Int, col: Int, row: Int)
 
     // Scroll position queries
     external fun getScrollOffset(): Int

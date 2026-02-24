@@ -2,10 +2,10 @@ use crate::crosswords::pos::Column;
 use crate::crosswords::pos::Line;
 use crate::crosswords::pos::Side;
 use crate::event::ClickState;
+use std::time::Instant;
 use terminal_backend::crosswords::pos::Pos;
 use terminal_window::event::ElementState;
 use terminal_window::event::MouseButton;
-use std::time::Instant;
 
 #[derive(Default, Debug)]
 pub struct AccumulatedScroll {

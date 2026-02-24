@@ -135,7 +135,10 @@ pub fn screen(sugarloaf: &mut Sugarloaf, context_dimension: &ContextDimension) {
         )
         .new_line()
         .add_text(
-            &format!(" {} ", terminal_backend::config::config_file_path().display()),
+            &format!(
+                " {} ",
+                terminal_backend::config::config_file_path().display()
+            ),
             FragmentStyle {
                 background_color: Some(TEAL),
                 color: BLACK,

@@ -336,8 +336,9 @@ impl Default for ObliqueAngle {
 }
 
 /// Visual style or 'slope' of a font.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, Debug)]
 pub enum Style {
+    #[default]
     Normal,
     Italic,
     Oblique(ObliqueAngle),
@@ -434,12 +435,6 @@ impl fmt::Display for Style {
                 }
             }
         )
-    }
-}
-
-impl Default for Style {
-    fn default() -> Self {
-        Self::Normal
     }
 }
 

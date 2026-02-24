@@ -4,8 +4,8 @@
 
 #![allow(clippy::uninlined_format_args)]
 
-use terminal_backend::{batch_utf8, simd_utf8};
 use std::time::Instant;
+use terminal_backend::{batch_utf8, simd_utf8};
 
 fn main() {
     println!("Omni Terminal - Batch UTF-8 Validation Benchmark");

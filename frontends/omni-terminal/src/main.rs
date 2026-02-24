@@ -23,11 +23,11 @@ mod screen;
 mod watcher;
 
 use clap::Parser;
+use std::path::PathBuf;
+use std::str::FromStr;
 use terminal_backend::config::config_dir_path;
 use terminal_backend::event::EventPayload;
 use terminal_backend::{ansi, crosswords, event, performer, selection};
-use std::path::PathBuf;
-use std::str::FromStr;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     self, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer,
@@ -228,7 +228,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     setup_environment_variables(&config);
 
     let window_event_loop =
-        terminal_window::event_loop::EventLoop::<EventPayload>::with_user_event().build()?;
+        terminal_window::event_loop::EventLoop::<EventPayload>::with_user_event()
+            .build()?;
 
     let app_id = args.window_options.terminal_options.app_id;
 

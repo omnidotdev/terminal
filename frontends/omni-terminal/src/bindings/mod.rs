@@ -7,13 +7,13 @@ pub mod kitty_keyboard;
 use crate::crosswords::vi_mode::ViMotion;
 use crate::crosswords::Mode;
 use bitflags::bitflags;
+use std::fmt::Debug;
 use terminal_backend::config::bindings::KeyBinding as ConfigKeyBinding;
 use terminal_backend::config::keyboard::Keyboard as ConfigKeyboard;
 use terminal_window::event::MouseButton;
 use terminal_window::keyboard::Key::*;
 use terminal_window::keyboard::NamedKey::*;
 use terminal_window::keyboard::{Key, KeyLocation, ModifiersState, PhysicalKey};
-use std::fmt::Debug;
 // use terminal_window::platform::scancode::PhysicalKeyExtScancode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -629,7 +629,9 @@ pub fn default_mouse_bindings() -> Vec<MouseBinding> {
     )
 }
 
-pub fn default_key_bindings(config: &terminal_backend::config::Config) -> Vec<KeyBinding> {
+pub fn default_key_bindings(
+    config: &terminal_backend::config::Config,
+) -> Vec<KeyBinding> {
     let mut bindings = bindings!(
         KeyBinding;
         Key::Named(Copy);  Action::Copy;

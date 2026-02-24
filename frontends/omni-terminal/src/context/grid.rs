@@ -1,11 +1,11 @@
 use crate::context::Context;
 use crate::mouse::Mouse;
+use std::collections::HashMap;
 use terminal_backend::crosswords::grid::Dimensions;
 use terminal_backend::event::EventListener;
 use terminal_backend::sugarloaf::{
     layout::SugarDimensions, Object, Quad, RichText, Sugarloaf,
 };
-use std::collections::HashMap;
 
 const MIN_COLS: usize = 2;
 const MIN_LINES: usize = 1;

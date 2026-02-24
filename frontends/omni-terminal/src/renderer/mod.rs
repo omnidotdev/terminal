@@ -17,6 +17,8 @@ use crate::crosswords::grid::row::Row;
 use crate::crosswords::pos::{Column, Line, Pos};
 use crate::crosswords::square::{Flags, Square};
 use navigation::ScreenNavigation;
+use std::collections::{BTreeSet, HashMap};
+use std::ops::RangeInclusive;
 use terminal_backend::config::colors::term::TermColors;
 use terminal_backend::config::colors::{
     term::{List, DIM_FACTOR},
@@ -26,11 +28,9 @@ use terminal_backend::config::Config;
 use terminal_backend::event::EventProxy;
 use terminal_backend::sugarloaf::{
     drawable_character, Content, FragmentStyle, FragmentStyleDecoration, Graphic, Object,
-    Quad, RichText, Stretch, Style, SugarCursor, Sugarloaf, UnderlineInfo, UnderlineShape,
-    Weight,
+    Quad, RichText, Stretch, Style, SugarCursor, Sugarloaf, UnderlineInfo,
+    UnderlineShape, Weight,
 };
-use std::collections::{BTreeSet, HashMap};
-use std::ops::RangeInclusive;
 
 use unicode_width::UnicodeWidthChar;
 
@@ -385,7 +385,9 @@ impl Renderer {
                 }
 
                 // Make hint labels bold for better visibility
-                use terminal_backend::sugarloaf::font_introspector::{Attributes, Weight};
+                use terminal_backend::sugarloaf::font_introspector::{
+                    Attributes, Weight,
+                };
                 let current_attrs = style.font_attrs;
                 style.font_attrs = Attributes::new(
                     current_attrs.stretch(),
@@ -1196,7 +1198,13 @@ impl Renderer {
                     .content()
                     .sel(rt_id)
                     .clear()
-                    .add_text(warning, FragmentStyle { color: BANNER_TEXT, ..FragmentStyle::default() })
+                    .add_text(
+                        warning,
+                        FragmentStyle {
+                            color: BANNER_TEXT,
+                            ..FragmentStyle::default()
+                        },
+                    )
                     .build();
 
                 objects.push(Object::Quad(Quad {

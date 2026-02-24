@@ -1,14 +1,14 @@
 extern crate png;
 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use sugarloaf::layout::RootStyle;
+use sugarloaf::{Object, Quad, Sugarloaf, SugarloafWindow, SugarloafWindowSize};
 use terminal_window::event::WindowEvent;
 use terminal_window::event_loop::ControlFlow;
 use terminal_window::platform::run_on_demand::EventLoopExtRunOnDemand;
 use terminal_window::{
     dpi::LogicalSize, event::Event, event_loop::EventLoop, window::WindowAttributes,
 };
-use sugarloaf::layout::RootStyle;
-use sugarloaf::{Object, Quad, Sugarloaf, SugarloafWindow, SugarloafWindowSize};
 
 fn main() {
     let mut event_loop = EventLoop::new().unwrap();

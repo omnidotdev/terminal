@@ -543,7 +543,8 @@ impl Window {
     /// [`contentScaleFactor`]: https://developer.apple.com/documentation/uikit/uiview/1622657-contentscalefactor?language=objc
     #[inline]
     pub fn scale_factor(&self) -> f64 {
-        let _span = tracing::debug_span!("terminal_window::Window::scale_factor",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::scale_factor",).entered();
 
         self.window.maybe_wait_on_main(|w| w.scale_factor())
     }
@@ -577,7 +578,8 @@ impl Window {
     /// [`WindowEvent::RedrawRequested`]: crate::event::WindowEvent::RedrawRequested
     #[inline]
     pub fn request_redraw(&self) {
-        let _span = tracing::debug_span!("terminal_window::Window::request_redraw",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::request_redraw",).entered();
 
         self.window.maybe_queue_on_main(|w| w.request_redraw())
     }
@@ -615,8 +617,8 @@ impl Window {
     /// [`WindowEvent::RedrawRequested`]: crate::event::WindowEvent::RedrawRequested
     #[inline]
     pub fn pre_present_notify(&self) {
-        let _span =
-            tracing::debug_span!("terminal_window::Window::pre_present_notify",).entered();
+        let _span = tracing::debug_span!("terminal_window::Window::pre_present_notify",)
+            .entered();
 
         self.window.maybe_queue_on_main(|w| w.pre_present_notify());
     }
@@ -659,7 +661,8 @@ impl Window {
     /// [safe area]: https://developer.apple.com/documentation/uikit/uiview/2891103-safeareainsets?language=objc
     #[inline]
     pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-        let _span = tracing::debug_span!("terminal_window::Window::inner_position",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::inner_position",).entered();
 
         self.window.maybe_wait_on_main(|w| w.inner_position())
     }
@@ -682,7 +685,8 @@ impl Window {
     /// - **Android / Wayland:** Always returns [`NotSupportedError`].
     #[inline]
     pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-        let _span = tracing::debug_span!("terminal_window::Window::outer_position",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::outer_position",).entered();
 
         self.window.maybe_wait_on_main(|w| w.outer_position())
     }
@@ -740,7 +744,8 @@ impl Window {
     /// [`transform`]: https://developer.mozilla.org/en-US/docs/Web/CSS/transform
     #[inline]
     pub fn inner_size(&self) -> PhysicalSize<u32> {
-        let _span = tracing::debug_span!("terminal_window::Window::inner_size",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::inner_size",).entered();
 
         self.window.maybe_wait_on_main(|w| w.inner_size())
     }
@@ -808,7 +813,8 @@ impl Window {
     ///   [`Window::inner_size`]._
     #[inline]
     pub fn outer_size(&self) -> PhysicalSize<u32> {
-        let _span = tracing::debug_span!("terminal_window::Window::outer_size",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::outer_size",).entered();
         self.window.maybe_wait_on_main(|w| w.outer_size())
     }
 
@@ -963,7 +969,8 @@ impl Window {
     /// - **Wayland:** Only works with org_kde_kwin_blur_manager protocol.
     #[inline]
     pub fn set_blur(&self, blur: bool) {
-        let _span = tracing::debug_span!("terminal_window::Window::set_blur", blur).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::set_blur", blur).entered();
         self.window.maybe_queue_on_main(move |w| w.set_blur(blur))
     }
 
@@ -977,8 +984,8 @@ impl Window {
     /// - **iOS:** Can only be called on the main thread.
     #[inline]
     pub fn set_visible(&self, visible: bool) {
-        let _span =
-            tracing::debug_span!("terminal_window::Window::set_visible", visible).entered();
+        let _span = tracing::debug_span!("terminal_window::Window::set_visible", visible)
+            .entered();
         self.window
             .maybe_queue_on_main(move |w| w.set_visible(visible))
     }
@@ -994,7 +1001,8 @@ impl Window {
     /// - **Wayland / iOS / Android / Web:** Unsupported.
     #[inline]
     pub fn is_visible(&self) -> Option<bool> {
-        let _span = tracing::debug_span!("terminal_window::Window::is_visible",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::is_visible",).entered();
         self.window.maybe_wait_on_main(|w| w.is_visible())
     }
 
@@ -1015,8 +1023,9 @@ impl Window {
     /// [`WindowEvent::Resized`]: crate::event::WindowEvent::Resized
     #[inline]
     pub fn set_resizable(&self, resizable: bool) {
-        let _span = tracing::debug_span!("terminal_window::Window::set_resizable", resizable)
-            .entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::set_resizable", resizable)
+                .entered();
         self.window
             .maybe_queue_on_main(move |w| w.set_resizable(resizable))
     }
@@ -1029,7 +1038,8 @@ impl Window {
     /// - **iOS / Android / Web:** Unsupported.
     #[inline]
     pub fn is_resizable(&self) -> bool {
-        let _span = tracing::debug_span!("terminal_window::Window::is_resizable",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::is_resizable",).entered();
         self.window.maybe_wait_on_main(|w| w.is_resizable())
     }
 
@@ -1069,8 +1079,9 @@ impl Window {
     /// - **Wayland:** Un-minimize is unsupported.
     #[inline]
     pub fn set_minimized(&self, minimized: bool) {
-        let _span = tracing::debug_span!("terminal_window::Window::set_minimized", minimized)
-            .entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::set_minimized", minimized)
+                .entered();
         self.window
             .maybe_queue_on_main(move |w| w.set_minimized(minimized))
     }
@@ -1089,7 +1100,8 @@ impl Window {
     /// - **iOS / Android / Web / Orbital:** Unsupported.
     #[inline]
     pub fn is_minimized(&self) -> Option<bool> {
-        let _span = tracing::debug_span!("terminal_window::Window::is_minimized",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::is_minimized",).entered();
         self.window.maybe_wait_on_main(|w| w.is_minimized())
     }
 
@@ -1100,8 +1112,9 @@ impl Window {
     /// - **iOS / Android / Web:** Unsupported.
     #[inline]
     pub fn set_maximized(&self, maximized: bool) {
-        let _span = tracing::debug_span!("terminal_window::Window::set_maximized", maximized)
-            .entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::set_maximized", maximized)
+                .entered();
         self.window
             .maybe_queue_on_main(move |w| w.set_maximized(maximized))
     }
@@ -1113,7 +1126,8 @@ impl Window {
     /// - **iOS / Android / Web:** Unsupported.
     #[inline]
     pub fn is_maximized(&self) -> bool {
-        let _span = tracing::debug_span!("terminal_window::Window::is_maximized",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::is_maximized",).entered();
         self.window.maybe_wait_on_main(|w| w.is_maximized())
     }
 
@@ -1160,7 +1174,8 @@ impl Window {
     /// - **Web:** Can only return `None` or `Borderless(None)`.
     #[inline]
     pub fn fullscreen(&self) -> Option<Fullscreen> {
-        let _span = tracing::debug_span!("terminal_window::Window::fullscreen",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::fullscreen",).entered();
         self.window
             .maybe_wait_on_main(|w| w.fullscreen().map(|f| f.into()))
     }
@@ -1193,7 +1208,8 @@ impl Window {
     /// - **iOS / Android / Web:** Always returns `true`.
     #[inline]
     pub fn is_decorated(&self) -> bool {
-        let _span = tracing::debug_span!("terminal_window::Window::is_decorated",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::is_decorated",).entered();
         self.window.maybe_wait_on_main(|w| w.is_decorated())
     }
 
@@ -1309,8 +1325,9 @@ impl Window {
     /// [`KeyboardInput`]: crate::event::WindowEvent::KeyboardInput
     #[inline]
     pub fn set_ime_allowed(&self, allowed: bool) {
-        let _span = tracing::debug_span!("terminal_window::Window::set_ime_allowed", allowed)
-            .entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::set_ime_allowed", allowed)
+                .entered();
         self.window
             .maybe_queue_on_main(move |w| w.set_ime_allowed(allowed))
     }
@@ -1343,7 +1360,8 @@ impl Window {
     /// - **iOS / Android / Wayland / Orbital:** Unsupported.
     #[inline]
     pub fn focus_window(&self) {
-        let _span = tracing::debug_span!("terminal_window::Window::focus_window",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::focus_window",).entered();
         self.window.maybe_queue_on_main(|w| w.focus_window())
     }
 
@@ -1424,9 +1442,11 @@ impl Window {
     ///
     /// [`NSWindowSharingNone`]: https://developer.apple.com/documentation/appkit/nswindowsharingtype/nswindowsharingnone
     pub fn set_content_protected(&self, protected: bool) {
-        let _span =
-            tracing::debug_span!("terminal_window::Window::set_content_protected", protected)
-                .entered();
+        let _span = tracing::debug_span!(
+            "terminal_window::Window::set_content_protected",
+            protected
+        )
+        .entered();
         self.window
             .maybe_queue_on_main(move |w| w.set_content_protected(protected))
     }
@@ -1455,7 +1475,8 @@ impl Window {
     #[inline]
     pub fn set_cursor(&self, cursor: impl Into<Cursor>) {
         let cursor = cursor.into();
-        let _span = tracing::debug_span!("terminal_window::Window::set_cursor",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::set_cursor",).entered();
         self.window
             .maybe_queue_on_main(move |w| w.set_cursor(cursor))
     }
@@ -1559,7 +1580,8 @@ impl Window {
     /// - **iOS / Android / Web:** Always returns an [`ExternalError::NotSupported`].
     #[inline]
     pub fn drag_window(&self) -> Result<(), ExternalError> {
-        let _span = tracing::debug_span!("terminal_window::Window::drag_window",).entered();
+        let _span =
+            tracing::debug_span!("terminal_window::Window::drag_window",).entered();
         self.window.maybe_wait_on_main(|w| w.drag_window())
     }
 
@@ -1647,8 +1669,8 @@ impl Window {
     /// [`ActiveEventLoop::available_monitors`]: crate::event_loop::ActiveEventLoop::available_monitors
     #[inline]
     pub fn available_monitors(&self) -> impl Iterator<Item = MonitorHandle> {
-        let _span =
-            tracing::debug_span!("terminal_window::Window::available_monitors",).entered();
+        let _span = tracing::debug_span!("terminal_window::Window::available_monitors",)
+            .entered();
         self.window.maybe_wait_on_main(|w| {
             w.available_monitors()
                 .into_iter()
@@ -1846,10 +1868,11 @@ pub enum WindowLevel {
 /// ## Platform-specific
 ///
 /// - **iOS / Android / Web / Windows / X11 / macOS / Orbital:** Unsupported.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]
 pub enum ImePurpose {
     /// No special hints for the IME (default).
+    #[default]
     Normal,
     /// The IME is used for password input.
     Password,
@@ -1857,12 +1880,6 @@ pub enum ImePurpose {
     ///
     /// For example, that could alter OSK on Wayland to show extra buttons.
     Terminal,
-}
-
-impl Default for ImePurpose {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 /// An opaque token used to activate the [`Window`].

@@ -1809,7 +1809,10 @@ mod tests {
 
     #[test]
     fn test_capability_lookup() {
-        assert_eq!(get_termcap_capability("TN"), Some("omni-terminal".to_string()));
+        assert_eq!(
+            get_termcap_capability("TN"),
+            Some("omni-terminal".to_string())
+        );
         assert_eq!(get_termcap_capability("Co"), Some("256".to_string()));
         assert_eq!(get_termcap_capability("RGB"), Some("8/8/8".to_string()));
         assert_eq!(get_termcap_capability("invalid"), None);

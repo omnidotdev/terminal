@@ -123,7 +123,8 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     let (merged_tx, mut merged_rx) = mpsc::unbounded_channel::<(SessionId, Vec<u8>)>();
 
     // Track active sessions and their forwarding tasks
-    let mut session_tasks: HashMap<SessionId, tokio::task::JoinHandle<()>> = HashMap::new();
+    let mut session_tasks: HashMap<SessionId, tokio::task::JoinHandle<()>> =
+        HashMap::new();
 
     loop {
         tokio::select! {
@@ -220,14 +221,8 @@ async fn handle_control_message(
 
     match msg_type {
         "create" => {
-            let cols = msg
-                .get("cols")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(80) as u16;
-            let rows = msg
-                .get("rows")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(24) as u16;
+            let cols = msg.get("cols").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
+            let rows = msg.get("rows").and_then(|v| v.as_u64()).unwrap_or(24) as u16;
 
             let (session_id, rx) = manager.create_session(cols, rows)?;
 
@@ -250,17 +245,10 @@ async fn handle_control_message(
                 .get("session_id")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing session_id")?;
-            let session_id: SessionId = session_id_str
-                .parse()
-                .map_err(|_| "Invalid session_id")?;
-            let cols = msg
-                .get("cols")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(80) as u16;
-            let rows = msg
-                .get("rows")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(24) as u16;
+            let session_id: SessionId =
+                session_id_str.parse().map_err(|_| "Invalid session_id")?;
+            let cols = msg.get("cols").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
+            let rows = msg.get("rows").and_then(|v| v.as_u64()).unwrap_or(24) as u16;
 
             manager.resize_session(&session_id, cols, rows)?;
             Ok(true)
@@ -270,9 +258,8 @@ async fn handle_control_message(
                 .get("session_id")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing session_id")?;
-            let session_id: SessionId = session_id_str
-                .parse()
-                .map_err(|_| "Invalid session_id")?;
+            let session_id: SessionId =
+                session_id_str.parse().map_err(|_| "Invalid session_id")?;
 
             let (rx, buffered) = manager.attach_session(&session_id)?;
 
@@ -301,9 +288,8 @@ async fn handle_control_message(
                 .get("session_id")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing session_id")?;
-            let session_id: SessionId = session_id_str
-                .parse()
-                .map_err(|_| "Invalid session_id")?;
+            let session_id: SessionId =
+                session_id_str.parse().map_err(|_| "Invalid session_id")?;
 
             // Abort the forwarding task for this session
             if let Some(handle) = session_tasks.remove(&session_id) {
@@ -360,9 +346,9 @@ fn local_ip_addresses() -> Vec<IpAddr> {
                 match i32::from((*addr).sa_family) {
                     libc::AF_INET => {
                         let sa = &*(addr as *const libc::sockaddr_in);
-                        addrs.push(IpAddr::V4(Ipv4Addr::from(
-                            u32::from_be(sa.sin_addr.s_addr),
-                        )));
+                        addrs.push(IpAddr::V4(Ipv4Addr::from(u32::from_be(
+                            sa.sin_addr.s_addr,
+                        ))));
                     }
                     libc::AF_INET6 => {
                         let sa = &*(addr as *const libc::sockaddr_in6);

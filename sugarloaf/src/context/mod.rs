@@ -107,8 +107,7 @@ impl Context<'_> {
         sugarloaf_window: SugarloafWindow,
         renderer_config: SugarloafRenderer,
     ) -> Context<'a> {
-        let backend =
-            wgpu::Backends::from_env().unwrap_or(renderer_config.backend);
+        let backend = wgpu::Backends::from_env().unwrap_or(renderer_config.backend);
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: backend,
             ..Default::default()
@@ -145,11 +144,9 @@ impl Context<'_> {
 
         let (device, queue, supports_f16) = {
             let base_features = wgpu::Features::ADDRESS_MODE_CLAMP_TO_BORDER;
-            let base_f16_features =
-                base_features | wgpu::Features::SHADER_F16;
+            let base_f16_features = base_features | wgpu::Features::SHADER_F16;
 
-            let device_configs =
-                [(base_f16_features, true), (base_features, false)];
+            let device_configs = [(base_f16_features, true), (base_features, false)];
 
             let mut result = None;
             for (features, supports_f16_val) in device_configs {
@@ -160,11 +157,7 @@ impl Context<'_> {
                     })
                     .await
                 {
-                    result = Some((
-                        device_result.0,
-                        device_result.1,
-                        supports_f16_val,
-                    ));
+                    result = Some((device_result.0, device_result.1, supports_f16_val));
                     break;
                 }
             }
@@ -177,8 +170,7 @@ impl Context<'_> {
                             memory_hints: wgpu::MemoryHints::Performance,
                             label: None,
                             required_features: wgpu::Features::empty(),
-                            required_limits:
-                                wgpu::Limits::downlevel_webgl2_defaults(),
+                            required_limits: wgpu::Limits::downlevel_webgl2_defaults(),
                             ..Default::default()
                         })
                         .await
@@ -225,19 +217,12 @@ impl Context<'_> {
             },
         );
 
-        let max_texture_dimension_2d =
-            device.limits().max_texture_dimension_2d;
+        let max_texture_dimension_2d = device.limits().max_texture_dimension_2d;
 
         tracing::info!("F16 shader support: {}", supports_f16);
-        tracing::info!(
-            "Configured colorspace: {:?}",
-            renderer_config.colorspace
-        );
+        tracing::info!("Configured colorspace: {:?}", renderer_config.colorspace);
         tracing::info!("Surface format: {:?}", format);
-        tracing::info!(
-            "Max texture dimension 2D: {}",
-            max_texture_dimension_2d
-        );
+        tracing::info!("Max texture dimension 2D: {}", max_texture_dimension_2d);
 
         Context {
             device,

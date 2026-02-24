@@ -130,7 +130,8 @@ impl Icon {
     /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
         let _span =
-            tracing::debug_span!("terminal_window::Icon::from_rgba", width, height).entered();
+            tracing::debug_span!("terminal_window::Icon::from_rgba", width, height)
+                .entered();
 
         Ok(Icon {
             inner: PlatformIcon::from_rgba(rgba, width, height)?,

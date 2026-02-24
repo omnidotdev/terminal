@@ -9,6 +9,11 @@ use terminal_backend::clipboard::Clipboard;
 use terminal_backend::config::Config as TerminalConfig;
 use terminal_backend::error::{TerminalError, TerminalErrorLevel, TerminalErrorType};
 
+use routes::{assistant, RoutePath};
+use rustc_hash::FxHashMap;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::time::{Duration, Instant};
 use terminal_window::event_loop::ActiveEventLoop;
 use terminal_window::keyboard::{Key, NamedKey};
 #[cfg(not(any(target_os = "macos", windows)))]
@@ -16,11 +21,6 @@ use terminal_window::platform::startup_notify::{
     self, EventLoopExtStartupNotify, WindowAttributesExtStartupNotify,
 };
 use terminal_window::window::{Window, WindowId};
-use routes::{assistant, RoutePath};
-use rustc_hash::FxHashMap;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::time::{Duration, Instant};
 
 // 𜱭𜱭 unicode is not available yet for all OS
 // https://www.unicode.org/charts/PDF/Unicode-16.0/U160-1CC00.pdf
@@ -734,7 +734,10 @@ mod tests {
 
     #[test]
     fn banner_message_includes_path_and_detail() {
-        let msg = format_config_banner_message("/home/user/.config/omni/terminal/config.toml", "unexpected character at line 3");
+        let msg = format_config_banner_message(
+            "/home/user/.config/omni/terminal/config.toml",
+            "unexpected character at line 3",
+        );
         assert!(msg.contains("/home/user/.config/omni/terminal/config.toml"));
         assert!(msg.contains("unexpected character at line 3"));
     }

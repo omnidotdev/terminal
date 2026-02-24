@@ -1,10 +1,10 @@
 use crate::constants::*;
 use crate::context::title::ContextTitle;
+use rustc_hash::FxHashMap;
+use std::collections::HashMap;
 use terminal_backend::config::colors::Colors;
 use terminal_backend::config::navigation::{Navigation, NavigationMode};
 use terminal_backend::sugarloaf::{FragmentStyle, Object, Quad, RichText, Sugarloaf};
-use rustc_hash::FxHashMap;
-use std::collections::HashMap;
 
 pub struct ScreenNavigation {
     pub navigation: Navigation,
@@ -31,7 +31,9 @@ impl ScreenNavigation {
         sugarloaf: &mut Sugarloaf,
         dimensions: (f32, f32, f32),
         colors: &Colors,
-        context_manager: &crate::context::ContextManager<terminal_backend::event::EventProxy>,
+        context_manager: &crate::context::ContextManager<
+            terminal_backend::event::EventProxy,
+        >,
         is_search_active: bool,
         objects: &mut Vec<Object>,
     ) {

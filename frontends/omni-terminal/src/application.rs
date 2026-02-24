@@ -1,4 +1,6 @@
-use crate::event::{ClickState, EventPayload, EventProxy, TerminalEvent, TerminalEventType};
+use crate::event::{
+    ClickState, EventPayload, EventProxy, TerminalEvent, TerminalEventType,
+};
 use crate::ime::Preedit;
 use crate::renderer::utils::update_colors_based_on_theme;
 use crate::router::{routes::RoutePath, Router};
@@ -12,6 +14,8 @@ use crate::watcher::configuration_file_updates;
 ))]
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use raw_window_handle::HasDisplayHandle;
+use std::error::Error;
+use std::time::{Duration, Instant};
 use terminal_backend::clipboard::{Clipboard, ClipboardType};
 use terminal_backend::config::colors::{ColorRgb, NamedColor};
 use terminal_window::application::ApplicationHandler;
@@ -27,8 +31,6 @@ use terminal_window::platform::macos::ActiveEventLoopExtMacOS;
 use terminal_window::platform::macos::WindowExtMacOS;
 use terminal_window::window::WindowId;
 use terminal_window::window::{CursorIcon, Fullscreen};
-use std::error::Error;
-use std::time::{Duration, Instant};
 
 pub struct Application<'a> {
     config: terminal_backend::config::Config,
@@ -117,7 +119,10 @@ impl Application<'_> {
             // Schedule a render after the bell duration to clear it
             let timer_id =
                 TimerId::new(Topic::Render, route.window.screen.ctx().current_route());
-            let event = EventPayload::new(TerminalEventType::Terminal(TerminalEvent::Render), window_id);
+            let event = EventPayload::new(
+                TerminalEventType::Terminal(TerminalEvent::Render),
+                window_id,
+            );
 
             // Schedule render to clear bell effect after visual bell duration
             self.scheduler.schedule(
@@ -205,9 +210,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
         let timer_id = TimerId::new(Topic::UpdateTitles, 0);
         if !self.scheduler.scheduled(timer_id) {
             self.scheduler.schedule(
-                EventPayload::new(TerminalEventType::Terminal(TerminalEvent::UpdateTitles), unsafe {
-                    terminal_window::window::WindowId::dummy()
-                }),
+                EventPayload::new(
+                    TerminalEventType::Terminal(TerminalEvent::UpdateTitles),
+                    unsafe { terminal_window::window::WindowId::dummy() },
+                ),
                 Duration::from_secs(2),
                 true,
                 timer_id,
@@ -337,7 +343,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::UpdateGraphics { route_id, queues }) => {
+            TerminalEventType::Terminal(TerminalEvent::UpdateGraphics {
+                route_id,
+                queues,
+            }) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     // Process graphics directly in sugarloaf
                     let sugarloaf = &mut route.window.screen.sugarloaf;
@@ -376,19 +385,22 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                 }
             }
             TerminalEventType::Terminal(TerminalEvent::UpdateConfig) => {
-                let (config, config_error) = match terminal_backend::config::Config::try_load()
-                {
-                    Ok(config) => (config, None),
-                    Err(error) => (terminal_backend::config::Config::default(), Some(error)),
-                };
+                let (config, config_error) =
+                    match terminal_backend::config::Config::try_load() {
+                        Ok(config) => (config, None),
+                        Err(error) => {
+                            (terminal_backend::config::Config::default(), Some(error))
+                        }
+                    };
 
                 let has_font_updates = self.config.fonts != config.fonts;
 
                 let font_library_errors = if has_font_updates {
-                    let new_font_library = terminal_backend::sugarloaf::font::FontLibrary::new(
-                        config.fonts.to_owned(),
-                    );
-                    self.router.font_library = Box::new(new_font_library.0);
+                    let new_font_library =
+                        terminal_backend::sugarloaf::font::FontLibrary::new(
+                            config.fonts.to_owned(),
+                        );
+                    *self.router.font_library = new_font_library.0;
                     new_font_library.1
                 } else {
                     None
@@ -468,7 +480,9 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     route.request_redraw();
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::CursorBlinkingChangeOnRoute(route_id)) => {
+            TerminalEventType::Terminal(TerminalEvent::CursorBlinkingChangeOnRoute(
+                route_id,
+            )) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     if route_id == route.window.screen.ctx().current_route() {
                         // Get cursor position for damage
@@ -491,14 +505,16 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                             .current_mut()
                             .renderable_content
                             .pending_update
-                            .set_ui_damage(terminal_backend::event::TerminalDamage::Partial(
-                                [terminal_backend::crosswords::LineDamage::new(
-                                    cursor_line,
-                                    true,
-                                )]
-                                .into_iter()
-                                .collect(),
-                            ));
+                            .set_ui_damage(
+                                terminal_backend::event::TerminalDamage::Partial(
+                                    [terminal_backend::crosswords::LineDamage::new(
+                                        cursor_line,
+                                        true,
+                                    )]
+                                    .into_iter()
+                                    .collect(),
+                                ),
+                            );
 
                         route.request_redraw();
                     }
@@ -521,8 +537,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                         Topic::Render,
                         route.window.screen.ctx().current_route(),
                     );
-                    let event =
-                        EventPayload::new(TerminalEventType::Terminal(TerminalEvent::Render), window_id);
+                    let event = EventPayload::new(
+                        TerminalEventType::Terminal(TerminalEvent::Render),
+                        window_id,
+                    );
 
                     if !self.scheduler.scheduled(timer_id) {
                         self.scheduler.schedule(
@@ -534,7 +552,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::PrepareRenderOnRoute(millis, route_id)) => {
+            TerminalEventType::Terminal(TerminalEvent::PrepareRenderOnRoute(
+                millis,
+                route_id,
+            )) => {
                 let timer_id = TimerId::new(Topic::RenderRoute, route_id);
                 let event = EventPayload::new(
                     TerminalEventType::Terminal(TerminalEvent::RenderRoute(route_id)),
@@ -553,7 +574,9 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
             TerminalEventType::Terminal(TerminalEvent::BlinkCursor(millis, route_id)) => {
                 let timer_id = TimerId::new(Topic::CursorBlinking, route_id);
                 let event = EventPayload::new(
-                    TerminalEventType::Terminal(TerminalEvent::CursorBlinkingChangeOnRoute(route_id)),
+                    TerminalEventType::Terminal(
+                        TerminalEvent::CursorBlinkingChangeOnRoute(route_id),
+                    ),
                     window_id,
                 );
 
@@ -571,7 +594,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     route.set_window_title(&title);
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::TitleWithSubtitle(title, subtitle)) => {
+            TerminalEventType::Terminal(TerminalEvent::TitleWithSubtitle(
+                title,
+                subtitle,
+            )) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.set_window_title(&title);
                     route.set_window_subtitle(&subtitle);
@@ -598,7 +624,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     drop(terminal);
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::ClipboardLoad(clipboard_type, format)) => {
+            TerminalEventType::Terminal(TerminalEvent::ClipboardLoad(
+                clipboard_type,
+                format,
+            )) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     if route.window.is_focused {
                         let text = format(
@@ -618,7 +647,10 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::ClipboardStore(clipboard_type, content)) => {
+            TerminalEventType::Terminal(TerminalEvent::ClipboardStore(
+                clipboard_type,
+                content,
+            )) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     if route.window.is_focused {
                         self.router
@@ -697,7 +729,9 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                 );
             }
             #[cfg(target_os = "macos")]
-            TerminalEventType::Terminal(TerminalEvent::CreateNativeTab(working_dir_overwrite)) => {
+            TerminalEventType::Terminal(TerminalEvent::CreateNativeTab(
+                working_dir_overwrite,
+            )) => {
                 if let Some(route) = self.router.routes.get(&window_id) {
                     // This case happens only for native tabs
                     // every time that a new tab is created through context
@@ -741,7 +775,9 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                 }
             }
             #[cfg(target_os = "macos")]
-            TerminalEventType::Terminal(TerminalEvent::SelectNativeTabByIndex(tab_index)) => {
+            TerminalEventType::Terminal(TerminalEvent::SelectNativeTabByIndex(
+                tab_index,
+            )) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     route.window.winit_window.select_tab_at_index(tab_index);
                 }
@@ -810,7 +846,11 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     route.window.winit_window.request_redraw();
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::ColorChange(route_id, index, color)) => {
+            TerminalEventType::Terminal(TerminalEvent::ColorChange(
+                route_id,
+                index,
+                color,
+            )) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
                     let screen = &mut route.window.screen;
                     // Background color is index 1 relative to NamedColor::Foreground

@@ -137,10 +137,14 @@ impl Colorspace {
     }
 
     #[cfg(target_os = "macos")]
-    pub fn to_terminal_window_colorspace(&self) -> terminal_window::platform::macos::Colorspace {
+    pub fn to_terminal_window_colorspace(
+        &self,
+    ) -> terminal_window::platform::macos::Colorspace {
         match self {
             Colorspace::Srgb => terminal_window::platform::macos::Colorspace::Srgb,
-            Colorspace::DisplayP3 => terminal_window::platform::macos::Colorspace::DisplayP3,
+            Colorspace::DisplayP3 => {
+                terminal_window::platform::macos::Colorspace::DisplayP3
+            }
             Colorspace::Rec2020 => terminal_window::platform::macos::Colorspace::Rec2020,
         }
     }

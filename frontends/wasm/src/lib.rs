@@ -1,6 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
-use terminal_emulator::{MouseMode, TerminalGrid, render_grid};
+use terminal_emulator::{render_grid, MouseMode, TerminalGrid};
 
 use raw_window_handle::{
     RawDisplayHandle, RawWindowHandle, WebDisplayHandle, WebWindowHandle,
@@ -8,7 +8,9 @@ use raw_window_handle::{
 use std::cell::RefCell;
 use std::rc::Rc;
 use sugarloaf::layout::RootStyle;
-use sugarloaf::{Object, RichText, Sugarloaf, SugarloafRenderer, SugarloafWindow, SugarloafWindowSize};
+use sugarloaf::{
+    Object, RichText, Sugarloaf, SugarloafRenderer, SugarloafWindow, SugarloafWindowSize,
+};
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, HtmlDivElement, HtmlElement, HtmlTextAreaElement};
 
@@ -28,10 +30,8 @@ fn get_or_create_canvas(container: &HtmlElement) -> (HtmlCanvasElement, u32) {
         return (canvas, id);
     }
 
-    let canvas: HtmlCanvasElement = document
-        .create_element("canvas")
-        .unwrap()
-        .unchecked_into();
+    let canvas: HtmlCanvasElement =
+        document.create_element("canvas").unwrap().unchecked_into();
     canvas.set_id("terminal-canvas");
     let id = 1u32;
     canvas
@@ -41,7 +41,10 @@ fn get_or_create_canvas(container: &HtmlElement) -> (HtmlCanvasElement, u32) {
     canvas
         .set_attribute(
             "style",
-            &format!("width: 100%; height: calc(100% - {}px); display: block;", TAB_BAR_HEIGHT),
+            &format!(
+                "width: 100%; height: calc(100% - {}px); display: block;",
+                TAB_BAR_HEIGHT
+            ),
         )
         .unwrap();
 
@@ -58,7 +61,10 @@ fn get_or_create_canvas(container: &HtmlElement) -> (HtmlCanvasElement, u32) {
 
 /// Create hidden textarea (IME target) and preedit overlay div
 fn create_ime_elements(container: &HtmlElement) -> (HtmlTextAreaElement, HtmlDivElement) {
-    let document = web_sys::window().expect("no window").document().expect("no document");
+    let document = web_sys::window()
+        .expect("no window")
+        .document()
+        .expect("no document");
 
     // Hidden textarea -- the OS sends composition events here
     let textarea: HtmlTextAreaElement = document
@@ -79,10 +85,8 @@ fn create_ime_elements(container: &HtmlElement) -> (HtmlTextAreaElement, HtmlDiv
     container.append_child(&textarea).unwrap();
 
     // Preedit overlay -- show the composition string during active IME input
-    let overlay: HtmlDivElement = document
-        .create_element("div")
-        .unwrap()
-        .unchecked_into();
+    let overlay: HtmlDivElement =
+        document.create_element("div").unwrap().unchecked_into();
     overlay.set_id("ime-overlay");
     overlay
         .set_attribute(
@@ -227,12 +231,25 @@ fn x11_button(browser_button: i16) -> u8 {
 }
 
 /// Convert CSS pixel offset to terminal grid cell coordinates
-fn pixel_to_cell(offset_x: i32, offset_y: i32, cell_width: f32, cell_height: f32) -> (usize, usize) {
+fn pixel_to_cell(
+    offset_x: i32,
+    offset_y: i32,
+    cell_width: f32,
+    cell_height: f32,
+) -> (usize, usize) {
     let dpr = web_sys::window().unwrap().device_pixel_ratio();
     let px_x = offset_x as f64 * dpr;
     let px_y = offset_y as f64 * dpr;
-    let col = if cell_width > 0.0 { (px_x as f32 / cell_width).max(0.0) as usize } else { 0 };
-    let row = if cell_height > 0.0 { (px_y as f32 / cell_height).max(0.0) as usize } else { 0 };
+    let col = if cell_width > 0.0 {
+        (px_x as f32 / cell_width).max(0.0) as usize
+    } else {
+        0
+    };
+    let row = if cell_height > 0.0 {
+        (px_y as f32 / cell_height).max(0.0) as usize
+    } else {
+        0
+    };
     (col, row)
 }
 
@@ -240,10 +257,8 @@ fn pixel_to_cell(offset_x: i32, offset_y: i32, cell_width: f32, cell_height: f32
 fn create_tab_bar(container: &HtmlElement) {
     let document = web_sys::window().unwrap().document().unwrap();
 
-    let tab_bar: HtmlDivElement = document
-        .create_element("div")
-        .unwrap()
-        .unchecked_into();
+    let tab_bar: HtmlDivElement =
+        document.create_element("div").unwrap().unchecked_into();
     tab_bar.set_id("tab-bar");
     tab_bar
         .set_attribute(
@@ -257,15 +272,14 @@ fn create_tab_bar(container: &HtmlElement) {
 
     // Insert tab bar as first child of container
     let first_child = container.first_child();
-    container.insert_before(&tab_bar, first_child.as_ref()).unwrap();
+    container
+        .insert_before(&tab_bar, first_child.as_ref())
+        .unwrap();
 }
 
 /// Rebuild the tab bar buttons from current TabManager state.
 /// Captures `tabs` and `ws_state` to wire click handlers.
-fn rebuild_tab_bar(
-    tabs: &Rc<RefCell<TabManager>>,
-    ws_state: &Rc<RefCell<WsState>>,
-) {
+fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState>>) {
     let document = web_sys::window().unwrap().document().unwrap();
     let Some(tab_bar) = document.get_element_by_id("tab-bar") else {
         return;
@@ -283,10 +297,8 @@ fn rebuild_tab_bar(
         let is_active = i == active;
 
         // Tab button container
-        let tab_btn: HtmlDivElement = document
-            .create_element("div")
-            .unwrap()
-            .unchecked_into();
+        let tab_btn: HtmlDivElement =
+            document.create_element("div").unwrap().unchecked_into();
 
         let bg = if is_active { "#2a2a4e" } else { "transparent" };
         tab_btn
@@ -300,10 +312,8 @@ fn rebuild_tab_bar(
             .unwrap();
 
         // Tab label span
-        let label: web_sys::HtmlSpanElement = document
-            .create_element("span")
-            .unwrap()
-            .unchecked_into();
+        let label: web_sys::HtmlSpanElement =
+            document.create_element("span").unwrap().unchecked_into();
         label.set_text_content(Some(title));
 
         // Click on label/tab to switch
@@ -319,7 +329,10 @@ fn rebuild_tab_bar(
             );
             let target: &web_sys::EventTarget = label.as_ref();
             target
-                .add_event_listener_with_callback("click", on_click.as_ref().unchecked_ref())
+                .add_event_listener_with_callback(
+                    "click",
+                    on_click.as_ref().unchecked_ref(),
+                )
                 .unwrap();
             on_click.forget();
         }
@@ -328,10 +341,8 @@ fn rebuild_tab_bar(
 
         // Close button (only if more than 1 tab)
         if tab_count > 1 {
-            let close_btn: web_sys::HtmlSpanElement = document
-                .create_element("span")
-                .unwrap()
-                .unchecked_into();
+            let close_btn: web_sys::HtmlSpanElement =
+                document.create_element("span").unwrap().unchecked_into();
             close_btn.set_text_content(Some("\u{00d7}")); // multiplication sign as close icon
             close_btn
                 .set_attribute(
@@ -365,7 +376,10 @@ fn rebuild_tab_bar(
             );
             let target: &web_sys::EventTarget = close_btn.as_ref();
             target
-                .add_event_listener_with_callback("click", on_close.as_ref().unchecked_ref())
+                .add_event_listener_with_callback(
+                    "click",
+                    on_close.as_ref().unchecked_ref(),
+                )
                 .unwrap();
             on_close.forget();
 
@@ -376,10 +390,8 @@ fn rebuild_tab_bar(
     }
 
     // "+" button to add a new tab
-    let add_btn: HtmlDivElement = document
-        .create_element("div")
-        .unwrap()
-        .unchecked_into();
+    let add_btn: HtmlDivElement =
+        document.create_element("div").unwrap().unchecked_into();
     add_btn
         .set_attribute(
             "style",
@@ -403,10 +415,8 @@ fn rebuild_tab_bar(
                 tabs.borrow_mut().switch_to(new_idx);
 
                 // Send create message for the new tab
-                let create_msg = format!(
-                    r#"{{"type":"create","cols":{},"rows":{}}}"#,
-                    cols, rows
-                );
+                let create_msg =
+                    format!(r#"{{"type":"create","cols":{},"rows":{}}}"#, cols, rows);
                 let state = ws_state.borrow();
                 if let Some(ref ws) = state.ws {
                     if ws.ready_state() == web_sys::WebSocket::OPEN {
@@ -498,7 +508,9 @@ fn connect_ws(
                             {
                                 if let Ok(uuid) = uuid::Uuid::parse_str(&sid) {
                                     let mut tabs_ref = tabs.borrow_mut();
-                                    let target_idx = tabs_ref.tabs.iter()
+                                    let target_idx = tabs_ref
+                                        .tabs
+                                        .iter()
                                         .position(|t| t.session_id.is_none())
                                         .unwrap_or(tabs_ref.active);
                                     tabs_ref.tabs[target_idx].session_id =
@@ -651,8 +663,14 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
         .get_element_by_id(&container_id)
         .unwrap_or_else(|| panic!("no element with id '{container_id}'"))
         .unchecked_into();
-    container.style().set_property("position", "relative").unwrap();
-    container.style().set_property("overflow", "hidden").unwrap();
+    container
+        .style()
+        .set_property("position", "relative")
+        .unwrap();
+    container
+        .style()
+        .set_property("overflow", "hidden")
+        .unwrap();
 
     // Create tab bar first so canvas sits below it
     create_tab_bar(&container);
@@ -679,10 +697,14 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
 
     let font_library = sugarloaf::font::FontLibrary::default();
 
-    let mut sugarloaf =
-        Sugarloaf::new_async(sugarloaf_window, SugarloafRenderer::default(), &font_library, layout)
-            .await
-            .expect("Failed to create sugarloaf");
+    let mut sugarloaf = Sugarloaf::new_async(
+        sugarloaf_window,
+        SugarloafRenderer::default(),
+        &font_library,
+        layout,
+    )
+    .await
+    .expect("Failed to create sugarloaf");
 
     let rt_id = sugarloaf.create_rich_text();
 
@@ -760,10 +782,8 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                     tabs_shortcut.borrow_mut().switch_to(new_idx);
 
                     // Send create message for the new tab
-                    let create_msg = format!(
-                        r#"{{"type":"create","cols":{},"rows":{}}}"#,
-                        cols, rows
-                    );
+                    let create_msg =
+                        format!(r#"{{"type":"create","cols":{},"rows":{}}}"#, cols, rows);
                     let state = ws_state_shortcut.borrow();
                     if let Some(ref ws) = state.ws {
                         if ws.ready_state() == web_sys::WebSocket::OPEN {
@@ -804,7 +824,11 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                 event.prevent_default();
 
                 // Clear any active text selection on keyboard input
-                tabs_key.borrow_mut().active_tab_mut().grid.selection_clear();
+                tabs_key
+                    .borrow_mut()
+                    .active_tab_mut()
+                    .grid
+                    .selection_clear();
 
                 let bytes = key_event_to_bytes(&event);
                 if bytes.is_empty() {
@@ -817,7 +841,11 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                 };
                 drop(tabs_ref);
                 ws_send_binary(&ws_state_key, &sid, &bytes);
-                tabs_key.borrow_mut().active_tab_mut().grid.scroll_to_bottom();
+                tabs_key
+                    .borrow_mut()
+                    .active_tab_mut()
+                    .grid
+                    .scroll_to_bottom();
             },
         );
         textarea_target
@@ -834,10 +862,7 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             textarea_for_focus.focus().unwrap();
         });
         canvas_element
-            .add_event_listener_with_callback(
-                "click",
-                on_click.as_ref().unchecked_ref(),
-            )
+            .add_event_listener_with_callback("click", on_click.as_ref().unchecked_ref())
             .unwrap();
         on_click.forget();
 
@@ -907,13 +932,21 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                         // Position the textarea at the cursor so the OS IME window
                         // appears near the insertion point
                         let ta_style = textarea.style();
-                        ta_style.set_property("left", &format!("{}px", css_x)).unwrap();
-                        ta_style.set_property("top", &format!("{}px", css_y)).unwrap();
+                        ta_style
+                            .set_property("left", &format!("{}px", css_x))
+                            .unwrap();
+                        ta_style
+                            .set_property("top", &format!("{}px", css_y))
+                            .unwrap();
 
                         // Position and show the overlay
                         let ov_style = overlay.style();
-                        ov_style.set_property("left", &format!("{}px", css_x)).unwrap();
-                        ov_style.set_property("top", &format!("{}px", css_y)).unwrap();
+                        ov_style
+                            .set_property("left", &format!("{}px", css_x))
+                            .unwrap();
+                        ov_style
+                            .set_property("top", &format!("{}px", css_y))
+                            .unwrap();
                         ov_style.set_property("display", "block").unwrap();
                     },
                 );
@@ -953,31 +986,30 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             let tabs = tabs.clone();
             let overlay = ime_overlay.clone();
             let textarea = ime_textarea.clone();
-            let on_compositionend =
-                Closure::<dyn FnMut(web_sys::CompositionEvent)>::new(
-                    move |event: web_sys::CompositionEvent| {
-                        *is_composing.borrow_mut() = false;
+            let on_compositionend = Closure::<dyn FnMut(web_sys::CompositionEvent)>::new(
+                move |event: web_sys::CompositionEvent| {
+                    *is_composing.borrow_mut() = false;
 
-                        // Hide and clear the overlay
-                        overlay.style().set_property("display", "none").unwrap();
-                        overlay.set_text_content(None);
+                    // Hide and clear the overlay
+                    overlay.style().set_property("display", "none").unwrap();
+                    overlay.set_text_content(None);
 
-                        // Send committed text to PTY as raw bytes
-                        if let Some(data) = event.data() {
-                            if !data.is_empty() {
-                                let tabs_ref = tabs.borrow();
-                                let Some(sid) = tabs_ref.active_tab().session_id else {
-                                    return;
-                                };
-                                drop(tabs_ref);
-                                ws_send_binary(&ws_state, &sid, data.as_bytes());
-                            }
+                    // Send committed text to PTY as raw bytes
+                    if let Some(data) = event.data() {
+                        if !data.is_empty() {
+                            let tabs_ref = tabs.borrow();
+                            let Some(sid) = tabs_ref.active_tab().session_id else {
+                                return;
+                            };
+                            drop(tabs_ref);
+                            ws_send_binary(&ws_state, &sid, data.as_bytes());
                         }
+                    }
 
-                        // Clear the textarea so it's ready for the next composition
-                        textarea.set_value("");
-                    },
-                );
+                    // Clear the textarea so it's ready for the next composition
+                    textarea.set_value("");
+                },
+            );
             textarea_target
                 .add_event_listener_with_callback(
                     "compositionend",
@@ -1007,7 +1039,8 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             let ch = cell_height;
             let on_mousedown = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
                 move |event: web_sys::MouseEvent| {
-                    let (col, row) = pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
+                    let (col, row) =
+                        pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
 
                     let button = x11_button(event.button());
                     let mods = mouse_modifiers(&event);
@@ -1063,7 +1096,8 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             let ch = cell_height;
             let on_mouseup = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
                 move |event: web_sys::MouseEvent| {
-                    let (col, row) = pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
+                    let (col, row) =
+                        pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
 
                     let button = x11_button(event.button());
                     let mods = mouse_modifiers(&event);
@@ -1080,7 +1114,8 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                         drop(tabs_ref);
 
                         if !text.is_empty() {
-                            let clipboard = web_sys::window().unwrap().navigator().clipboard();
+                            let clipboard =
+                                web_sys::window().unwrap().navigator().clipboard();
                             let _ = clipboard.write_text(&text);
                         }
                         return;
@@ -1119,7 +1154,8 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             let ch = cell_height;
             let on_mousemove = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
                 move |event: web_sys::MouseEvent| {
-                    let (col, row) = pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
+                    let (col, row) =
+                        pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
 
                     // Update text selection during drag
                     if *selecting.borrow() {
@@ -1192,13 +1228,21 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             let on_wheel = Closure::<dyn FnMut(web_sys::WheelEvent)>::new(
                 move |event: web_sys::WheelEvent| {
                     let mouse_event: &web_sys::MouseEvent = event.as_ref();
-                    let (col, row) = pixel_to_cell(mouse_event.offset_x(), mouse_event.offset_y(), cw, ch);
+                    let (col, row) = pixel_to_cell(
+                        mouse_event.offset_x(),
+                        mouse_event.offset_y(),
+                        cw,
+                        ch,
+                    );
 
                     // When mouse mode is off, scroll the viewport instead
                     let mode = tabs.borrow().active_tab().grid.mouse_mode();
                     if mode == MouseMode::None {
                         let lines = if event.delta_y() < 0.0 { 3 } else { -3 };
-                        tabs.borrow_mut().active_tab_mut().grid.scroll_display(lines);
+                        tabs.borrow_mut()
+                            .active_tab_mut()
+                            .grid
+                            .scroll_display(lines);
                         event.prevent_default();
                         return;
                     }
@@ -1296,85 +1340,87 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
         let canvas_observe = canvas.clone();
         let pending_timer: Rc<RefCell<Option<i32>>> = Rc::new(RefCell::new(None));
 
-        let on_resize = Closure::<dyn FnMut(js_sys::Array)>::new(move |_entries: js_sys::Array| {
-            let window = web_sys::window().unwrap();
-
-            // Cancel any pending debounce timer
-            if let Some(timer_id) = pending_timer.borrow_mut().take() {
-                window.clear_timeout_with_handle(timer_id);
-            }
-
-            // Schedule the actual resize after 50ms of inactivity
-            let sugarloaf = sugarloaf.clone();
-            let tabs = tabs.clone();
-            let ws_state = ws_state.clone();
-            let canvas_observe = canvas_observe.clone();
-            let pending_timer_inner = pending_timer.clone();
-
-            let cb = Closure::<dyn FnMut()>::once(move || {
-                *pending_timer_inner.borrow_mut() = None;
-
+        let on_resize = Closure::<dyn FnMut(js_sys::Array)>::new(
+            move |_entries: js_sys::Array| {
                 let window = web_sys::window().unwrap();
-                let dpr = window.device_pixel_ratio();
 
-                let css_width = canvas_observe.client_width() as f64;
-                let css_height = canvas_observe.client_height() as f64;
-                let px_width = (css_width * dpr) as u32;
-                let px_height = (css_height * dpr) as u32;
-
-                if px_width == 0 || px_height == 0 {
-                    return;
+                // Cancel any pending debounce timer
+                if let Some(timer_id) = pending_timer.borrow_mut().take() {
+                    window.clear_timeout_with_handle(timer_id);
                 }
 
-                canvas_observe.set_width(px_width);
-                canvas_observe.set_height(px_height);
+                // Schedule the actual resize after 50ms of inactivity
+                let sugarloaf = sugarloaf.clone();
+                let tabs = tabs.clone();
+                let ws_state = ws_state.clone();
+                let canvas_observe = canvas_observe.clone();
+                let pending_timer_inner = pending_timer.clone();
 
-                let mut sugarloaf = sugarloaf.borrow_mut();
-                sugarloaf.resize(px_width, px_height);
-                drop(sugarloaf);
+                let cb = Closure::<dyn FnMut()>::once(move || {
+                    *pending_timer_inner.borrow_mut() = None;
 
-                let new_cols = if cell_width > 0.0 {
-                    (px_width as f32 / cell_width).max(1.0) as usize
-                } else {
-                    80
-                };
-                let new_rows = if cell_height > 0.0 {
-                    (px_height as f32 / cell_height).max(1.0) as usize
-                } else {
-                    24
-                };
+                    let window = web_sys::window().unwrap();
+                    let dpr = window.device_pixel_ratio();
 
-                // Resize ALL tabs' grids and send resize messages for each active session
-                let mut tabs_ref = tabs.borrow_mut();
-                let state = ws_state.borrow();
-                for tab in &mut tabs_ref.tabs {
-                    if new_cols != tab.grid.cols || new_rows != tab.grid.rows {
-                        tab.grid.resize(new_cols, new_rows);
+                    let css_width = canvas_observe.client_width() as f64;
+                    let css_height = canvas_observe.client_height() as f64;
+                    let px_width = (css_width * dpr) as u32;
+                    let px_height = (css_height * dpr) as u32;
 
-                        if let Some(sid) = tab.session_id.as_ref() {
-                            let resize_msg = format!(
-                                r#"{{"type":"resize","session_id":"{}","cols":{},"rows":{}}}"#,
-                                uuid::Uuid::from_bytes(*sid),
-                                new_cols,
-                                new_rows
-                            );
-                            if let Some(ref ws) = state.ws {
-                                let _ = ws.send_with_str(&resize_msg);
+                    if px_width == 0 || px_height == 0 {
+                        return;
+                    }
+
+                    canvas_observe.set_width(px_width);
+                    canvas_observe.set_height(px_height);
+
+                    let mut sugarloaf = sugarloaf.borrow_mut();
+                    sugarloaf.resize(px_width, px_height);
+                    drop(sugarloaf);
+
+                    let new_cols = if cell_width > 0.0 {
+                        (px_width as f32 / cell_width).max(1.0) as usize
+                    } else {
+                        80
+                    };
+                    let new_rows = if cell_height > 0.0 {
+                        (px_height as f32 / cell_height).max(1.0) as usize
+                    } else {
+                        24
+                    };
+
+                    // Resize ALL tabs' grids and send resize messages for each active session
+                    let mut tabs_ref = tabs.borrow_mut();
+                    let state = ws_state.borrow();
+                    for tab in &mut tabs_ref.tabs {
+                        if new_cols != tab.grid.cols || new_rows != tab.grid.rows {
+                            tab.grid.resize(new_cols, new_rows);
+
+                            if let Some(sid) = tab.session_id.as_ref() {
+                                let resize_msg = format!(
+                                    r#"{{"type":"resize","session_id":"{}","cols":{},"rows":{}}}"#,
+                                    uuid::Uuid::from_bytes(*sid),
+                                    new_cols,
+                                    new_rows
+                                );
+                                if let Some(ref ws) = state.ws {
+                                    let _ = ws.send_with_str(&resize_msg);
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
 
-            let timer_id = window
-                .set_timeout_with_callback_and_timeout_and_arguments_0(
-                    cb.as_ref().unchecked_ref(),
-                    50,
-                )
-                .unwrap();
-            cb.forget();
-            *pending_timer.borrow_mut() = Some(timer_id);
-        });
+                let timer_id = window
+                    .set_timeout_with_callback_and_timeout_and_arguments_0(
+                        cb.as_ref().unchecked_ref(),
+                        50,
+                    )
+                    .unwrap();
+                cb.forget();
+                *pending_timer.borrow_mut() = Some(timer_id);
+            },
+        );
 
         let canvas_for_observe = canvas.clone();
         let observer =

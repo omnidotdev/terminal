@@ -14,10 +14,9 @@ use crate::bindings::{
     Action as Act, BindingKey, BindingMode, FontSizeAction, MouseBinding, OpacityAction,
     SearchAction, ViAction,
 };
+use crate::constants::PADDING_Y_BOTTOM_TABS;
 #[cfg(target_os = "macos")]
 use crate::constants::{DEADZONE_END_Y, DEADZONE_START_Y};
-use crate::constants::PADDING_Y_BOTTOM_TABS;
-use terminal_backend::config::navigation::NavigationMode;
 use crate::context::grid::{ContextDimension, Delta};
 use crate::context::renderable::{Cursor, RenderableContent};
 use crate::context::{self, process_open_url, ContextManager};
@@ -38,8 +37,14 @@ use crate::screen::hint::HintMatches;
 use crate::selection::{Selection, SelectionType};
 use core::fmt::Debug;
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
+use std::cell::RefCell;
+use std::cmp::{max, min};
+use std::error::Error;
+use std::ffi::OsStr;
+use std::rc::Rc;
 use terminal_backend::clipboard::Clipboard;
 use terminal_backend::clipboard::ClipboardType;
+use terminal_backend::config::navigation::NavigationMode;
 use terminal_backend::config::renderer::{
     Backend as RendererBackend, Performance as RendererPerformance,
 };
@@ -57,11 +62,6 @@ use terminal_window::event::MouseButton;
 use terminal_window::keyboard::ModifiersKeyState;
 use terminal_window::keyboard::{Key, KeyLocation, ModifiersState, NamedKey};
 use terminal_window::platform::modifier_supplement::KeyEventExtModifierSupplement;
-use std::cell::RefCell;
-use std::cmp::{max, min};
-use std::error::Error;
-use std::ffi::OsStr;
-use std::rc::Rc;
 use touch::TouchPurpose;
 
 /// Minimum number of pixels at the bottom/top where selection scrolling is performed.
@@ -318,7 +318,7 @@ impl Screen<'_> {
     // can skip further click processing (text selection, etc.).
     #[inline]
     pub fn select_tab_based_on_mouse(&mut self) -> bool {
-        let nav_mode = self.renderer.navigation.navigation.mode.clone();
+        let nav_mode = self.renderer.navigation.navigation.mode;
         let hide_if_single = self.renderer.navigation.navigation.hide_if_single;
         let len = self.context_manager.len();
 
@@ -579,7 +579,10 @@ impl Screen<'_> {
     }
 
     #[inline]
-    pub fn resize(&mut self, new_size: terminal_window::dpi::PhysicalSize<u32>) -> &mut Self {
+    pub fn resize(
+        &mut self,
+        new_size: terminal_window::dpi::PhysicalSize<u32>,
+    ) -> &mut Self {
         if self
             .context_manager
             .current()
@@ -1524,7 +1527,11 @@ impl Screen<'_> {
     }
 
     /// Whether we should send `ESC` due to `Alt` being pressed.
-    fn alt_send_esc(&mut self, key: &terminal_window::event::KeyEvent, text: &str) -> bool {
+    fn alt_send_esc(
+        &mut self,
+        key: &terminal_window::event::KeyEvent,
+        text: &str,
+    ) -> bool {
         #[cfg(not(target_os = "macos"))]
         let alt_send_esc = self.modifiers.state().alt_key();
 
@@ -1927,8 +1934,8 @@ impl Screen<'_> {
                 if hint_config.post_processing {
                     let mut processed_text = String::new();
                     for col in processed_start.0..=processed_end.0 {
-                        let cell =
-                            &grid[point.row][terminal_backend::crosswords::pos::Column(col)];
+                        let cell = &grid[point.row]
+                            [terminal_backend::crosswords::pos::Column(col)];
                         processed_text.push(cell.c);
                     }
                     match_text = processed_text.trim_end().to_string();
@@ -1940,7 +1947,10 @@ impl Screen<'_> {
                         point.row,
                         processed_start,
                     ),
-                    end: terminal_backend::crosswords::pos::Pos::new(point.row, processed_end),
+                    end: terminal_backend::crosswords::pos::Pos::new(
+                        point.row,
+                        processed_end,
+                    ),
                     hint: hint_config,
                 });
             }
@@ -2815,7 +2825,10 @@ impl Screen<'_> {
         // Set IME cursor area
         window.set_ime_cursor_area(
             terminal_window::dpi::PhysicalPosition::new(pixel_x as f64, pixel_y as f64),
-            terminal_window::dpi::PhysicalSize::new(cell_width as f64, cell_height as f64),
+            terminal_window::dpi::PhysicalSize::new(
+                cell_width as f64,
+                cell_height as f64,
+            ),
         );
     }
 
@@ -2854,7 +2867,9 @@ impl Screen<'_> {
 
     /// Execute the action for a selected hint
     fn execute_hint_action(&mut self, hint_match: &crate::hints::HintMatch) {
-        use terminal_backend::config::hints::{HintAction, HintCommand, HintInternalAction};
+        use terminal_backend::config::hints::{
+            HintAction, HintCommand, HintInternalAction,
+        };
 
         match &hint_match.hint.action {
             HintAction::Action { action } => match action {

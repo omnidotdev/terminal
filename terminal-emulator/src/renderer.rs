@@ -1,18 +1,56 @@
-use crate::grid::TerminalGrid;
-use sugarloaf::{FragmentStyle, FragmentStyleDecoration, Sugarloaf, UnderlineInfo, UnderlineShape};
+use crate::grid::{Cell, TerminalGrid};
+use sugarloaf::{
+    FragmentStyle, FragmentStyleDecoration, Sugarloaf, UnderlineInfo, UnderlineShape,
+};
+
+/// Default background color used when a cell has no explicit background
+const DEFAULT_BG: [f32; 4] = [0.05, 0.05, 0.1, 1.0];
+
+/// Compute effective fg/bg for a cell, accounting for inverse, selection, and cursor
+fn cell_colors(
+    cell: &Cell,
+    is_selected: bool,
+    is_cursor: bool,
+) -> ([f32; 4], Option<[f32; 4]>) {
+    // Cell inverse attribute
+    let (mut fg, mut bg) = if cell.inverse {
+        (cell.bg.unwrap_or(DEFAULT_BG), Some(cell.fg))
+    } else {
+        (cell.fg, cell.bg)
+    };
+
+    // Selection highlight: swap fg/bg
+    if is_selected {
+        let tmp = bg.unwrap_or(DEFAULT_BG);
+        bg = Some(fg);
+        fg = tmp;
+    }
+
+    // Cursor: swap fg/bg for block cursor
+    if is_cursor {
+        let tmp = bg.unwrap_or(DEFAULT_BG);
+        bg = Some(fg);
+        fg = tmp;
+    }
+
+    (fg, bg)
+}
 
 /// Render the terminal grid into sugarloaf content
-pub fn render_grid(
-    sugarloaf: &mut Sugarloaf,
-    grid: &TerminalGrid,
-    rt_id: usize,
-) {
+pub fn render_grid(sugarloaf: &mut Sugarloaf, grid: &TerminalGrid, rt_id: usize) {
     // Clone the font library (Arc-shared) for per-character font matching.
     // This enables Nerd Font glyphs to render on Android by finding the
     // correct fallback font for non-ASCII characters.
     let font_library = sugarloaf.content().font_library().clone();
     let content = sugarloaf.content();
     content.sel(rt_id).clear();
+
+    // Cursor is only visible when viewing live output
+    let cursor_row = if grid.display_offset == 0 {
+        Some(grid.cursor_row)
+    } else {
+        None
+    };
 
     // Hold a read lock for font lookups; must be dropped before build()
     // which acquires a write lock for font metrics
@@ -27,26 +65,11 @@ pub fn render_grid(
 
             while run_start < cols {
                 let cell = &row[run_start];
+                let is_cursor =
+                    cursor_row == Some(row_idx) && run_start == grid.cursor_col;
+                let is_selected = grid.is_selected(run_start, row_idx);
 
-                // Build a style for the current cell
-                let (fg, bg) = if cell.inverse {
-                    (
-                        cell.bg.unwrap_or([0.05, 0.05, 0.1, 1.0]),
-                        Some(cell.fg),
-                    )
-                } else {
-                    (cell.fg, cell.bg)
-                };
-
-                // Selection highlight: swap fg/bg
-                let (fg, bg) = if grid.is_selected(run_start, row_idx) {
-                    (
-                        bg.unwrap_or([0.05, 0.05, 0.1, 1.0]),
-                        Some(fg),
-                    )
-                } else {
-                    (fg, bg)
-                };
+                let (fg, bg) = cell_colors(cell, is_selected, is_cursor);
 
                 let decoration = if cell.underline {
                     Some(FragmentStyleDecoration::Underline(UnderlineInfo {
@@ -68,21 +91,16 @@ pub fn render_grid(
                 let mut run_end = run_start + 1;
                 while run_end < cols {
                     let next = &row[run_end];
-                    let (nfg, nbg) = if next.inverse {
-                        (
-                            next.bg.unwrap_or([0.05, 0.05, 0.1, 1.0]),
-                            Some(next.fg),
-                        )
-                    } else {
-                        (next.fg, next.bg)
-                    };
+                    let next_is_cursor =
+                        cursor_row == Some(row_idx) && run_end == grid.cursor_col;
+                    let next_is_selected = grid.is_selected(run_end, row_idx);
+                    let (nfg, nbg) = cell_colors(next, next_is_selected, next_is_cursor);
+
                     if nfg == fg
                         && nbg == bg
                         && next.bold == cell.bold
                         && next.italic == cell.italic
                         && next.underline == cell.underline
-                        && grid.is_selected(run_end, row_idx)
-                            == grid.is_selected(run_start, row_idx)
                     {
                         run_end += 1;
                     } else {
@@ -135,15 +153,6 @@ pub fn render_grid(
                 }
 
                 run_start = run_end;
-            }
-
-            // Cursor only visible when viewing live output
-            if grid.display_offset == 0
-                && row_idx == grid.cursor_row
-                && grid.cursor_col < grid.cols
-            {
-                // Cursor is rendered as part of the content — the cursor block
-                // is already included in the text above via the cell character
             }
 
             content.new_line();

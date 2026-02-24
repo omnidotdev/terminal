@@ -21,7 +21,12 @@ pub fn external_fallbacks() -> Vec<String> {
     ]
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "android", windows, target_arch = "wasm32")))]
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "android",
+    windows,
+    target_arch = "wasm32"
+)))]
 pub fn external_fallbacks() -> Vec<String> {
     vec![
         /* Sans-serif fallbacks */

@@ -5,8 +5,8 @@
 #![allow(clippy::uninlined_format_args)]
 
 use copa::{Parser, Perform};
-use terminal_backend::batched_parser::BatchedParser;
 use std::time::Instant;
+use terminal_backend::batched_parser::BatchedParser;
 
 // Mock performer for testing
 struct MockPerformer {

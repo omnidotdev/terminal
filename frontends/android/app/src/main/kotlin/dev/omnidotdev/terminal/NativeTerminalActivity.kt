@@ -757,7 +757,8 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             val lines = (accumulatedScroll / lineHeight).toInt()
             if (lines != 0) {
                 accumulatedScroll -= lines * lineHeight
-                NativeTerminal.scroll(lines)
+                val (col, row) = pixelToCell(e2.x, e2.y)
+                NativeTerminal.scroll(lines, col, row)
             }
             return true
         }

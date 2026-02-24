@@ -1,9 +1,9 @@
+use std::borrow::Cow;
+use std::ops::Deref;
 use terminal_backend::crosswords::pos::{Column, Direction, Line, Pos};
 use terminal_backend::crosswords::search::Match;
 use terminal_backend::crosswords::search::{RegexIter, RegexSearch};
 use terminal_backend::crosswords::Crosswords;
-use std::borrow::Cow;
-use std::ops::Deref;
 
 /// Maximum number of linewraps followed outside of the viewport during search highlighting.
 pub const MAX_SEARCH_LINES: usize = 100;

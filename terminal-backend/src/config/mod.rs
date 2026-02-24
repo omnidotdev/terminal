@@ -170,7 +170,13 @@ pub struct CursorConfig {
 pub fn config_dir_path() -> PathBuf {
     std::env::var("OMNI_TERMINAL_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or(dirs::home_dir().unwrap().join(".config").join("omni").join("terminal"))
+        .unwrap_or(
+            dirs::home_dir()
+                .unwrap()
+                .join(".config")
+                .join("omni")
+                .join("terminal"),
+        )
 }
 
 #[cfg(target_os = "windows")]

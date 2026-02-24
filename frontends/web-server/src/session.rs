@@ -92,14 +92,8 @@ impl SessionManager {
     ) -> Result<(SessionId, mpsc::UnboundedReceiver<Vec<u8>>), String> {
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
 
-        let pty = create_pty_with_spawn(
-            &shell,
-            vec![],
-            &None,
-            cols,
-            rows,
-        )
-        .map_err(|e| format!("Failed to create PTY: {e}"))?;
+        let pty = create_pty_with_spawn(&shell, vec![], &None, cols, rows)
+            .map_err(|e| format!("Failed to create PTY: {e}"))?;
 
         let session_id = Uuid::new_v4();
         let child_pid = *pty.child.pid as i32;
@@ -260,10 +254,7 @@ impl SessionManager {
 
     pub fn close_session(&self, session_id: &SessionId) {
         if let Some((_, session)) = self.sessions.remove(session_id) {
-            tracing::info!(
-                "Closed session {session_id} (pid {})",
-                session.child_pid
-            );
+            tracing::info!("Closed session {session_id} (pid {})", session.child_pid);
         }
     }
 }

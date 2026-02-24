@@ -1,4 +1,4 @@
-use terminal_emulator::{TerminalGrid, render_grid};
+use terminal_emulator::{render_grid, MouseMode, TerminalGrid};
 
 use jni::objects::{JClass, JObject, JString};
 use jni::sys::{jboolean, jfloat, jint};
@@ -12,8 +12,8 @@ use std::sync::Mutex;
 use std::thread;
 use sugarloaf::layout::RootStyle;
 use sugarloaf::{
-    FragmentStyle, Object, RichText, Sugarloaf, SugarloafRenderer,
-    SugarloafWindow, SugarloafWindowSize,
+    FragmentStyle, Object, RichText, Sugarloaf, SugarloafRenderer, SugarloafWindow,
+    SugarloafWindowSize,
 };
 use tungstenite::Message;
 
@@ -342,17 +342,20 @@ impl TerminalManager {
         // Center the grid horizontally: distribute leftover space equally
         let pad_px = PADDING_DP * self.scale;
         let dims = self.sugarloaf.get_rich_text_dimensions(&self.rt_id);
-        let cell_w = if dims.width > 0.0 { dims.width } else { 18.0 * 0.6 * self.scale };
+        let cell_w = if dims.width > 0.0 {
+            dims.width
+        } else {
+            18.0 * 0.6 * self.scale
+        };
         let text_width = self.total_cols as f32 * cell_w;
         let leftover = self.surface_width - text_width - 2.0 * pad_px;
         let x_offset = pad_px + (leftover / 2.0).max(0.0);
 
-        self.sugarloaf
-            .set_objects(vec![Object::RichText(RichText {
-                id: self.rt_id,
-                position: [x_offset, 0.0],
-                lines: None,
-            })]);
+        self.sugarloaf.set_objects(vec![Object::RichText(RichText {
+            id: self.rt_id,
+            position: [x_offset, 0.0],
+            lines: None,
+        })]);
         self.sugarloaf.render();
 
         if let Some(session) = self.sessions.get_mut(self.active) {
@@ -443,9 +446,8 @@ fn ws_thread_main(
         Ok(u) => u,
         Err(e) => {
             log::error!("Invalid URL {ws_url}: {e}");
-            let _ = out_tx.send(
-                br#"{"type":"error","message":"Invalid server URL"}"#.to_vec(),
-            );
+            let _ = out_tx
+                .send(br#"{"type":"error","message":"Invalid server URL"}"#.to_vec());
             return;
         }
     };
@@ -507,7 +509,8 @@ fn ws_thread_main(
                 Err(e) => {
                     log::error!("WebSocket handshake failed for {ws_url}: {e}");
                     let _ = out_tx.send(
-                        br#"{"type":"error","message":"WebSocket handshake failed"}"#.to_vec(),
+                        br#"{"type":"error","message":"WebSocket handshake failed"}"#
+                            .to_vec(),
                     );
                     return;
                 }
@@ -524,7 +527,8 @@ fn ws_thread_main(
         let connector = rustls::StreamOwned::new(
             rustls::ClientConnection::new(
                 std::sync::Arc::new(tls_config),
-                host.try_into().unwrap_or_else(|_| "localhost".try_into().unwrap()),
+                host.try_into()
+                    .unwrap_or_else(|_| "localhost".try_into().unwrap()),
             )
             .expect("failed to create TLS connection"),
             tcp_stream,
@@ -950,7 +954,8 @@ fn spawn_proot_pty(
             let loader_path = format!("{native_lib_dir}/libproot-loader.so");
             let env_vars: Vec<CString> = [
                 "HOME=/root".to_string(),
-                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                    .to_string(),
                 "TERM=xterm-256color".to_string(),
                 "COLORTERM=truecolor".to_string(),
                 "LANG=en_US.UTF-8".to_string(),
@@ -1047,8 +1052,10 @@ fn pty_thread_main(
             }
             Ok(PtyCommand::Resize(json)) => {
                 if let Ok(msg) = serde_json::from_str::<serde_json::Value>(&json) {
-                    let cols = msg.get("cols").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
-                    let rows = msg.get("rows").and_then(|v| v.as_u64()).unwrap_or(24) as u16;
+                    let cols =
+                        msg.get("cols").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
+                    let rows =
+                        msg.get("rows").and_then(|v| v.as_u64()).unwrap_or(24) as u16;
                     set_winsize(fd, cols, rows);
                     let _ = kill(child, Signal::SIGWINCH);
                 }
@@ -1369,8 +1376,13 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_resize(
         m.surface_height = height as f32;
         m.scale = scale;
 
-        let (cols, rows) =
-            calc_grid(width as f32, height as f32, scale, &mut m.sugarloaf, &m.rt_id);
+        let (cols, rows) = calc_grid(
+            width as f32,
+            height as f32,
+            scale,
+            &mut m.sugarloaf,
+            &m.rt_id,
+        );
         if cols != m.total_cols || rows != m.total_rows {
             m.total_cols = cols;
             m.total_rows = rows;
@@ -1421,14 +1433,14 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_sendSpecialKe
     key_code: jint,
 ) {
     let bytes: &[u8] = match key_code {
-        1 => b"\r",           // Enter
-        2 => &[0x7f],         // Backspace
-        3 => b"\t",           // Tab
-        4 => &[0x1b],         // Escape
-        10 => b"\x1b[A",      // Arrow Up
-        11 => b"\x1b[B",      // Arrow Down
-        12 => b"\x1b[D",      // Arrow Left
-        13 => b"\x1b[C",      // Arrow Right
+        1 => b"\r",      // Enter
+        2 => &[0x7f],    // Backspace
+        3 => b"\t",      // Tab
+        4 => &[0x1b],    // Escape
+        10 => b"\x1b[A", // Arrow Up
+        11 => b"\x1b[B", // Arrow Down
+        12 => b"\x1b[D", // Arrow Left
+        13 => b"\x1b[C", // Arrow Right
         _ => return,
     };
 
@@ -1495,19 +1507,47 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_setFontAction
     }
 }
 
-/// Scroll the viewport by the given number of lines.
-/// Positive = scroll up (into history), negative = scroll down (toward live output).
+/// Scroll the viewport or forward mouse wheel events to the running application.
+///
+/// When the application has enabled mouse reporting (vim, less -X, etc.),
+/// scroll gestures are forwarded as SGR mouse wheel events so the app can
+/// handle them. Otherwise falls back to scrolling the terminal scrollback.
+///
+/// Positive `lines` = scroll up (into history / wheel up).
+/// Negative `lines` = scroll down (toward live / wheel down).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_scroll(
     _env: JNIEnv,
     _class: JClass,
     lines: jint,
+    col: jint,
+    row: jint,
 ) {
     let mut mgr = TERMINAL_MANAGER.lock().unwrap();
     if let Some(ref mut m) = *mgr {
         if let Some(session) = m.active_session_mut() {
-            session.grid.scroll_display(lines);
-            session.dirty = true;
+            if session.grid.mouse_mode() != MouseMode::None {
+                // Forward as mouse wheel events to the application
+                // SGR: button 64 = wheel up, button 65 = wheel down
+                let button: u8 = if lines > 0 { 64 } else { 65 };
+                let count = lines.unsigned_abs() as usize;
+                let c = col.max(0) as usize;
+                let r = row.max(0) as usize;
+
+                for _ in 0..count {
+                    session.grid.mouse_report(button, 0, c, r, true);
+                }
+
+                // Drain generated bytes and send to PTY
+                if !session.grid.pending_writes.is_empty() {
+                    let data = std::mem::take(&mut session.grid.pending_writes);
+                    session.send_input(&data);
+                }
+                session.dirty = true;
+            } else {
+                session.grid.scroll_display(lines);
+                session.dirty = true;
+            }
         }
     }
 }
@@ -1788,7 +1828,11 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getGridOffset
     if let Some(ref mut m) = *mgr {
         let pad_px = PADDING_DP * m.scale;
         let dims = m.sugarloaf.get_rich_text_dimensions(&m.rt_id);
-        let cell_w = if dims.width > 0.0 { dims.width } else { 18.0 * 0.6 * m.scale };
+        let cell_w = if dims.width > 0.0 {
+            dims.width
+        } else {
+            18.0 * 0.6 * m.scale
+        };
         let text_width = m.total_cols as f32 * cell_w;
         let leftover = m.surface_width - text_width - 2.0 * pad_px;
         return pad_px + (leftover / 2.0_f32).max(0.0);

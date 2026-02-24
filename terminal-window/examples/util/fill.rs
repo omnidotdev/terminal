@@ -19,8 +19,8 @@ mod platform {
     use std::mem::ManuallyDrop;
     use std::num::NonZeroU32;
 
-    use terminal_window::window::{Window, WindowId};
     use softbuffer::{Context, Surface};
+    use terminal_window::window::{Window, WindowId};
 
     thread_local! {
         // NOTE: You should never do things like that, create context and drop it before

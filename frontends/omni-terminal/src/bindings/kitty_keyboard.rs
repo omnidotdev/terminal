@@ -1,6 +1,7 @@
 // build_key_sequence was originally taken from alacritty
 // which is licensed under Apache 2.0 license.
 
+use std::borrow::Cow;
 use terminal_backend::crosswords::Mode;
 use terminal_window::event::{ElementState, KeyEvent};
 use terminal_window::keyboard::Key;
@@ -8,7 +9,6 @@ use terminal_window::keyboard::KeyLocation;
 use terminal_window::keyboard::ModifiersState;
 use terminal_window::keyboard::NamedKey;
 use terminal_window::platform::modifier_supplement::KeyEventExtModifierSupplement;
-use std::borrow::Cow;
 
 #[inline(never)]
 pub fn build_key_sequence(key: &KeyEvent, mods: ModifiersState, mode: Mode) -> Vec<u8> {

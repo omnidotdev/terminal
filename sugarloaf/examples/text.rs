@@ -1,15 +1,15 @@
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use std::error::Error;
+use sugarloaf::{
+    layout::RootStyle, FragmentStyle, FragmentStyleDecoration, Object, RichText,
+    Sugarloaf, SugarloafWindow, SugarloafWindowSize, UnderlineInfo, UnderlineShape,
+};
 use terminal_window::application::ApplicationHandler;
 use terminal_window::event_loop::ControlFlow;
 use terminal_window::event_loop::{ActiveEventLoop, DeviceEvents};
 use terminal_window::window::{Window, WindowId};
 use terminal_window::{
     dpi::LogicalSize, event::WindowEvent, event_loop::EventLoop, window::WindowAttributes,
-};
-use std::error::Error;
-use sugarloaf::{
-    layout::RootStyle, FragmentStyle, FragmentStyleDecoration, Object, RichText,
-    Sugarloaf, SugarloafWindow, SugarloafWindowSize, UnderlineInfo, UnderlineShape,
 };
 
 fn main() {

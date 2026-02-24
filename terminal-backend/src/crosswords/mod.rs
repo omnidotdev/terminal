@@ -38,7 +38,7 @@ use crate::config::colors::{self, AnsiColor, ColorRgb};
 use crate::crosswords::colors::term::TermColors;
 use crate::crosswords::grid::{Dimensions, Grid, Scroll};
 use crate::event::WindowId;
-use crate::event::{EventListener, TerminalEvent, TerminalDamage};
+use crate::event::{EventListener, TerminalDamage, TerminalEvent};
 use crate::performer::handler::Handler;
 use crate::selection::{Selection, SelectionRange, SelectionType};
 use crate::simd_utf8;
@@ -2464,7 +2464,8 @@ impl<U: EventListener> Handler for Crosswords<U> {
 
     #[inline]
     fn bell(&mut self) {
-        self.event_proxy.send_event(TerminalEvent::Bell, self.window_id);
+        self.event_proxy
+            .send_event(TerminalEvent::Bell, self.window_id);
     }
 
     #[inline]
@@ -2717,23 +2718,25 @@ impl<U: EventListener> Handler for Crosswords<U> {
                 match pa {
                     1 => {
                         self.event_proxy.send_event(
-                            TerminalEvent::TextAreaSizeRequest(Arc::new(move |window_size| {
-                                let width = window_size.width;
-                                let height = window_size.height;
-                                let graphic_dimensions = [
-                                    std::cmp::min(
-                                        width as usize,
-                                        MAX_GRAPHIC_DIMENSIONS[0],
-                                    ),
-                                    std::cmp::min(
-                                        height as usize,
-                                        MAX_GRAPHIC_DIMENSIONS[1],
-                                    ),
-                                ];
+                            TerminalEvent::TextAreaSizeRequest(Arc::new(
+                                move |window_size| {
+                                    let width = window_size.width;
+                                    let height = window_size.height;
+                                    let graphic_dimensions = [
+                                        std::cmp::min(
+                                            width as usize,
+                                            MAX_GRAPHIC_DIMENSIONS[0],
+                                        ),
+                                        std::cmp::min(
+                                            height as usize,
+                                            MAX_GRAPHIC_DIMENSIONS[1],
+                                        ),
+                                    ];
 
-                                let (ps, pv) = (0, &graphic_dimensions[..]);
-                                generate_response(pi, ps, pv)
-                            })),
+                                    let (ps, pv) = (0, &graphic_dimensions[..]);
+                                    generate_response(pi, ps, pv)
+                                },
+                            )),
                             self.window_id,
                         );
                         return;

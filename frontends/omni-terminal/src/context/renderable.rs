@@ -1,3 +1,4 @@
+use std::time::Instant;
 use terminal_backend::config::colors::term::TermColors;
 use terminal_backend::config::CursorConfig;
 use terminal_backend::crosswords::grid::row::Row;
@@ -5,7 +6,6 @@ use terminal_backend::crosswords::pos::CursorState;
 use terminal_backend::crosswords::square::Square;
 use terminal_backend::event::TerminalDamage;
 use terminal_backend::selection::SelectionRange;
-use std::time::Instant;
 
 #[derive(Clone, Copy, Debug)]
 pub enum BackgroundState {

@@ -2,9 +2,9 @@
 // which is licensed under Apache 2.0 license.
 
 use clap::{Args, Parser, ValueHint};
-use terminal_backend::config::Shell;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use terminal_backend::config::Shell;
 
 #[derive(Parser, Default, Debug)]
 #[clap(author, about, version)]

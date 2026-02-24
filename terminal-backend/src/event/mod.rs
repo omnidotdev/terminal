@@ -8,13 +8,13 @@ use crate::crosswords::pos::{Direction, Pos};
 use crate::crosswords::search::{Match, RegexSearch};
 use crate::crosswords::LineDamage;
 use crate::error::TerminalError;
-use terminal_window::event::Event as TerminalWindowEvent;
 use std::borrow::Cow;
 use std::collections::{BTreeSet, VecDeque};
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::sync::Arc;
 use teletypewriter::WinsizeBuilder;
+use terminal_window::event::Event as TerminalWindowEvent;
 
 use terminal_window::event_loop::EventLoopProxy;
 
@@ -218,7 +218,9 @@ impl Debug for TerminalEvent {
                 write!(f, "ReportToAssistant({})", error_report.report)
             }
             TerminalEvent::ToggleFullScreen => write!(f, "FullScreen"),
-            TerminalEvent::SetWindowOpacity(opacity) => write!(f, "SetWindowOpacity({opacity})"),
+            TerminalEvent::SetWindowOpacity(opacity) => {
+                write!(f, "SetWindowOpacity({opacity})")
+            }
             TerminalEvent::BlinkCursor(timeout, route_id) => {
                 write!(f, "BlinkCursor {timeout} {route_id}")
             }
@@ -226,7 +228,9 @@ impl Debug for TerminalEvent {
             TerminalEvent::Noop => write!(f, "Noop"),
             TerminalEvent::Copy(_) => write!(f, "Copy"),
             TerminalEvent::Paste => write!(f, "Paste"),
-            TerminalEvent::UpdateFontSize(action) => write!(f, "UpdateFontSize({action:?})"),
+            TerminalEvent::UpdateFontSize(action) => {
+                write!(f, "UpdateFontSize({action:?})")
+            }
             TerminalEvent::UpdateGraphics { route_id, .. } => {
                 write!(f, "UpdateGraphics({route_id})")
             }

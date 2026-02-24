@@ -1,7 +1,7 @@
 use lru::LruCache;
-use terminal_backend::sugarloaf::font_introspector::Attributes;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
+use terminal_backend::sugarloaf::font_introspector::Attributes;
 use tracing::debug;
 use unicode_width::UnicodeWidthChar;
 

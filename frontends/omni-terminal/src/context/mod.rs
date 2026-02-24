@@ -14,21 +14,21 @@ use crate::messenger::Messenger;
 use crate::performer::{self, Machine};
 use renderable::Cursor;
 use renderable::RenderableContent;
-use terminal_backend::config::Shell;
 use smallvec::{smallvec, SmallVec};
+use terminal_backend::config::Shell;
 
-use terminal_backend::crosswords::{Crosswords, MIN_COLUMNS, MIN_LINES};
-use terminal_backend::error::{TerminalError, TerminalErrorLevel, TerminalErrorType};
-use terminal_backend::event::EventListener;
-use terminal_backend::event::WindowId;
-use terminal_backend::selection::SelectionRange;
-use terminal_backend::sugarloaf::{font::SugarloafFont, Object, SugarloafErrors};
 use std::borrow::Cow;
 use std::error::Error;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+use terminal_backend::crosswords::{Crosswords, MIN_COLUMNS, MIN_LINES};
+use terminal_backend::error::{TerminalError, TerminalErrorLevel, TerminalErrorType};
+use terminal_backend::event::EventListener;
+use terminal_backend::event::WindowId;
+use terminal_backend::selection::SelectionRange;
+use terminal_backend::sugarloaf::{font::SugarloafFont, Object, SugarloafErrors};
 
 // Global atomic counter for generating unique route IDs
 static ROUTE_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -369,7 +369,9 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
                 event_proxy.send_event(
                     TerminalEvent::ReportToAssistant({
                         TerminalError {
-                            report: TerminalErrorType::FontsNotFound(errors.fonts_not_found),
+                            report: TerminalErrorType::FontsNotFound(
+                                errors.fonts_not_found,
+                            ),
                             level: TerminalErrorLevel::Warning,
                         }
                     }),
@@ -493,8 +495,10 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
 
     #[inline]
     pub fn request_render(&mut self) {
-        self.event_proxy
-            .send_event(TerminalEvent::RenderRoute(self.current_route), self.window_id);
+        self.event_proxy.send_event(
+            TerminalEvent::RenderRoute(self.current_route),
+            self.window_id,
+        );
     }
 
     #[inline]
@@ -609,8 +613,10 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     #[inline]
     pub fn select_tab(&mut self, tab_index: usize) {
         if self.config.is_native {
-            self.event_proxy
-                .send_event(TerminalEvent::SelectNativeTabByIndex(tab_index), self.window_id);
+            self.event_proxy.send_event(
+                TerminalEvent::SelectNativeTabByIndex(tab_index),
+                self.window_id,
+            );
             return;
         }
 
@@ -637,12 +643,14 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
 
     #[inline]
     pub fn hide(&mut self) {
-        self.event_proxy.send_event(TerminalEvent::Hide, self.window_id);
+        self.event_proxy
+            .send_event(TerminalEvent::Hide, self.window_id);
     }
 
     #[inline]
     pub fn quit(&mut self) {
-        self.event_proxy.send_event(TerminalEvent::Quit, self.window_id);
+        self.event_proxy
+            .send_event(TerminalEvent::Quit, self.window_id);
     }
 
     #[cfg(target_os = "macos")]
@@ -1097,15 +1105,17 @@ fn calculate_selection_damage(
     old: Option<SelectionRange>,
     new: Option<SelectionRange>,
 ) -> terminal_backend::event::TerminalDamage {
-    use terminal_backend::crosswords::LineDamage;
     use std::collections::BTreeSet;
+    use terminal_backend::crosswords::LineDamage;
 
     match (old, new) {
         // No selection -> No selection: no damage
         (None, None) => terminal_backend::event::TerminalDamage::CursorOnly,
 
         // Selection cleared or created: need full damage
-        (None, Some(_)) | (Some(_), None) => terminal_backend::event::TerminalDamage::Full,
+        (None, Some(_)) | (Some(_), None) => {
+            terminal_backend::event::TerminalDamage::Full
+        }
 
         // Selection changed: calculate partial damage
         (Some(old_range), Some(new_range)) => {
@@ -1178,7 +1188,10 @@ mod selection_damage_tests {
             false,
         ));
         let damage = calculate_selection_damage(None, new_selection);
-        assert!(matches!(damage, terminal_backend::event::TerminalDamage::Full));
+        assert!(matches!(
+            damage,
+            terminal_backend::event::TerminalDamage::Full
+        ));
     }
 
     #[test]
@@ -1189,7 +1202,10 @@ mod selection_damage_tests {
             false,
         ));
         let damage = calculate_selection_damage(old_selection, None);
-        assert!(matches!(damage, terminal_backend::event::TerminalDamage::Full));
+        assert!(matches!(
+            damage,
+            terminal_backend::event::TerminalDamage::Full
+        ));
     }
 
     #[test]
@@ -1205,7 +1221,10 @@ mod selection_damage_tests {
             true, // block selection
         ));
         let damage = calculate_selection_damage(old_selection, new_selection);
-        assert!(matches!(damage, terminal_backend::event::TerminalDamage::Full));
+        assert!(matches!(
+            damage,
+            terminal_backend::event::TerminalDamage::Full
+        ));
     }
 
     #[test]

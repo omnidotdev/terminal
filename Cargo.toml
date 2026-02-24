@@ -17,7 +17,7 @@ resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-authors = ["Omni LLC <hello@omni.dev>"]
+authors = ["Omni LLC <team@omni.dev>"]
 edition = "2021"
 license = "MIT"
 keywords = ["graphics", "terminal", "application"]

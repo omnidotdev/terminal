@@ -89,7 +89,7 @@ wayland = [
 
 [package.metadata.deb]
 name = "omni-terminal"
-maintainer = "Omni LLC <hello@omni.dev>"
+maintainer = "Omni LLC <team@omni.dev>"
 copyright = "Omni LLC"
 depends = "$auto"
 section = "admin"

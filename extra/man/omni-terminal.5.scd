@@ -453,4 +453,4 @@ Found a bug? Please report it at _https://github.com/omnidotdev/terminal/issues_
 
 # MAINTAINERS
 
-- Omni LLC <hello@omni.dev>
+- Omni LLC <team@omni.dev>

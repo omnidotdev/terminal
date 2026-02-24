@@ -1,5 +1,5 @@
 [package]
-authors = ["Omni LLC <hello@omni.dev>"]
+authors = ["Omni LLC <team@omni.dev>"]
 description = "Omni Terminal proc macros"
 repository = { workspace = true }
 name = "terminal-proc-macros"

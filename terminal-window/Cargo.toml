@@ -3,7 +3,7 @@ name = "terminal-window"
 authors = [
     "The winit contributors",
     "Pierre Krieger <pierre.krieger1708@gmail.com>",
-    "Omni LLC <hello@omni.dev>"
+    "Omni LLC <team@omni.dev>"
 ]
 version.workspace = true
 edition.workspace = true

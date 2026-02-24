@@ -170,11 +170,12 @@ jobs:
       - name: Create MSI
         if: matrix.target == 'x86_64-pc-windows-msvc'
         run: cargo wix -p omni-terminal --no-build --nocapture
-      - name: Sign MSI
-        if: matrix.target == 'x86_64-pc-windows-msvc' && env.WINDOWS_CERTIFICATE != ''
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-        run: echo "TODO - Windows signing not yet configured"
+      # TODO: uncomment when Windows signing certificate is configured
+      # - name: Sign MSI
+      #   if: matrix.target == 'x86_64-pc-windows-msvc' && env.WINDOWS_CERTIFICATE != ''
+      #   env:
+      #     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      #   run: signtool sign /fd SHA256 /f certificate.pfx target/wix/*.msi
       - name: Upload Windows artifact
         if: matrix.target == 'x86_64-pc-windows-msvc'
         uses: actions/upload-artifact@v4
@@ -210,13 +211,14 @@ jobs:
           cp -r misc/osx/OmniTerminal.app "$APP"
           mkdir -p "$APP/Contents/MacOS"
           cp omni-terminal "$APP/Contents/MacOS/omni-terminal"
-      - name: Codesign
-        if: env.APPLE_CERTIFICATE != ''
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: echo "TODO - macOS signing not yet configured"
+      # TODO: uncomment when Apple Developer certificate is configured
+      # - name: Codesign
+      #   if: env.APPLE_CERTIFICATE != ''
+      #   env:
+      #     APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      #     APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      #     APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      #   run: codesign --force --deep --sign "$APPLE_TEAM_ID" OmniTerminal.app
       - name: Install create-dmg
         run: brew install create-dmg
       - name: Create DMG

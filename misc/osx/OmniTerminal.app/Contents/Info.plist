@@ -5,7 +5,7 @@
   <key>CFBundleAllowMixedLocalizations</key>
   <true/>
   <key>CFBundleDevelopmentRegion</key>
-  <string>English</string>
+  <string>en</string>
   <key>CFBundleDisplayName</key>
   <string>Omni Terminal</string>
   <key>CFBundleExecutable</key>
@@ -119,8 +119,6 @@
   <string>public.app-category.utilities</string>
   <key>LSMinimumSystemVersion</key>
   <string>10.15.7</string>
-  <key>LSRequiresCarbon</key>
-  <true/>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSSupportsAutomaticGraphicsSwitching</key>

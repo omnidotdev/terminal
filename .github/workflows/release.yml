@@ -211,6 +211,12 @@ jobs:
           cp -r misc/osx/OmniTerminal.app "$APP"
           mkdir -p "$APP/Contents/MacOS"
           cp omni-terminal "$APP/Contents/MacOS/omni-terminal"
+      - name: Patch Info.plist version
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          PLIST="OmniTerminal.app/Contents/Info.plist"
+          sed -i '' "s/{{.Version}}/${VERSION:-0.0.0}/" "$PLIST"
+          sed -i '' "s/20230528.115631/${{ github.run_number }}/" "$PLIST"
       # TODO: uncomment when Apple Developer certificate is configured
       # - name: Codesign
       #   if: env.APPLE_CERTIFICATE != ''
@@ -231,7 +237,7 @@ jobs:
             --icon-size 100 \
             --app-drop-link 600 185 \
             "OmniTerminal-v${VERSION:-dev}.dmg" \
-            "OmniTerminal.app" || true
+            "OmniTerminal.app"
           ls OmniTerminal-v*.dmg
       - name: Package tarball
         run: tar -czvf omni-terminal-macos-universal.tar.gz omni-terminal

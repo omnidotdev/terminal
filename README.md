@@ -31,12 +31,9 @@
 | Platform | Channel | Command |
 | --- | --- | --- |
 | Universal | [GitHub Releases](https://github.com/omnidotdev/terminal/releases) | Download from releases page |
-| Rust | crates.io | `cargo install omni-terminal` |
 | macOS | Homebrew | `brew install --cask omnidotdev/tap/omni-terminal` |
 | Arch Linux | AUR | `yay -S omni-terminal` |
-| Linux | Flatpak | `flatpak install flathub dev.omni.Terminal` |
 | Debian/Ubuntu | .deb | Download from releases page |
-| Windows | Winget | `winget install Omni.Terminal` |
 
 ### Build from source
 

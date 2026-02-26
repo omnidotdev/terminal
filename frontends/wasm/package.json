@@ -1,6 +1,6 @@
 {
   "name": "@omnidotdev/terminal",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "type": "module",
   "description": "Embeddable WebGPU terminal component powered by WASM",
   "main": "./build/index.js",

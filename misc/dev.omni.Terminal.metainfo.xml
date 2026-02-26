@@ -20,7 +20,7 @@
   <project_license>MIT</project_license>
   <metadata_license>CC0-1.0</metadata_license>
 
-  <launchable type="desktop-id">dev.omni.Terminal.desktop</launchable>
+  <launchable type="desktop-id">omni-terminal.desktop</launchable>
 
   <url type="homepage">https://terminal.omni.dev/</url>
   <url type="help">https://docs.omni.dev/armory/omni-terminal</url>

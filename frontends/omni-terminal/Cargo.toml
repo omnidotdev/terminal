@@ -92,20 +92,23 @@ name = "omni-terminal"
 maintainer = "Omni LLC <team@omni.dev>"
 copyright = "Omni LLC"
 depends = "$auto"
-section = "admin"
+section = "x11"
 priority = "optional"
 assets = [
-    ["../../target/release/omni-terminal", "usr/local/bin/", "755"],
+    ["../../target/release/omni-terminal", "usr/bin/", "755"],
     ["../../misc/omni-terminal.desktop", "usr/share/applications/", "644"],
     ["../../misc/omni-terminal.terminfo", "usr/share/terminfo/o/omni-terminal", "644"],
     ["../../misc/logo.svg", "usr/share/icons/hicolor/scalable/apps/omni-terminal.svg", "644"],
     ["../../README.md", "usr/share/doc/omni-terminal/", "644"],
-    ["../../LICENSE.md", "usr/share/doc/omni-terminal/", "664"],
+    ["../../LICENSE.md", "usr/share/doc/omni-terminal/", "644"],
     ["../../NOTICE.md", "usr/share/doc/omni-terminal/", "644"]
 ]
 extended-description = """\
 Omni Terminal is a GPU-accelerated terminal emulator built to run everywhere.
 The supported platforms currently consist of BSD, Linux, macOS and Windows."""
+
+[package.metadata.wix]
+wsx = "../../misc/windows/omni-terminal.wxs"
 
 [[bench]]
 name = "renderer_bench"

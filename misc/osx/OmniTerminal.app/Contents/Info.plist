@@ -155,12 +155,8 @@
   <string>NO</string>
   <key>NSSpeechRecognitionUsageDescription</key>
   <string>A program running inside Omni Terminal would like to access speech recognition.</string>
-  <key>NSSupportsAutomaticGraphicsSwitching</key>
-  <true/>
   <key>NSSupportsSuddenTermination</key>
   <false/>
-  <key>NSSystemAdministrationUsageDescription</key>
-  <string>A program running inside Omni Terminal requires elevated privileges.</string>
   <key>TICapsLockLanguageSwitchCapable</key>
   <true/>
   <key>com.apple.security.automation.apple-events</key>

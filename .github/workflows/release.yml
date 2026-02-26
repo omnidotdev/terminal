@@ -44,6 +44,7 @@ jobs:
           commit: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
       - name: Get version
         id: version
@@ -211,9 +212,17 @@ jobs:
           cp -r misc/osx/OmniTerminal.app "$APP"
           mkdir -p "$APP/Contents/MacOS"
           cp omni-terminal "$APP/Contents/MacOS/omni-terminal"
-      - name: Patch Info.plist version
+      - name: Get version
+        id: version
         run: |
           VERSION="${{ needs.release.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Patch Info.plist version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
           PLIST="OmniTerminal.app/Contents/Info.plist"
           sed -i '' "s/{{.Version}}/${VERSION:-0.0.0}/" "$PLIST"
           sed -i '' "s/20230528.115631/${{ github.run_number }}/" "$PLIST"
@@ -229,7 +238,7 @@ jobs:
         run: brew install create-dmg
       - name: Create DMG
         run: |
-          VERSION="${{ needs.release.outputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
           create-dmg \
             --volname "Omni Terminal" \
             --window-pos 200 120 \

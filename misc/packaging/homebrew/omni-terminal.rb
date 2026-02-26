@@ -1,6 +1,6 @@
 cask "omni-terminal" do
-  version :latest
-  # sha256 will be populated on release
+  version "0.1.0"
+  # TODO: update with real SHA256 after first release
   sha256 :no_check
 
   url "https://github.com/omnidotdev/terminal/releases/download/v#{version}/OmniTerminal-v#{version}.dmg"
@@ -11,7 +11,7 @@ cask "omni-terminal" do
   app "OmniTerminal.app"
 
   zap trash: [
-    "~/.config/omni-terminal",
+    "~/.config/omni/terminal",
     "~/Library/Caches/dev.omni.Terminal",
     "~/Library/Preferences/dev.omni.Terminal.plist",
   ]

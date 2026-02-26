@@ -44,4 +44,13 @@
     <keyword>fast terminal emulator</keyword>
     <keyword>true color terminal</keyword>
   </keywords>
+
+  <releases>
+    <release version="0.1.0" date="2026-02-25">
+      <description>
+        <p>Initial public release of Omni Terminal</p>
+      </description>
+      <url type="details">https://github.com/omnidotdev/terminal/releases/tag/v0.1.0</url>
+    </release>
+  </releases>
 </component>

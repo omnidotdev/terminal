@@ -13,7 +13,7 @@ source=("https://github.com/omnidotdev/terminal/releases/download/v$pkgver/omni-
         "omni-terminal.desktop::https://raw.githubusercontent.com/omnidotdev/terminal/v$pkgver/misc/omni-terminal.desktop"
         "omni-terminal.svg::https://raw.githubusercontent.com/omnidotdev/terminal/v$pkgver/misc/logo.svg"
         "dev.omni.Terminal.metainfo.xml::https://raw.githubusercontent.com/omnidotdev/terminal/v$pkgver/misc/dev.omni.Terminal.metainfo.xml"
-        "LICENSE::https://raw.githubusercontent.com/omnidotdev/terminal/v$pkgver/LICENSE")
+        "LICENSE::https://raw.githubusercontent.com/omnidotdev/terminal/v$pkgver/LICENSE.md")
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {

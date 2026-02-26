@@ -54,6 +54,11 @@ Configuration documentation is available at [terminal.omni.dev](https://terminal
 
 See Omni's [contributing docs](https://docs.omni.dev/contributing/overview).
 
+## Ecosystem
+
+- **[Omni CLI](https://github.com/omnidotdev/cli)**: Agentic CLI for the Omni ecosystem
+- **[Beacon](https://github.com/omnidotdev/beacon-gateway)**: Voice and messaging gateway for AI assistants
+
 ## License
 
 The code in this repository is licensed under MIT, &copy; [Omni LLC](https://omni.dev). See [LICENSE.md](LICENSE.md) for more information.

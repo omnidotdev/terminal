@@ -8,7 +8,7 @@
     "lint": "biome lint --write scripts",
     "format": "biome format --write scripts",
     "version": "changeset version && bun scripts/syncVersion.ts",
-    "release": "bun run --cwd frontends/wasm build && changeset publish",
+    "release": "bun run --cwd frontends/wasm build && NPM_CONFIG_PROVENANCE=true changeset publish",
     "prepare": "husky"
   },
   "devDependencies": {

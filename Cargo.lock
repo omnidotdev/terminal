@@ -817,7 +817,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copa"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "arrayvec",
  "criterion",
@@ -843,7 +843,7 @@ dependencies = [
 
 [[package]]
 name = "corcovado"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "bytes 0.3.0",
  "cfg-if 0.1.10",
@@ -3282,7 +3282,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "ahash",
  "bitflags 2.10.0",
@@ -3320,7 +3320,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-android"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "android_logger",
  "copa",
@@ -3344,7 +3344,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-wasm"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
@@ -4536,7 +4536,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sugarloaf"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "approx",
  "bytemuck",
@@ -4623,7 +4623,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "teletypewriter"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "corcovado",
  "dirs",
@@ -4657,7 +4657,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-backend"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "base64",
  "bitflags 2.10.0",
@@ -4690,7 +4690,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-emulator"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "copa",
  "sugarloaf",
@@ -4698,7 +4698,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-proc-macros"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4706,7 +4706,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-window"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "ahash",
  "atomic-waker",
@@ -5639,7 +5639,7 @@ dependencies = [
 
 [[package]]
 name = "web-server"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "axum",
  "dashmap",

@@ -290,3 +290,40 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update Homebrew tap
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_FILE=$(find artifacts/macos-universal -name '*.dmg' | head -1)
+          SHA256=$(shasum -a 256 "$DMG_FILE" | awk '{print $1}')
+
+          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/omnidotdev/homebrew-tap.git tap
+          cd tap
+
+          mkdir -p Casks
+          cat > Casks/omni-terminal.rb <<EOF
+          cask "omni-terminal" do
+            version "${VERSION}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/omnidotdev/terminal/releases/download/v#{version}/OmniTerminal-v#{version}.dmg"
+            name "Omni Terminal"
+            desc "GPU-accelerated terminal emulator built to run everywhere"
+            homepage "https://terminal.omni.dev"
+
+            app "OmniTerminal.app"
+
+            zap trash: [
+              "~/.config/omni/terminal",
+              "~/Library/Caches/dev.omni.Terminal",
+              "~/Library/Preferences/dev.omni.Terminal.plist",
+            ]
+          end
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/omni-terminal.rb
+          git commit -m "chore: update omni-terminal to v${VERSION}"
+          git push

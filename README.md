@@ -28,19 +28,26 @@
 
 ## Installation
 
-| Platform | Channel | Command |
+| Platform | Channel | Command / Link |
 | --- | --- | --- |
-| Universal | [GitHub Releases](https://github.com/omnidotdev/terminal/releases) | Download from releases page |
-| macOS | Homebrew | `brew install --cask omnidotdev/tap/omni-terminal` |
-| Arch Linux | AUR | `yay -S omni-terminal` |
-| Debian/Ubuntu | .deb | Download from releases page |
+| All | [GitHub Releases](https://github.com/omnidotdev/terminal/releases) | Download from releases page |
+| All | Source | `cargo install --git https://github.com/omnidotdev/terminal -p omni-terminal` |
+| macOS | [Homebrew](https://brew.sh) | `brew install --cask omnidotdev/tap/omni-terminal` |
+| Arch Linux | [AUR](https://aur.archlinux.org) | `yay -S omni-terminal` or `yay -S omni-terminal-bin` |
+| Debian/Ubuntu | .deb | Download x11 or wayland .deb from releases |
+| Windows | [WinGet](https://github.com/microsoft/winget-cli) | `winget install Omni.Terminal` |
+| Linux | [Flatpak](https://flatpak.org) | `flatpak install dev.omni.Terminal` |
 
 ### Build from source
 
 ```bash
+# Linux: install system dependencies first
+# Debian/Ubuntu: sudo apt install libwayland-dev libxkbcommon-dev libfontconfig-dev
+# Arch: sudo pacman -S fontconfig freetype2 libxkbcommon wayland
+
 git clone https://github.com/omnidotdev/terminal
 cd terminal
-cargo build --release
+cargo build --release -p omni-terminal
 ```
 
 ## Configuration

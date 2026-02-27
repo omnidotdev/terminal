@@ -2,11 +2,11 @@
   <!-- Dark background -->
   <rect width="1200" height="630" fill="#0d0f12"/>
 
-  <!-- Logo centered and scaled -->
-  <g transform="translate(500, 215) scale(2)">
+  <!-- Logo mark centered and scaled -->
+  <g transform="translate(450, 165) scale(3)">
     <!-- O circle -->
-    <circle cx="37" cy="50" r="28" stroke="white" stroke-width="6" fill="none"/>
-    <!-- > chevron -->
-    <polyline points="75,58 91,68 75,78" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="39" cy="50" r="20" stroke="white" stroke-width="4.5" fill="none"/>
+    <!-- > chevron (bottom-aligned with O) -->
+    <polyline points="68,52 81,61 68,70" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   </g>
 </svg>

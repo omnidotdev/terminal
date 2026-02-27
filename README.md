@@ -20,10 +20,10 @@
 
 | Platform | Status |
 | --- | --- |
-| macOS | Stable |
-| Linux | Stable |
-| Windows | Stable |
-| Web (WebAssembly) | In progress |
+| macOS | Experimental |
+| Linux | Experimental |
+| Windows | Experimental |
+| Web (WebAssembly) | Experimental |
 | Android | Experimental |
 
 ## Installation

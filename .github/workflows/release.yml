@@ -34,6 +34,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+      - name: Ensure wasm target on project toolchain
+        run: rustup target add wasm32-unknown-unknown
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli --version 0.2.106
       - name: Install dependencies

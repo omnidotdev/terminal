@@ -33,10 +33,8 @@
 | All | [GitHub Releases](https://github.com/omnidotdev/terminal/releases) | Download from releases page |
 | All | Source | `cargo install --git https://github.com/omnidotdev/terminal -p omni-terminal` |
 | macOS | [Homebrew](https://brew.sh) | `brew install --cask omnidotdev/tap/omni-terminal` |
-| Arch Linux | [AUR](https://aur.archlinux.org) | `yay -S omni-terminal` or `yay -S omni-terminal-bin` |
+| Arch Linux | [AUR](https://aur.archlinux.org) | `yay -S omnidotdev-terminal` or `yay -S omnidotdev-terminal-bin` |
 | Debian/Ubuntu | .deb | Download x11 or wayland .deb from releases |
-| Windows | [WinGet](https://github.com/microsoft/winget-cli) | `winget install Omni.Terminal` |
-| Linux | [Flatpak](https://flatpak.org) | `flatpak install dev.omni.Terminal` |
 
 ### Build from source
 

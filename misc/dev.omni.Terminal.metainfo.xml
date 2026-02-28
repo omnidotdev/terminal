@@ -45,8 +45,6 @@
     <keyword>true color terminal</keyword>
   </keywords>
 
-  <!-- TODO: add screenshots before Flathub submission -->
-
   <releases>
     <release version="0.1.0" date="2026-02-25">
       <description>

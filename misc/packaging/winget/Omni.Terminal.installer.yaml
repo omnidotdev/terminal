@@ -4,6 +4,6 @@ Installers:
   - Architecture: x64
     InstallerType: wix
     InstallerUrl: https://github.com/omnidotdev/terminal/releases/download/v0.1.0/omni-terminal-0.1.0-x86_64.msi
-    InstallerSha256: PLACEHOLDER
+    InstallerSha256: 76f35e7b0a0715d31323a30fb9b769db7b3b93c7470979dc80904da0073e7a62
 ManifestType: installer
 ManifestVersion: 1.6.0

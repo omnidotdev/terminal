@@ -28,4 +28,4 @@ modules:
     sources:
       - type: archive
         url: https://github.com/omnidotdev/terminal/archive/v0.1.0.tar.gz
-        sha256: PLACEHOLDER
+        sha256: 0270eeb683707355403e81be861682e7fb5ae0e864e215ff47b9bacde39f3258

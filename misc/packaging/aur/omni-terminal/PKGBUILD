@@ -9,7 +9,7 @@ license=('MIT')
 depends=('fontconfig' 'freetype2' 'libxkbcommon' 'wayland')
 makedepends=('cargo' 'cmake' 'python')
 source=("https://github.com/omnidotdev/terminal/archive/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('0270eeb683707355403e81be861682e7fb5ae0e864e215ff47b9bacde39f3258')
 
 build() {
   cd "terminal-$pkgver"

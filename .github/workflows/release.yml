@@ -136,15 +136,19 @@ jobs:
           cd target/release
           tar -czvf omni-terminal-x86_64-unknown-linux-gnu.tar.gz omni-terminal
           mv omni-terminal-x86_64-unknown-linux-gnu.tar.gz ../../
+      - name: Collect Linux artifacts
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          mkdir -p dist
+          cp target/debian/omni-terminal_x11.deb dist/
+          cp target/debian/omni-terminal_wayland.deb dist/
+          cp omni-terminal-x86_64-unknown-linux-gnu.tar.gz dist/
       - name: Upload Linux artifacts
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         uses: actions/upload-artifact@v4
         with:
           name: linux-x86_64
-          path: |
-            target/debian/omni-terminal_x11.deb
-            target/debian/omni-terminal_wayland.deb
-            omni-terminal-x86_64-unknown-linux-gnu.tar.gz
+          path: dist/*
 
       # Linux aarch64 (cross-compile)
       - name: Install cross-compilation tools
@@ -295,7 +299,7 @@ jobs:
     needs: [release, build, package-macos]
     if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Get version
@@ -334,7 +338,7 @@ jobs:
           cd tap
 
           mkdir -p Casks
-          cat > Casks/omni-terminal.rb <<EOF
+          cat > Casks/omni-terminal.rb <<'CASKEOF'
           cask "omni-terminal" do
             version "${VERSION}"
             sha256 "${SHA256}"
@@ -352,10 +356,134 @@ jobs:
               "~/Library/Preferences/dev.omni.Terminal.plist",
             ]
           end
-          EOF
+          CASKEOF
+          sed -i "s/\${VERSION}/${VERSION}/g; s/\${SHA256}/${SHA256}/g" Casks/omni-terminal.rb
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Casks/omni-terminal.rb
           git commit -m "chore: update omni-terminal to v${VERSION}"
           git push
+      - name: Publish to AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          cat >> ~/.ssh/config <<SSH
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          SSH
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+
+          SOURCE_SHA256=$(curl -sL "https://github.com/omnidotdev/terminal/archive/v${VERSION}.tar.gz" | shasum -a 256 | awk '{print $1}')
+          BIN_SHA256=$(shasum -a 256 artifacts/linux-x86_64/omni-terminal-x86_64-unknown-linux-gnu.tar.gz | awk '{print $1}')
+
+          publish_aur() {
+            local pkg="$1" sha="$2"
+            git clone "ssh://aur@aur.archlinux.org/${pkg}.git" "${pkg}" 2>/dev/null || {
+              mkdir "${pkg}" && cd "${pkg}" && git init && git remote add origin "ssh://aur@aur.archlinux.org/${pkg}.git" && cd ..
+            }
+            cd "${pkg}"
+            cp "../misc/packaging/aur/${pkg}/PKGBUILD" .
+            sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
+            if [ -n "$sha" ]; then
+              sed -i "s/^sha256sums=.*/sha256sums=('${sha}')/" PKGBUILD
+            fi
+            # Generate .SRCINFO from PKGBUILD
+            docker run --rm -v "$PWD:/pkg" -w /pkg archlinux:base bash -c \
+              "pacman -Sy --noconfirm base-devel >/dev/null 2>&1 && su -s /bin/bash nobody -c 'makepkg --printsrcinfo'" > .SRCINFO
+            git config user.name "Omni LLC"
+            git config user.email "team@omni.dev"
+            git add PKGBUILD .SRCINFO
+            git diff --cached --quiet || git commit -m "Update to v${VERSION}"
+            git push origin master
+            cd ..
+          }
+
+          publish_aur "omni-terminal" "$SOURCE_SHA256"
+          publish_aur "omni-terminal-bin" ""
+
+          rm -f ~/.ssh/aur
+      - name: Publish to winget
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        if: env.WINGET_TOKEN != ''
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          MSI_FILE=$(find artifacts/windows-x86_64 -name '*.msi' | head -1)
+          MSI_URL="https://github.com/omnidotdev/terminal/releases/download/v${VERSION}/omni-terminal-${VERSION}-x86_64.msi"
+          MSI_SHA256=$(shasum -a 256 "$MSI_FILE" | awk '{print $1}')
+          MANIFEST_DIR="manifests/o/Omni/Terminal/${VERSION}"
+
+          gh repo fork microsoft/winget-pkgs --clone=false 2>/dev/null || true
+          gh repo sync omnidotdev/winget-pkgs --source microsoft/winget-pkgs 2>/dev/null || true
+
+          git clone --depth 1 https://x-access-token:${WINGET_TOKEN}@github.com/omnidotdev/winget-pkgs.git winget-pkgs
+          cd winget-pkgs
+          git checkout -b "omni-terminal-${VERSION}"
+          mkdir -p "${MANIFEST_DIR}"
+
+          cat > "${MANIFEST_DIR}/Omni.Terminal.yaml" <<WGEOF
+          PackageIdentifier: Omni.Terminal
+          PackageVersion: ${VERSION}
+          DefaultLocale: en-US
+          ManifestType: version
+          ManifestVersion: 1.6.0
+          WGEOF
+
+          cat > "${MANIFEST_DIR}/Omni.Terminal.installer.yaml" <<WGEOF
+          PackageIdentifier: Omni.Terminal
+          PackageVersion: ${VERSION}
+          Installers:
+            - Architecture: x64
+              InstallerType: wix
+              InstallerUrl: ${MSI_URL}
+              InstallerSha256: ${MSI_SHA256}
+          ManifestType: installer
+          ManifestVersion: 1.6.0
+          WGEOF
+
+          cat > "${MANIFEST_DIR}/Omni.Terminal.locale.en-US.yaml" <<WGEOF
+          PackageIdentifier: Omni.Terminal
+          PackageVersion: ${VERSION}
+          PackageLocale: en-US
+          Publisher: Omni LLC
+          PublisherUrl: https://omni.dev
+          PackageName: Omni Terminal
+          PackageUrl: https://terminal.omni.dev
+          License: MIT
+          LicenseUrl: https://github.com/omnidotdev/terminal/blob/master/LICENSE.md
+          ShortDescription: GPU-accelerated terminal emulator built to run everywhere
+          ManifestType: defaultLocale
+          ManifestVersion: 1.6.0
+          WGEOF
+
+          # Strip leading whitespace from heredoc indentation
+          for f in "${MANIFEST_DIR}"/*.yaml; do sed -i 's/^          //' "$f"; done
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${MANIFEST_DIR}"
+          git commit -m "Add Omni.Terminal v${VERSION}"
+          git push -u origin "omni-terminal-${VERSION}"
+
+          gh pr create \
+            --repo microsoft/winget-pkgs \
+            --head "omnidotdev:omni-terminal-${VERSION}" \
+            --title "Add Omni.Terminal v${VERSION}" \
+            --body "$(cat <<'PREOF'
+          ## Add Omni.Terminal
+
+          ### Package info
+          - **Publisher:** Omni LLC
+          - **Package URL:** https://terminal.omni.dev
+          - **License:** MIT
+          - **Installer:** MSI (WiX)
+          PREOF
+          )" || true

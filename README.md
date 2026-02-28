@@ -32,7 +32,7 @@
 | --- | --- | --- |
 | All | [GitHub Releases](https://github.com/omnidotdev/terminal/releases) | Download from releases page |
 | All | Source | `cargo install --git https://github.com/omnidotdev/terminal -p omni-terminal` |
-| macOS | [Homebrew](https://github.com/omnidotdev/homebrew-tap) | `brew install --cask omnidotdev/tap/omni-terminal` |
+| macOS | [Homebrew](https://github.com/omnidotdev/homebrew-tap/blob/master/Casks/omni-terminal.rb) | `brew install --cask omnidotdev/tap/omni-terminal` |
 | Arch Linux | [AUR](https://aur.archlinux.org/packages/omnidotdev-terminal) / [AUR (bin)](https://aur.archlinux.org/packages/omnidotdev-terminal-bin) | `paru -S omnidotdev-terminal` or `paru -S omnidotdev-terminal-bin` |
 
 ### Build from source

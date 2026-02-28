@@ -33,7 +33,7 @@ readme = "README.md"
 # Sugarloaf example uses path when used locally, but uses
 # version from crates.io when published.
 teletypewriter = { path = "teletypewriter", version = "0.1.0" }
-terminal-backend = { path = "terminal-backend", version = "0.1.0" }
+terminal-backend = { path = "terminal-backend", version = "0.1.0", default-features = false }
 terminal-window = { path = "terminal-window", version = "0.1.0", default-features = false }
 terminal-emulator = { path = "terminal-emulator", version = "0.1.0" }
 sugarloaf = { path = "sugarloaf", version = "0.1.0" }

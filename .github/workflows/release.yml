@@ -180,7 +180,7 @@ jobs:
         run: cargo build --release -p omni-terminal
       - name: Create MSI
         if: matrix.target == 'x86_64-pc-windows-msvc'
-        run: cargo wix -p omni-terminal --no-build --nocapture misc/windows/omni-terminal.wxs
+        run: cargo wix -p omni-terminal --no-build --nocapture -I misc/windows/omni-terminal.wxs
       # TODO: uncomment when Windows signing certificate is configured
       # - name: Sign MSI
       #   if: matrix.target == 'x86_64-pc-windows-msvc' && env.WINDOWS_CERTIFICATE != ''

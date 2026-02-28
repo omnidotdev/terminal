@@ -33,7 +33,7 @@
 | All | [GitHub Releases](https://github.com/omnidotdev/terminal/releases) | Download from releases page |
 | All | Source | `cargo install --git https://github.com/omnidotdev/terminal -p omni-terminal` |
 | macOS | [Homebrew](https://github.com/omnidotdev/homebrew-tap) | `brew install --cask omnidotdev/tap/omni-terminal` |
-| Arch Linux | [AUR](https://aur.archlinux.org/packages/omnidotdev-terminal) / [AUR (bin)](https://aur.archlinux.org/packages/omnidotdev-terminal-bin) | `yay -S omnidotdev-terminal` or `yay -S omnidotdev-terminal-bin` |
+| Arch Linux | [AUR](https://aur.archlinux.org/packages/omnidotdev-terminal) / [AUR (bin)](https://aur.archlinux.org/packages/omnidotdev-terminal-bin) | `paru -S omnidotdev-terminal` or `paru -S omnidotdev-terminal-bin` |
 
 ### Build from source
 
@@ -45,6 +45,16 @@
 git clone https://github.com/omnidotdev/terminal
 cd terminal
 cargo build --release -p omni-terminal
+```
+
+Platform-specific frontends (`android-lib`, `wasm`) are excluded from `default-members` so they are not compiled during a standard `cargo build`. To build them, target the package explicitly with the appropriate cross-compilation target:
+
+```bash
+# Android
+cargo build -p omni-terminal-android --target aarch64-linux-android
+
+# WebAssembly
+cargo build -p omni-terminal-wasm --target wasm32-unknown-unknown
 ```
 
 ## Configuration

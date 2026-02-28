@@ -34,7 +34,6 @@
 | All | Source | `cargo install --git https://github.com/omnidotdev/terminal -p omni-terminal` |
 | macOS | [Homebrew](https://brew.sh) | `brew install --cask omnidotdev/tap/omni-terminal` |
 | Arch Linux | [AUR](https://aur.archlinux.org) | `yay -S omnidotdev-terminal` or `yay -S omnidotdev-terminal-bin` |
-| Debian/Ubuntu | .deb | Download x11 or wayland .deb from releases |
 
 ### Build from source
 

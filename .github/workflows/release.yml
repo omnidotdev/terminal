@@ -112,22 +112,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig-dev libwayland-dev libxkbcommon-dev
-      - name: Install cargo-deb
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo install cargo-deb
-      - name: Build (x11)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo build --release -p omni-terminal --no-default-features --features x11
-      - name: Package deb (x11)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo deb -p omni-terminal --no-build --output target/debian/omni-terminal_x11.deb
-      - name: Build (wayland)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo build --release -p omni-terminal --no-default-features --features wayland
-      - name: Package deb (wayland)
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo deb -p omni-terminal --no-build --output target/debian/omni-terminal_wayland.deb
-      - name: Build (default features)
+      - name: Build
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: cargo build --release -p omni-terminal
       - name: Package tarball
@@ -140,8 +125,6 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
           mkdir -p dist
-          cp target/debian/omni-terminal_x11.deb dist/
-          cp target/debian/omni-terminal_wayland.deb dist/
           cp omni-terminal-x86_64-unknown-linux-gnu.tar.gz dist/
       - name: Upload Linux artifacts
         if: matrix.target == 'x86_64-unknown-linux-gnu'

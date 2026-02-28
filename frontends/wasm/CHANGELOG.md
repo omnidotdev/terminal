@@ -37,5 +37,5 @@
 
   - Homebrew tap and AUR (binary and source) packaging
   - macOS universal DMG (x86_64 + aarch64 via lipo)
-  - Linux .deb packages for X11 and Wayland, plus tarball distribution
+  - Linux tarball distribution
   - Optimized release profile — LTO, symbol stripping, panic abort, single codegen unit

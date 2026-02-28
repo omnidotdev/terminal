@@ -154,10 +154,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo dpkg --add-architecture arm64
+          # Constrain existing sources to amd64 only (arm64 served by ports.ubuntu.com)
+          # Handle DEB822 format (.sources) used by Ubuntu 24.04+
+          for f in /etc/apt/sources.list.d/*.sources; do
+            [ -f "$f" ] || continue
+            case "$f" in *microsoft*|*azure*) continue ;; esac
+            sudo sed -i '/^Types:/a Architectures: amd64' "$f"
+          done
+          # Handle legacy format (.list)
           for f in /etc/apt/sources.list.d/*.list; do
+            [ -f "$f" ] || continue
             case "$f" in *microsoft*|*azure*) continue ;; esac
             sudo sed -i 's/^deb /deb [arch=amd64] /' "$f"
           done
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+          fi
           echo "deb [arch=arm64] http://ports.ubuntu.com/ $(lsb_release -cs) main restricted universe" | sudo tee /etc/apt/sources.list.d/arm64.list
           echo "deb [arch=arm64] http://ports.ubuntu.com/ $(lsb_release -cs)-updates main restricted universe" | sudo tee -a /etc/apt/sources.list.d/arm64.list
           sudo apt-get update
@@ -165,6 +177,7 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
       - name: Build
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: cargo build --release -p omni-terminal --target aarch64-unknown-linux-gnu --no-default-features

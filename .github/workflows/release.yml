@@ -72,7 +72,7 @@ jobs:
         include:
           - name: macOS x86_64
             target: x86_64-apple-darwin
-            os: macos-14-large
+            os: macos-14
           - name: macOS aarch64
             target: aarch64-apple-darwin
             os: macos-14

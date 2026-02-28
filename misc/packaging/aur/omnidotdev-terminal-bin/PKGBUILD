@@ -1,5 +1,5 @@
 # Maintainer: Omni LLC <team@omni.dev>
-pkgname=omni-terminal-bin
+pkgname=omnidotdev-terminal-bin
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="GPU-accelerated terminal emulator built to run everywhere (pre-built)"
@@ -7,8 +7,8 @@ arch=('x86_64')
 url="https://terminal.omni.dev"
 license=('MIT')
 depends=('fontconfig' 'freetype2' 'libxkbcommon' 'wayland')
-provides=('omni-terminal')
-conflicts=('omni-terminal')
+provides=('omnidotdev-terminal')
+conflicts=('omnidotdev-terminal')
 source=("https://github.com/omnidotdev/terminal/releases/download/v$pkgver/omni-terminal-x86_64-unknown-linux-gnu.tar.gz"
         "omni-terminal.desktop::https://raw.githubusercontent.com/omnidotdev/terminal/v$pkgver/misc/omni-terminal.desktop"
         "omni-terminal.svg::https://raw.githubusercontent.com/omnidotdev/terminal/v$pkgver/misc/logo.svg"

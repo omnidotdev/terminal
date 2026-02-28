@@ -406,8 +406,8 @@ jobs:
             cd ..
           }
 
-          publish_aur "omni-terminal" "$SOURCE_SHA256"
-          publish_aur "omni-terminal-bin" ""
+          publish_aur "omnidotdev-terminal" "$SOURCE_SHA256"
+          publish_aur "omnidotdev-terminal-bin" ""
 
           rm -f ~/.ssh/aur
       - name: Publish to winget

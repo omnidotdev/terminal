@@ -1,5 +1,5 @@
 # Maintainer: Omni LLC <team@omni.dev>
-pkgname=omni-terminal
+pkgname=omnidotdev-terminal
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="GPU-accelerated terminal emulator built to run everywhere"

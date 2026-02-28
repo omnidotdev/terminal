@@ -44,11 +44,11 @@ pub fn setup_environment_variables(config: &terminal_backend::config::Config) {
     #[cfg(unix)]
     {
         let terminfo = match (
-            teletypewriter::terminfo_exists("xterm-omni-terminal"),
             teletypewriter::terminfo_exists("omni-terminal"),
+            teletypewriter::terminfo_exists("xterm-omni-terminal"),
         ) {
-            (true, _) => "xterm-omni-terminal",
-            (false, true) => "omni-terminal",
+            (true, _) => "omni-terminal",
+            (false, true) => "xterm-omni-terminal",
             (false, false) => "xterm-256color",
         };
 

@@ -147,8 +147,6 @@ jobs:
             omni-terminal-x86_64-unknown-linux-gnu.tar.gz
 
       # Linux aarch64 (cross-compile)
-      # Built with --no-default-features (no x11/wayland) since cross-compiling
-      # display deps is non-trivial. TODO: use native ARM runner for full build
       - name: Install cross-compilation tools
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
@@ -173,14 +171,15 @@ jobs:
           echo "deb [arch=arm64] http://ports.ubuntu.com/ $(lsb_release -cs) main restricted universe" | sudo tee /etc/apt/sources.list.d/arm64.list
           echo "deb [arch=arm64] http://ports.ubuntu.com/ $(lsb_release -cs)-updates main restricted universe" | sudo tee -a /etc/apt/sources.list.d/arm64.list
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libfontconfig1-dev:arm64
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            libfontconfig1-dev:arm64 libwayland-dev:arm64 libxkbcommon-dev:arm64
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
       - name: Build
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: cargo build --release -p omni-terminal --target aarch64-unknown-linux-gnu --no-default-features
+        run: cargo build --release -p omni-terminal --target aarch64-unknown-linux-gnu
       - name: Package tarball
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |

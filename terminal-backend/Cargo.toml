@@ -49,6 +49,4 @@ default = ["wayland", "x11"]
 x11 = [
     "copypasta/x11"
 ]
-wayland = [
-    "copypasta/wayland",
-]
+wayland = []

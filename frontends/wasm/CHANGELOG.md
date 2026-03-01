@@ -1,5 +1,12 @@
 # @omnidotdev/terminal
 
+## 0.1.1
+
+### Patch Changes
+
+- [`c7afbd4`](https://github.com/omnidotdev/terminal/commit/c7afbd4cb698dad8561f863b8eafbf0409badc93) Thanks [@coopbri](https://github.com/coopbri)! - - Fix native terminal 256-color support by preferring the `omni-terminal` terminfo (256 colors) over `xterm-omni-terminal` (8 colors)
+  - Fix clipboard segfault on Wayland (copy/paste crashed the terminal) by disabling LTO which triggered undefined behavior in smithay-clipboard FFI
+
 ## 0.1.0
 
 ### Minor Changes

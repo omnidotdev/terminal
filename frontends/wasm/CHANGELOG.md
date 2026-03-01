@@ -1,5 +1,11 @@
 # @omnidotdev/terminal
 
+## 0.1.2
+
+### Patch Changes
+
+- [`41221b7`](https://github.com/omnidotdev/terminal/commit/41221b7487a7e673c8a6016338410cbc9d7d509d) Thanks [@coopbri](https://github.com/coopbri)! - Replace smithay-clipboard with wl-paste/wl-copy subprocess calls, fixing Ctrl+V crash on Wayland caused by internal `.unwrap()` panics under `panic = "abort"`
+
 ## 0.1.1
 
 ### Patch Changes

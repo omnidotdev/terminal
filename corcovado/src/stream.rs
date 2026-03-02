@@ -256,3 +256,11 @@ impl FromRawFd for UnixStream {
         }
     }
 }
+
+impl From<UnixStream> for std::os::unix::io::OwnedFd {
+    fn from(stream: UnixStream) -> Self {
+        let raw_fd = stream.into_raw_fd();
+        // SAFETY: `into_raw_fd` yields a valid, owned file descriptor
+        unsafe { std::os::unix::io::OwnedFd::from_raw_fd(raw_fd) }
+    }
+}

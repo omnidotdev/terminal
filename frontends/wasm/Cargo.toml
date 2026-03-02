@@ -17,12 +17,12 @@ crate-type = ["cdylib"]
 sugarloaf = { workspace = true }
 copa = { workspace = true }
 terminal-emulator = { workspace = true }
-js-sys = "0.3.64"
+js-sys = "0.3.91"
 wgpu = { workspace = true }
 tracing = { workspace = true }
 log = "0.4"
 uuid = { version = "1", features = ["v4", "js"] }
-web-sys = { version = "0.3.62", features = [
+web-sys = { version = "0.3.91", features = [
     "Document",
     "Node",
     "NodeList",
@@ -58,4 +58,4 @@ wasm-bindgen = { workspace = true }
 console_error_panic_hook = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 raw-window-handle = { workspace = true }
-getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }

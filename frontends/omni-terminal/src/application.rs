@@ -1607,7 +1607,7 @@ fn run_bell<T>(
 where
     T: cpal::Sample + cpal::SizedSample + cpal::FromSample<f32>,
 {
-    let sample_rate = config.sample_rate.0 as f32;
+    let sample_rate = config.sample_rate as f32;
     let channels = config.channels as usize;
     let duration_secs = crate::constants::BELL_DURATION.as_secs_f32();
     let total_samples = (sample_rate * duration_secs) as usize;

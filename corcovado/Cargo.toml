@@ -19,9 +19,9 @@ include = [
 [dependencies]
 tracing = { workspace = true }
 iovec = { workspace = true }
-slab = "0.4.9"
+slab = "0.4.12"
 net2 = "0.2.39"
-cfg-if = "0.1.9"
+cfg-if = "1.0.0"
 
 [target.'cfg(target_os = "fuchsia")'.dependencies]
 fuchsia-zircon = "0.3.2"
@@ -31,9 +31,7 @@ fuchsia-zircon-sys = "0.3.2"
 libc = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = "0.42.0"
-miow = "0.5.0"
-windows = { version = "0.42.0", features = [
+windows-sys = { version = "0.61.0", features = [
   "Win32_Foundation",
   "Win32_Networking_WinSock",
   "Win32_Security",
@@ -43,11 +41,12 @@ windows = { version = "0.42.0", features = [
   "Win32_System_Threading",
   "Win32_System_WindowsProgramming",
 ]}
+miow = "0.6.0"
 
 [dev-dependencies]
-env_logger = { version = "0.4.0", default-features = false }
+env_logger = { version = "0.11.0", default-features = false }
 tempdir = "0.3.7"
-bytes = "0.3.0"
+bytes = "1.0"
 criterion = { workspace = true }
 
 [[test]]

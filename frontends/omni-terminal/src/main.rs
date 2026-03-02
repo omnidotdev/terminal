@@ -147,6 +147,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Dispatch to serve subcommand if requested
     #[cfg(feature = "serve")]
     if let Some(cli::Command::Serve(serve_cmd)) = args.command {
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "omni_terminal=info".into()),
+            )
+            .init();
         let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
         return rt.block_on(async {
             serve::run(serve::ServeArgs {

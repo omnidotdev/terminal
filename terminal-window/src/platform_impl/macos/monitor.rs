@@ -10,12 +10,11 @@ use core_foundation::uuid::{CFUUIDGetUUIDBytes, CFUUID};
 use core_graphics::display::{
     CGDirectDisplayID, CGDisplay, CGDisplayBounds, CGDisplayCopyDisplayMode,
 };
+use dispatch2::run_on_main;
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2_app_kit::NSScreen;
-use objc2_foundation::{
-    ns_string, run_on_main, MainThreadMarker, NSNumber, NSPoint, NSRect,
-};
+use objc2_foundation::{ns_string, MainThreadMarker, NSNumber, NSPoint, NSRect};
 
 use super::ffi;
 use crate::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};

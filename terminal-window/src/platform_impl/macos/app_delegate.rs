@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
-use objc2::{declare_class, msg_send_id, mutability, ClassType, DefinedClass};
+use objc2::{define_class, msg_send, ClassType};
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
 };
@@ -80,24 +80,17 @@ pub(super) struct State {
     // as such should be careful to not add fields that, in turn, strongly reference those.
 }
 
-declare_class!(
+define_class!(
+    #[unsafe(super(NSObject))]
+    #[name = "WinitApplicationDelegate"]
+    #[ivars = State]
     #[derive(Debug)]
     pub(super) struct ApplicationDelegate;
-
-    unsafe impl ClassType for ApplicationDelegate {
-        type Super = NSObject;
-        type Mutability = mutability::MainThreadOnly;
-        const NAME: &'static str = "WinitApplicationDelegate";
-    }
-
-    impl DefinedClass for ApplicationDelegate {
-        type Ivars = State;
-    }
 
     unsafe impl NSObjectProtocol for ApplicationDelegate {}
 
     unsafe impl NSApplicationDelegate for ApplicationDelegate {
-        #[method(applicationShouldTerminate:)]
+        #[unsafe(method(applicationShouldTerminate:))]
         fn should_terminate(&self, _sender: Option<&AnyObject>) -> u64 {
             if !self.ivars().set_confirm_before_quit.get() {
                 return NSApplicationTerminateReply::Now as u64;
@@ -146,7 +139,7 @@ declare_class!(
             }
         }
 
-        #[method(applicationDockMenu:)]
+        #[unsafe(method(applicationDockMenu:))]
         fn dock_menu(&self, _sender: Option<&AnyObject>) -> *mut NSMenu {
             let mtm = MainThreadMarker::from(self);
 
@@ -170,7 +163,7 @@ declare_class!(
             Retained::<NSMenu>::autorelease_return(menubar)
         }
 
-        #[method(applicationShouldHandleReopen:hasVisibleWindows:)]
+        #[unsafe(method(applicationShouldHandleReopen:hasVisibleWindows:))]
         fn should_handle_reopen(&self,
             _sender: Option<&AnyObject>,
             has_open_windows: bool,
@@ -183,14 +176,14 @@ declare_class!(
             }
         }
 
-        #[method(applicationShouldTerminateAfterLastWindowClosed:)]
+        #[unsafe(method(applicationShouldTerminateAfterLastWindowClosed:))]
         fn should_terminate_after_last_window_closed(&self, _sender: Option<&AnyObject>) -> bool {
             false
         }
 
         // NOTE: This will, globally, only be run once, no matter how many
         // `EventLoop`s the user creates.
-        #[method(applicationDidFinishLaunching:)]
+        #[unsafe(method(applicationDidFinishLaunching:))]
         fn did_finish_launching(&self, _sender: Option<&AnyObject>) {
             trace_scope!("applicationDidFinishLaunching:");
             self.ivars().is_launched.set(true);
@@ -232,14 +225,14 @@ declare_class!(
             }
         }
 
-        #[method(applicationWillTerminate:)]
+        #[unsafe(method(applicationWillTerminate:))]
         fn will_terminate(&self, _sender: Option<&AnyObject>) {
             trace_scope!("applicationWillTerminate:");
             // TODO: Notify every window that it will be destroyed, like done in iOS?
             self.internal_exit();
         }
 
-        #[method(applicationWillFinishLaunching:)]
+        #[unsafe(method(applicationWillFinishLaunching:))]
         fn will_finish_launching(&self, _sender: Option<&AnyObject>) {
             use objc::runtime::Object;
             use objc::{msg_send};
@@ -263,7 +256,7 @@ declare_class!(
             }
         }
 
-        #[method(application:openURLs:)]
+        #[unsafe(method(application:openURLs:))]
         fn application_open_urls(&self, _application: &NSApplication, urls: &NSArray<NSURL>) {
             trace_scope!("Trigger `application:openURLs:`");
 
@@ -283,15 +276,15 @@ declare_class!(
     }
 
     // Custom methods for menu actions
-    unsafe impl ApplicationDelegate {
-        #[method(terminalCreateWindow:)]
+    impl ApplicationDelegate {
+        #[unsafe(method(terminalCreateWindow:))]
         fn create_window(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 self.dispatch_create_window_event();
             }
         }
 
-        #[method(copy:)]
+        #[unsafe(method(copy:))]
         fn copy(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER;
@@ -305,7 +298,7 @@ declare_class!(
             }
         }
 
-        #[method(paste:)]
+        #[unsafe(method(paste:))]
         fn paste(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER;
@@ -319,7 +312,7 @@ declare_class!(
             }
         }
 
-        #[method(terminalCreateTab:)]
+        #[unsafe(method(terminalCreateTab:))]
         fn create_tab(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER;
@@ -333,7 +326,7 @@ declare_class!(
             }
         }
 
-        #[method(terminalClose:)]
+        #[unsafe(method(terminalClose:))]
         fn close_tab(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER;
@@ -347,7 +340,7 @@ declare_class!(
             }
         }
 
-        #[method(terminalSplitRight:)]
+        #[unsafe(method(terminalSplitRight:))]
         fn split_right(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER;
@@ -361,7 +354,7 @@ declare_class!(
             }
         }
 
-        #[method(terminalSplitDown:)]
+        #[unsafe(method(terminalSplitDown:))]
         fn split_down(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 let modifiers_state = ModifiersState::SUPER | ModifiersState::SHIFT;
@@ -375,7 +368,7 @@ declare_class!(
             }
         }
 
-        #[method(openConfig:)]
+        #[unsafe(method(openConfig:))]
         fn open_configuration(&self, _sender: Option<&AnyObject>) {
             if self.is_launched() {
                 self.dispatch_open_configuration();
@@ -412,7 +405,7 @@ impl ApplicationDelegate {
         //     )
         // }
 
-        unsafe { msg_send_id![super(this), init] }
+        unsafe { msg_send![super(this), init] }
     }
 
     pub fn get(mtm: MainThreadMarker) -> Retained<Self> {

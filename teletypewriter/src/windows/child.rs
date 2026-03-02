@@ -13,8 +13,8 @@ use windows_sys::Win32::System::Threading::{
 use crate::ChildEvent;
 
 /// WinAPI callback to run when child process exits.
-extern "system" fn child_exit_callback(ctx: *mut c_void, timed_out: u8) {
-    if timed_out != 0 {
+unsafe extern "system" fn child_exit_callback(ctx: *mut c_void, timed_out: bool) {
+    if timed_out {
         return;
     }
 

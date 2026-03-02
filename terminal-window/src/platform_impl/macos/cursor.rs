@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use objc2::rc::Retained;
 use objc2::runtime::Sel;
-use objc2::{msg_send, msg_send_id, sel, ClassType};
+use objc2::{msg_send, sel, ClassType};
 use objc2_app_kit::{NSBitmapImageRep, NSCursor, NSDeviceRGBColorSpace, NSImage};
 use objc2_foundation::{
     ns_string, NSData, NSDictionary, NSNumber, NSObject, NSObjectProtocol, NSPoint,
@@ -68,8 +68,7 @@ pub(crate) fn default_cursor() -> Retained<NSCursor> {
 unsafe fn try_cursor_from_selector(sel: Sel) -> Option<Retained<NSCursor>> {
     let cls = NSCursor::class();
     if msg_send![cls, respondsToSelector: sel] {
-        let cursor: Retained<NSCursor> =
-            unsafe { msg_send_id![cls, performSelector: sel] };
+        let cursor: Retained<NSCursor> = unsafe { msg_send![cls, performSelector: sel] };
         Some(cursor)
     } else {
         tracing::warn!("cursor `{sel}` appears to be invalid");
@@ -131,7 +130,7 @@ unsafe fn load_webkit_cursor(name: &NSString) -> Retained<NSCursor> {
     // TODO: Handle PLists better
     let info_path = cursor_path.stringByAppendingPathComponent(ns_string!("info.plist"));
     let info: Retained<NSDictionary<NSObject, NSObject>> = unsafe {
-        msg_send_id![
+        msg_send![
             <NSDictionary<NSObject, NSObject>>::class(),
             dictionaryWithContentsOfFile: &*info_path,
         ]

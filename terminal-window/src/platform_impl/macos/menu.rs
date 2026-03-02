@@ -54,7 +54,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(openConfig:)),
         Some(KeyEquivalent {
             key: ns_string!(","),
-            masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
+            masks: Some(NSEventModifierFlags::Command),
         }),
     );
 
@@ -78,10 +78,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(hideOtherApplications:)),
         Some(KeyEquivalent {
             key: ns_string!("h"),
-            masks: Some(
-                NSEventModifierFlags::NSEventModifierFlagOption
-                    | NSEventModifierFlags::NSEventModifierFlagCommand,
-            ),
+            masks: Some(NSEventModifierFlags::Option | NSEventModifierFlags::Command),
         }),
     );
 
@@ -105,7 +102,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(terminate:)),
         Some(KeyEquivalent {
             key: ns_string!("q"),
-            masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
+            masks: Some(NSEventModifierFlags::Command),
         }),
     );
 
@@ -117,7 +114,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(terminalCreateWindow:)),
         Some(KeyEquivalent {
             key: ns_string!("n"),
-            masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
+            masks: Some(NSEventModifierFlags::Command),
         }),
     );
 
@@ -128,7 +125,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(terminalCreateTab:)),
         Some(KeyEquivalent {
             key: ns_string!("t"),
-            masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
+            masks: Some(NSEventModifierFlags::Command),
         }),
     );
 
@@ -139,7 +136,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(terminalClose:)),
         Some(KeyEquivalent {
             key: ns_string!("w"),
-            masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
+            masks: Some(NSEventModifierFlags::Command),
         }),
     );
 
@@ -150,7 +147,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(terminalSplitRight:)),
         Some(KeyEquivalent {
             key: ns_string!("d"),
-            masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
+            masks: Some(NSEventModifierFlags::Command),
         }),
     );
 
@@ -161,10 +158,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(terminalSplitDown:)),
         Some(KeyEquivalent {
             key: ns_string!("d"),
-            masks: Some(
-                NSEventModifierFlags::NSEventModifierFlagCommand
-                    | NSEventModifierFlags::NSEventModifierFlagShift,
-            ),
+            masks: Some(NSEventModifierFlags::Command | NSEventModifierFlags::Shift),
         }),
     );
 
@@ -175,7 +169,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(copy:)),
         Some(KeyEquivalent {
             key: ns_string!("c"),
-            masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
+            masks: Some(NSEventModifierFlags::Command),
         }),
     );
     let paste_title = ns_string!("Paste");
@@ -185,7 +179,7 @@ pub fn initialize(app: &NSApplication) {
         Some(sel!(paste:)),
         Some(KeyEquivalent {
             key: ns_string!("v"),
-            masks: Some(NSEventModifierFlags::NSEventModifierFlagCommand),
+            masks: Some(NSEventModifierFlags::Command),
         }),
     );
 

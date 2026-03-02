@@ -125,7 +125,7 @@ wasm-run: wasm-build
 
 # Build and serve web terminal (WASM + WebSocket PTY server)
 web-serve: wasm-build
-    cargo run -p web-server
+    cargo run -p omni-terminal -- serve
 
 # Watch and rebuild wasm frontend on changes
 wasm-watch:

@@ -296,17 +296,32 @@ jobs:
           path: artifacts
       - name: List artifacts
         run: find artifacts -type f | sort
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Extract the section for this version from CHANGELOG.md
+          BODY=$(awk -v ver="## ${VERSION}" '
+            $0 ~ ver { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' frontends/wasm/CHANGELOG.md)
+          # Use a delimiter to handle multiline output
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "body<<${EOF}" >> "$GITHUB_OUTPUT"
+          echo "${BODY}" >> "$GITHUB_OUTPUT"
+          echo "${EOF}" >> "$GITHUB_OUTPUT"
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.body }}
           files: |
             artifacts/macos-universal/*
             artifacts/linux-x86_64/*
             artifacts/linux-aarch64/*
             artifacts/windows-x86_64/*
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Update Homebrew tap

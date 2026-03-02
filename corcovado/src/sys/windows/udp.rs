@@ -302,7 +302,7 @@ impl UdpSocket {
         self.imp.inner.socket.take_error()
     }
 
-    fn inner(&self) -> MutexGuard<Inner> {
+    fn inner(&self) -> MutexGuard<'_, Inner> {
         self.imp.inner()
     }
 
@@ -323,7 +323,7 @@ impl UdpSocket {
 }
 
 impl Imp {
-    fn inner(&self) -> MutexGuard<Inner> {
+    fn inner(&self) -> MutexGuard<'_, Inner> {
         self.inner.inner.lock().unwrap()
     }
 

@@ -11,6 +11,7 @@ use crate::event::{DeviceEvent, ElementState};
 
 define_class!(
     #[unsafe(super(NSApplication, NSResponder, NSObject))]
+    #[thread_kind = MainThreadOnly]
     #[name = "WinitApplication"]
     pub(super) struct WinitApplication;
 

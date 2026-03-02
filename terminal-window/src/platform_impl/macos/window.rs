@@ -98,6 +98,7 @@ impl From<u64> for WindowId {
 
 define_class!(
     #[unsafe(super(NSWindow, NSResponder, NSObject))]
+    #[thread_kind = MainThreadOnly]
     #[name = "WinitWindow"]
     #[derive(Debug)]
     pub struct WinitWindow;

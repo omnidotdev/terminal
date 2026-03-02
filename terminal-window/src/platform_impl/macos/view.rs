@@ -150,6 +150,7 @@ pub struct ViewState {
 
 define_class!(
     #[unsafe(super(NSView, NSResponder, NSObject))]
+    #[thread_kind = MainThreadOnly]
     #[name = "WinitView"]
     #[ivars = ViewState]
     pub(super) struct WinitView;

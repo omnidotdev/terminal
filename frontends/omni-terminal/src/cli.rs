@@ -6,14 +6,14 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use terminal_backend::config::Shell;
 
-#[cfg(feature = "serve")]
+#[cfg(all(unix, feature = "serve"))]
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {
     /// Start the web terminal server.
     Serve(ServeCommand),
 }
 
-#[cfg(feature = "serve")]
+#[cfg(all(unix, feature = "serve"))]
 #[derive(Args, Debug)]
 pub struct ServeCommand {
     /// Host address to bind to.
@@ -44,7 +44,7 @@ pub struct Cli {
     #[clap(flatten)]
     pub window_options: WindowOptions,
 
-    #[cfg(feature = "serve")]
+    #[cfg(all(unix, feature = "serve"))]
     #[clap(subcommand)]
     pub command: Option<Command>,
 }

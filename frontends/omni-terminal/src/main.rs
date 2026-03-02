@@ -22,7 +22,7 @@ mod scheduler;
 mod screen;
 mod watcher;
 
-#[cfg(feature = "serve")]
+#[cfg(all(unix, feature = "serve"))]
 mod serve;
 
 use clap::Parser;
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = cli::Cli::parse();
 
     // Dispatch to serve subcommand if requested
-    #[cfg(feature = "serve")]
+    #[cfg(all(unix, feature = "serve"))]
     if let Some(cli::Command::Serve(serve_cmd)) = args.command {
         tracing_subscriber::fmt()
             .with_env_filter(

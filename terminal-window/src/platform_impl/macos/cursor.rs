@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 use objc2::rc::Retained;
 use objc2::runtime::Sel;
-use objc2::{msg_send, sel, ClassType};
+use objc2::{msg_send, sel, AnyThread, ClassType};
 use objc2_app_kit::{NSBitmapImageRep, NSCursor, NSDeviceRGBColorSpace, NSImage};
 use objc2_foundation::{
     ns_string, NSData, NSDictionary, NSNumber, NSObject, NSObjectProtocol, NSPoint,

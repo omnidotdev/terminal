@@ -82,6 +82,7 @@ pub(super) struct State {
 
 define_class!(
     #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
     #[name = "WinitApplicationDelegate"]
     #[ivars = State]
     #[derive(Debug)]

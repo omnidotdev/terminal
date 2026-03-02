@@ -305,7 +305,7 @@ jobs:
             $0 ~ ver { found=1; next }
             found && /^## / { exit }
             found { print }
-          ' frontends/wasm/CHANGELOG.md)
+          ' CHANGELOG.md)
           # Use a delimiter to handle multiline output
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "body<<${EOF}" >> "$GITHUB_OUTPUT"

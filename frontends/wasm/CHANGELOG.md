@@ -1,5 +1,11 @@
 # @omnidotdev/terminal
 
+## 0.1.3
+
+### Patch Changes
+
+- [`1b32bb7`](https://github.com/omnidotdev/terminal/commit/1b32bb7fe950d55727fb68372e1620c2f15d1605) Thanks [@coopbri](https://github.com/coopbri)! - Switch release profile from `panic = "abort"` to `panic = "unwind"`, fixing Ctrl+V segfault (stack smashing) on Wayland
+
 ## 0.1.2
 
 ### Patch Changes

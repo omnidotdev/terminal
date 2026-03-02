@@ -232,14 +232,14 @@ fn x11_button(browser_button: i16) -> u8 {
 
 /// Convert CSS pixel offset to terminal grid cell coordinates
 fn pixel_to_cell(
-    offset_x: i32,
-    offset_y: i32,
+    offset_x: f64,
+    offset_y: f64,
     cell_width: f32,
     cell_height: f32,
 ) -> (usize, usize) {
     let dpr = web_sys::window().unwrap().device_pixel_ratio();
-    let px_x = offset_x as f64 * dpr;
-    let px_y = offset_y as f64 * dpr;
+    let px_x = offset_x * dpr;
+    let px_y = offset_y * dpr;
     let col = if cell_width > 0.0 {
         (px_x as f32 / cell_width).max(0.0) as usize
     } else {

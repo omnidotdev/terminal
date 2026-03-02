@@ -114,6 +114,8 @@ impl SessionManager {
             libc::fcntl(rfd, libc::F_SETFL, flags & !libc::O_NONBLOCK);
             let flags = libc::fcntl(wfd, libc::F_GETFL);
             libc::fcntl(wfd, libc::F_SETFL, flags & !libc::O_NONBLOCK);
+            // Close original fd now that it has been duplicated
+            libc::close(pty_fd);
             (wfd, rfd)
         };
 

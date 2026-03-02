@@ -16,6 +16,10 @@ pub enum Command {
 #[cfg(feature = "serve")]
 #[derive(Args, Debug)]
 pub struct ServeCommand {
+    /// Host address to bind to.
+    #[clap(long, default_value = "127.0.0.1")]
+    pub host: std::net::IpAddr,
+
     /// Port to listen on.
     #[clap(short, long, default_value = "3000", env = "PORT")]
     pub port: u16,

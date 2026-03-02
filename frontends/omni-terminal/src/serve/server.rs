@@ -22,6 +22,7 @@ static WASM_FRONTEND: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../wasm");
 
 /// Arguments for the web server
 pub struct ServeArgs {
+    pub host: std::net::IpAddr,
     pub port: u16,
     pub tls_cert: Option<PathBuf>,
     pub tls_key: Option<PathBuf>,
@@ -54,27 +55,17 @@ pub async fn run(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         .fallback(static_handler)
         .with_state(state);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
+    let addr = SocketAddr::from((args.host, args.port));
 
     if args.no_tls {
         let listener = tokio::net::TcpListener::bind(addr).await?;
         tracing::info!("Omni Terminal web server listening on http://{addr}");
         axum::serve(listener, app).await?;
     } else {
-        let cert_source = args
-            .tls_cert
-            .or_else(|| std::env::var("TLS_CERT").ok().map(PathBuf::from));
-        let key_source = args
-            .tls_key
-            .or_else(|| std::env::var("TLS_KEY").ok().map(PathBuf::from));
-
-        let (cert_pem, key_pem) = match (cert_source, key_source) {
+        let (cert_pem, key_pem) = match (args.tls_cert, args.tls_key) {
             (Some(cert_path), Some(key_path)) => {
                 tracing::info!("using provided TLS certificate");
-                (
-                    std::fs::read(&cert_path).expect("failed to read TLS cert file"),
-                    std::fs::read(&key_path).expect("failed to read TLS key file"),
-                )
+                (std::fs::read(&cert_path)?, std::fs::read(&key_path)?)
             }
             _ => {
                 let mut sans: Vec<String> = vec!["localhost".into()];
@@ -82,8 +73,7 @@ pub async fn run(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
                     sans.push(ip.to_string());
                 }
                 tracing::info!("generating self-signed TLS certificate for {sans:?}");
-                let generated = rcgen::generate_simple_self_signed(sans)
-                    .expect("failed to generate self-signed certificate");
+                let generated = rcgen::generate_simple_self_signed(sans)?;
 
                 (
                     generated.cert.pem().into_bytes(),
@@ -92,16 +82,13 @@ pub async fn run(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        let certs: Vec<_> = rustls_pemfile::certs(&mut &*cert_pem)
-            .collect::<Result<_, _>>()
-            .expect("invalid certificate PEM");
-        let key = rustls_pemfile::private_key(&mut &*key_pem)
-            .expect("invalid private key PEM")
-            .expect("no private key found in PEM");
+        let certs: Vec<_> =
+            rustls_pemfile::certs(&mut &*cert_pem).collect::<Result<_, _>>()?;
+        let key = rustls_pemfile::private_key(&mut &*key_pem)?
+            .ok_or("no private key found in PEM")?;
         let mut server_config = rustls::ServerConfig::builder()
             .with_no_client_auth()
-            .with_single_cert(certs, key)
-            .expect("invalid certificate/key pair");
+            .with_single_cert(certs, key)?;
         // Force HTTP/1.1 only -- h2 ALPN negotiation breaks WebSocket upgrades
         server_config.alpn_protocols = vec![b"http/1.1".to_vec()];
 

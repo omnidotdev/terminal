@@ -150,6 +150,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
         return rt.block_on(async {
             serve::run(serve::ServeArgs {
+                host: serve_cmd.host,
                 port: serve_cmd.port,
                 tls_cert: serve_cmd.tls_cert,
                 tls_key: serve_cmd.tls_key,

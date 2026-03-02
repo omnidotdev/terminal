@@ -53,7 +53,6 @@ tokio-rustls = { version = "0.26", optional = true }
 rcgen = { version = "0.13", optional = true }
 rustls = { version = "0.23", optional = true }
 rustls-pemfile = { version = "2", optional = true }
-tower-http = { version = "0.6", features = ["fs"], optional = true }
 uuid = { version = "1", features = ["v4"], optional = true }
 serde_json = { version = "1", optional = true }
 include_dir = { version = "0.7", optional = true }
@@ -93,7 +92,6 @@ serve = [
     "dep:rcgen",
     "dep:rustls",
     "dep:rustls-pemfile",
-    "dep:tower-http",
     "dep:uuid",
     "dep:serde_json",
     "dep:include_dir",

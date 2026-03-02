@@ -148,7 +148,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -159,7 +159,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -792,7 +792,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copa"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "arrayvec",
  "criterion",
@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "corcovado"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "bytes 0.3.0",
  "cfg-if 0.1.10",
@@ -1185,7 +1185,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1321,7 +1321,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1766,7 +1766,7 @@ dependencies = [
  "log 0.4.29",
  "presser",
  "thiserror 2.0.17",
- "windows 0.62.2",
+ "windows 0.54.0",
 ]
 
 [[package]]
@@ -2289,9 +2289,9 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "librashader"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6615fe917d769386d8612da1f454a3597e93b9a289f73980526007e650ac4a11"
+checksum = "e8ba2f86c5fade6158ba832d7b7a42e01b323c9651a5f53703955acb8012594d"
 dependencies = [
  "halfbrown 0.2.5",
  "librashader-cache",
@@ -2314,9 +2314,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-cache"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cdc600607c02946de30d3cff357806f97e17fc5a868f1376fe450e5980fe0e7"
+checksum = "6c3ef2d6661c3f7cf4a15aa7d48d9693539f1ca3704b059aad89fba780490e96"
 dependencies = [
  "bincode",
  "blake3",
@@ -2332,9 +2332,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-common"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21af3ec0f6959af4eca2a23cff3585d06b307c02d8a4b26a325eab899b0b0450"
+checksum = "e198e06fd532b961e4247dafbbb0aa392a1ddb64e678d188bcafb630e5e16eef"
 dependencies = [
  "ash",
  "bitflags 2.10.0",
@@ -2352,9 +2352,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-pack"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82bea2dee5ad2838941ad8a2ad68c16ebc5452ecdfe06debcfa81c3deca53c9a"
+checksum = "58fda09fc5b95955fb52c5e6a13831a4e13ac7819d292ef6556be9e9faec13c5"
 dependencies = [
  "image",
  "librashader-preprocess",
@@ -2365,9 +2365,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-preprocess"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c5700eeab893fc991810f2c382050ef00a69c6c731f05c2ab1830204c48554b"
+checksum = "f6bad79c3ea62c1f380cf08dada7e911519100dac17cafd724e18cc6091e5d04"
 dependencies = [
  "encoding_rs",
  "librashader-common",
@@ -2378,9 +2378,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-presets"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88c49f130c8c4d45bb0bc28da667bd802fd518d2fafc00d8dc096e138eed8597"
+checksum = "2182ff80761bc07b463309ecc2b4d4542c83f0d2e48ec96e9f8e90977fa6cd4c"
 dependencies = [
  "librashader-common",
  "nom 8.0.0",
@@ -2395,9 +2395,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-reflect"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43d609f0ff16c32b57af026fda5db404c074e1a1ac990df727ecc3b8debfd947"
+checksum = "96a36e8b24f4a13ae931911cb59e65323e2902b81a1653dcdc86a20ac1980809"
 dependencies = [
  "bitflags 2.10.0",
  "bytemuck",
@@ -2418,9 +2418,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-runtime"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b877fb72b80ca2322a5e73237469543418e5484e3bac2cae45d193173bd4fde"
+checksum = "1f401eb05f89595d1605d41f80b98933d9705337f9f5291a0628956dc0e72e09"
 dependencies = [
  "arc-swap",
  "array-concat",
@@ -2436,9 +2436,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-runtime-d3d11"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0218c7329f364b0417c515681764e572e08a859619adbe363c105f1f64216e3a"
+checksum = "e10b5461c13babf3dabe0aba027cd99834526f72dc7a9bdb186667592d71f226"
 dependencies = [
  "array-concat",
  "bytemuck",
@@ -2456,9 +2456,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-runtime-d3d12"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "badc703a95905b67edb3c487f1fb37ec24fbfda8ca3e657bac7354fe9e0a8d8e"
+checksum = "1c2ef3e4f5998d1638188f96d37edaa403db97ebfbee12d873a8c47c7d8856fb"
 dependencies = [
  "array-concat",
  "array-init",
@@ -2482,9 +2482,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-runtime-d3d9"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71e171b904c73e528f7357ff4d81a3aa6402a20a7d560c439a794e3a37341887"
+checksum = "946a47c4a32796ee33a9bb02d238f47305a45881054ad0c0585cb4e6704aa595"
 dependencies = [
  "array-concat",
  "bytemuck",
@@ -2505,9 +2505,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-runtime-gl"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59ef517d9930c732131896a986123efe5af14efbf0d295815e287c93714dcdd3"
+checksum = "b38b64f3481b5e823b43755504e1e8ad34a9dd08b9ed41aa4a9973935aafef36"
 dependencies = [
  "array-init",
  "bytemuck",
@@ -2526,9 +2526,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-runtime-mtl"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc4536f6cb4457429e674bdf06e847a6bf862a907da7c73c850475d527edb687"
+checksum = "139e0715a2e779aeee7f35778259df7cdf4514110ccf0db7bc60132d59b868bb"
 dependencies = [
  "array-concat",
  "bytemuck",
@@ -2547,9 +2547,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-runtime-vk"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "689ace2e4f88210df7293d1c4956a8f714f604332df5a44fcbcc3c0f7faf739f"
+checksum = "d39f435de8593230be2be34a9c969c0d01d805b04cc568944441fa2ab20f1557"
 dependencies = [
  "array-concat",
  "ash",
@@ -2569,9 +2569,9 @@ dependencies = [
 
 [[package]]
 name = "librashader-runtime-wgpu"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f604e84a62343ed2cab26e5fb914d9ac5e35faef56a61fa4774f89ed284969b"
+checksum = "5e323d473dc81a648dc59b49565f123325efd8ca2699fe462767ea51d31bfaa6"
 dependencies = [
  "array-concat",
  "bytemuck",
@@ -2802,7 +2802,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "536bfad37a309d62069485248eeaba1e8d9853aaf951caaeaed0585a95346f08"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2978,7 +2978,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3256,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ahash",
  "bitflags 2.10.0",
@@ -3294,7 +3294,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-android"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "android_logger",
  "copa",
@@ -3318,7 +3318,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-wasm"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
@@ -4017,7 +4017,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4472,7 +4472,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sugarloaf"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "approx",
  "bytemuck",
@@ -4559,7 +4559,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "teletypewriter"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "corcovado",
  "dirs",
@@ -4593,7 +4593,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-backend"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "bitflags 2.10.0",
@@ -4626,7 +4626,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-emulator"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "copa",
  "sugarloaf",
@@ -4634,7 +4634,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-proc-macros"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4642,7 +4642,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-window"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ahash",
  "atomic-waker",
@@ -5549,7 +5549,7 @@ dependencies = [
 
 [[package]]
 name = "web-server"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "axum",
  "dashmap",
@@ -5774,7 +5774,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

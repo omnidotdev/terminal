@@ -3285,6 +3285,7 @@ dependencies = [
  "corcovado",
  "cpal",
  "criterion",
+ "dashmap",
  "dirs",
  "dunce",
  "futures",

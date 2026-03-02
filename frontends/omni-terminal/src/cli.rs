@@ -6,12 +6,43 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use terminal_backend::config::Shell;
 
+#[cfg(feature = "serve")]
+#[derive(clap::Subcommand, Debug)]
+pub enum Command {
+    /// Start the web terminal server.
+    Serve(ServeCommand),
+}
+
+#[cfg(feature = "serve")]
+#[derive(Args, Debug)]
+pub struct ServeCommand {
+    /// Port to listen on.
+    #[clap(short, long, default_value = "3000", env = "PORT")]
+    pub port: u16,
+
+    /// TLS certificate file path.
+    #[clap(long, env = "TLS_CERT")]
+    pub tls_cert: Option<std::path::PathBuf>,
+
+    /// TLS private key file path.
+    #[clap(long, env = "TLS_KEY")]
+    pub tls_key: Option<std::path::PathBuf>,
+
+    /// Disable TLS (serve plain HTTP).
+    #[clap(long)]
+    pub no_tls: bool,
+}
+
 #[derive(Parser, Default, Debug)]
 #[clap(author, about, version)]
 pub struct Cli {
     /// Options which can be passed via IPC.
     #[clap(flatten)]
     pub window_options: WindowOptions,
+
+    #[cfg(feature = "serve")]
+    #[clap(subcommand)]
+    pub command: Option<Command>,
 }
 
 #[derive(Serialize, Deserialize, Args, Default, Clone, Debug, PartialEq, Eq)]

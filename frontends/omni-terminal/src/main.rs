@@ -22,6 +22,9 @@ mod scheduler;
 mod screen;
 mod watcher;
 
+#[cfg(feature = "serve")]
+mod serve;
+
 use clap::Parser;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -140,6 +143,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load command line options.
     let args = cli::Cli::parse();
+
+    // Dispatch to serve subcommand if requested
+    #[cfg(feature = "serve")]
+    if let Some(cli::Command::Serve(serve_cmd)) = args.command {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        return rt.block_on(async {
+            serve::run(serve::ServeArgs {
+                port: serve_cmd.port,
+                tls_cert: serve_cmd.tls_cert,
+                tls_key: serve_cmd.tls_key,
+                no_tls: serve_cmd.no_tls,
+            })
+            .await
+        });
+    }
 
     let write_config_path = args.window_options.terminal_options.write_config.clone();
     if let Some(config_path) = write_config_path {

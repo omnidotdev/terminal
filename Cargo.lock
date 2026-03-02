@@ -792,7 +792,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copa"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "arrayvec",
  "criterion",
@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "corcovado"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "bytes 0.3.0",
  "cfg-if 0.1.10",
@@ -2267,9 +2267,9 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "libc"
-version = "0.2.180"
+version = "0.2.182"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
+checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
 
 [[package]]
 name = "libloading"
@@ -3256,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ahash",
  "bitflags 2.10.0",
@@ -3294,7 +3294,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-android"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "android_logger",
  "copa",
@@ -3318,7 +3318,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-wasm"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
@@ -4472,7 +4472,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sugarloaf"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "approx",
  "bytemuck",
@@ -4559,7 +4559,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "teletypewriter"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "corcovado",
  "dirs",
@@ -4593,7 +4593,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-backend"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64",
  "bitflags 2.10.0",
@@ -4626,7 +4626,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-emulator"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "copa",
  "sugarloaf",
@@ -4634,7 +4634,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-proc-macros"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4642,7 +4642,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-window"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ahash",
  "atomic-waker",
@@ -5549,7 +5549,7 @@ dependencies = [
 
 [[package]]
 name = "web-server"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "axum",
  "dashmap",

@@ -47,6 +47,16 @@ url = { workspace = true }
 smallvec = { workspace = true }
 terminal-window = { workspace = true }
 lru = "0.16.0"
+axum = { version = "0.8", features = ["ws"], optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
+tokio-rustls = { version = "0.26", optional = true }
+rcgen = { version = "0.13", optional = true }
+rustls = { version = "0.23", optional = true }
+rustls-pemfile = { version = "2", optional = true }
+tower-http = { version = "0.6", features = ["fs"], optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }
+serde_json = { version = "1", optional = true }
+include_dir = { version = "0.7", optional = true }
 
 [target.'cfg(all(not(target_os = "macos"), not(target_os = "windows")))'.dependencies]
 cpal = { version = "0.15", optional = true }
@@ -73,8 +83,20 @@ windows-sys = { version = "0.60.2", features = [
 ]}
 
 [features]
-default = ["wayland", "x11"]
+default = ["wayland", "x11", "serve"]
 audio = ["cpal"]
+serve = [
+    "dep:axum",
+    "dep:tokio",
+    "dep:tokio-rustls",
+    "dep:rcgen",
+    "dep:rustls",
+    "dep:rustls-pemfile",
+    "dep:tower-http",
+    "dep:uuid",
+    "dep:serde_json",
+    "dep:include_dir",
+]
 x11 = [
     "terminal-backend/x11",
     "terminal-window/x11"

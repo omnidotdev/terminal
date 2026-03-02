@@ -2,7 +2,8 @@ use std::collections::{BTreeSet, VecDeque};
 use std::hash::Hash;
 use std::{io, mem, ptr};
 
-use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM, POINT, RECT};
+use windows_sys::core::BOOL;
+use windows_sys::Win32::Foundation::{HWND, LPARAM, POINT, RECT};
 use windows_sys::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, EnumDisplaySettingsExW, GetMonitorInfoW, MonitorFromPoint,
     MonitorFromWindow, DEVMODEW, DM_BITSPERPEL, DM_DISPLAYFREQUENCY, DM_PELSHEIGHT,

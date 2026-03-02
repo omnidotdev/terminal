@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
-use objc2::{declare_class, msg_send_id, mutability, ClassType, DeclaredClass};
+use objc2::{declare_class, msg_send_id, mutability, ClassType, DefinedClass};
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
 };
@@ -90,7 +90,7 @@ declare_class!(
         const NAME: &'static str = "WinitApplicationDelegate";
     }
 
-    impl DeclaredClass for ApplicationDelegate {
+    impl DefinedClass for ApplicationDelegate {
         type Ivars = State;
     }
 

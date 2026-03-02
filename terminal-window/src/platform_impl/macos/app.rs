@@ -1,6 +1,6 @@
 #![allow(clippy::unnecessary_cast)]
 
-use objc2::{declare_class, msg_send, mutability, ClassType, DeclaredClass};
+use objc2::{declare_class, msg_send, mutability, ClassType, DefinedClass};
 use objc2_app_kit::{
     NSApplication, NSEvent, NSEventModifierFlags, NSEventType, NSResponder,
 };
@@ -19,7 +19,7 @@ declare_class!(
         const NAME: &'static str = "WinitApplication";
     }
 
-    impl DeclaredClass for WinitApplication {}
+    impl DefinedClass for WinitApplication {}
 
     unsafe impl WinitApplication {
         // Normally, holding Cmd + any key never sends us a `keyUp` event for that key.

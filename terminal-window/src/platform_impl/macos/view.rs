@@ -5,7 +5,7 @@ use std::ptr;
 
 use objc2::rc::{Retained, WeakId};
 use objc2::runtime::{AnyObject, Sel};
-use objc2::{declare_class, msg_send_id, mutability, sel, ClassType, DeclaredClass};
+use objc2::{declare_class, msg_send_id, mutability, sel, ClassType, DefinedClass};
 use objc2_app_kit::{
     NSApplication, NSCursor, NSEvent, NSEventPhase, NSResponder, NSTextInputClient,
     NSTrackingRectTag, NSView, NSViewFrameDidChangeNotification,
@@ -158,7 +158,7 @@ declare_class!(
         const NAME: &'static str = "WinitView";
     }
 
-    impl DeclaredClass for WinitView {
+    impl DefinedClass for WinitView {
         type Ivars = ViewState;
     }
 

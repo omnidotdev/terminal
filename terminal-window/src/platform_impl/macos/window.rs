@@ -1,7 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use objc2::rc::{autoreleasepool, Retained};
-use objc2::{declare_class, mutability, ClassType, DeclaredClass};
+use objc2::{declare_class, mutability, ClassType, DefinedClass};
 use objc2_app_kit::{NSResponder, NSWindow};
 use objc2_foundation::{MainThreadBound, MainThreadMarker, NSObject};
 
@@ -106,7 +106,7 @@ declare_class!(
         const NAME: &'static str = "WinitWindow";
     }
 
-    impl DeclaredClass for WinitWindow {}
+    impl DefinedClass for WinitWindow {}
 
     unsafe impl WinitWindow {
         #[method(canBecomeMainWindow)]

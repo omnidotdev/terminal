@@ -7,9 +7,10 @@ use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::{io, panic, ptr};
 
+use windows_sys::core::BOOL;
 use windows_sys::Win32::Foundation::{
-    BOOL, FALSE, HWND, LPARAM, OLE_E_WRONGCOMPOBJ, POINT, POINTS, RECT,
-    RPC_E_CHANGED_MODE, S_OK, TRUE, WPARAM,
+    FALSE, HWND, LPARAM, OLE_E_WRONGCOMPOBJ, POINT, POINTS, RECT, RPC_E_CHANGED_MODE,
+    S_OK, TRUE, WPARAM,
 };
 use windows_sys::Win32::Graphics::Dwm::{
     DwmEnableBlurBehindWindow, DwmSetWindowAttribute, DWMWA_BORDER_COLOR,

@@ -3,8 +3,8 @@
 use std::{ffi::c_void, ptr};
 
 use crate::utils::Lazy;
-use windows_sys::core::PCSTR;
-use windows_sys::Win32::Foundation::{BOOL, HWND, NTSTATUS, S_OK};
+use windows_sys::core::{BOOL, PCSTR};
+use windows_sys::Win32::Foundation::{HWND, NTSTATUS, S_OK};
 use windows_sys::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA};
 use windows_sys::Win32::System::SystemInformation::OSVERSIONINFOW;
 use windows_sys::Win32::UI::Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTA};

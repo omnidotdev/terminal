@@ -6,7 +6,7 @@ use core_graphics::display::{CGDisplay, CGPoint};
 use monitor::VideoModeHandle;
 use objc2::rc::{autoreleasepool, Retained};
 use objc2::runtime::{AnyObject, ProtocolObject};
-use objc2::{declare_class, msg_send_id, mutability, sel, ClassType, DeclaredClass};
+use objc2::{declare_class, msg_send_id, mutability, sel, ClassType, DefinedClass};
 use objc2_app_kit::{
     NSAppKitVersionNumber, NSAppKitVersionNumber10_12, NSAppearance, NSApplication,
     NSApplicationPresentationOptions, NSBackingStoreType, NSColor, NSDraggingDestination,
@@ -144,7 +144,7 @@ declare_class!(
         const NAME: &'static str = "WinitWindowDelegate";
     }
 
-    impl DeclaredClass for WindowDelegate {
+    impl DefinedClass for WindowDelegate {
         type Ivars = State;
     }
 

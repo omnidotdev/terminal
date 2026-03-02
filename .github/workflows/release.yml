@@ -47,7 +47,7 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          version: bun run version && git add Cargo.toml
+          version: bun run version && cargo update --workspace && git add Cargo.toml Cargo.lock
           publish: bun release
           title: "chore(release): version packages"
           commit: "chore(release): version packages"

@@ -38,7 +38,9 @@ jobs:
       - name: Ensure wasm target on project toolchain
         run: rustup target add wasm32-unknown-unknown
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.106
+        run: |
+          WASM_BINDGEN_VERSION=$(grep -A1 'name = "wasm-bindgen"' Cargo.lock | grep version | sed 's/.*"\(.*\)".*/\1/')
+          cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION"
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@latest
       - name: Install dependencies

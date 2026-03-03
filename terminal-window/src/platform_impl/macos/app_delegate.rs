@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
-use objc2::{define_class, msg_send, ClassType};
+use objc2::{define_class, msg_send, ClassType, MainThreadOnly};
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
 };

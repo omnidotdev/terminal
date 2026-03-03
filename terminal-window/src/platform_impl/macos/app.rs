@@ -1,6 +1,6 @@
 #![allow(clippy::unnecessary_cast)]
 
-use objc2::{define_class, msg_send, ClassType};
+use objc2::{define_class, msg_send, ClassType, MainThreadOnly};
 use objc2_app_kit::{
     NSApplication, NSEvent, NSEventModifierFlags, NSEventType, NSResponder,
 };

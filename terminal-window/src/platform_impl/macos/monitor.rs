@@ -351,7 +351,7 @@ pub(crate) fn get_display_id(screen: &NSScreen) -> u32 {
         // to be an NSNumber. See documentation for `deviceDescription` for details:
         // <https://developer.apple.com/documentation/appkit/nsscreen/1388360-devicedescription?language=objc>
         let obj = device_description
-            .get(key)
+            .objectForKey(key)
             .expect("failed getting screen display id from device description");
         let obj: *const AnyObject = obj;
         let obj: *const NSNumber = obj.cast();

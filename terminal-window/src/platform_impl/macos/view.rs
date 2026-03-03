@@ -5,7 +5,9 @@ use std::ptr;
 
 use objc2::rc::{Retained, WeakId};
 use objc2::runtime::{AnyObject, Sel};
-use objc2::{define_class, msg_send, sel, ClassType, MainThreadOnly, Message};
+use objc2::{
+    define_class, msg_send, sel, ClassType, DefinedClass, MainThreadOnly, Message,
+};
 use objc2_app_kit::{
     NSApplication, NSCursor, NSEvent, NSEventPhase, NSResponder, NSTextInputClient,
     NSTrackingRectTag, NSView, NSViewFrameDidChangeNotification,

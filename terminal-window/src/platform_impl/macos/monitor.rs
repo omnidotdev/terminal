@@ -353,6 +353,7 @@ pub(crate) fn get_display_id(screen: &NSScreen) -> u32 {
         let obj = device_description
             .objectForKey(key)
             .expect("failed getting screen display id from device description");
+        let obj: &AnyObject = &obj;
         let obj: *const AnyObject = obj;
         let obj: *const NSNumber = obj.cast();
         let obj: &NSNumber = unsafe { &*obj };

@@ -2,7 +2,7 @@
 
 use dispatch2::MainThreadBound;
 use objc2::rc::{autoreleasepool, Retained};
-use objc2::{define_class, ClassType, MainThreadOnly};
+use objc2::{define_class, ClassType, MainThreadOnly, Message};
 use objc2_app_kit::{NSResponder, NSWindow};
 use objc2_foundation::{MainThreadMarker, NSObject};
 

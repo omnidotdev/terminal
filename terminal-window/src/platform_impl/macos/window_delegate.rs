@@ -6,7 +6,7 @@ use core_graphics::display::{CGDisplay, CGPoint};
 use monitor::VideoModeHandle;
 use objc2::rc::{autoreleasepool, Retained};
 use objc2::runtime::{AnyObject, ProtocolObject};
-use objc2::{define_class, msg_send, sel, ClassType, MainThreadOnly};
+use objc2::{define_class, msg_send, sel, ClassType, MainThreadOnly, Message};
 use objc2_app_kit::{
     NSAppKitVersionNumber, NSAppKitVersionNumber10_12, NSAppearance, NSApplication,
     NSApplicationPresentationOptions, NSBackingStoreType, NSColor, NSDraggingDestination,
@@ -588,11 +588,9 @@ fn new_window(
         }
         if attrs.platform_specific.titlebar_buttons_hidden {
             for titlebar_button in &[
-                #[allow(deprecated)]
-                NSWindowButton::FullScreen,
-                NSWindowButton::Miniaturize,
-                NSWindowButton::Close,
-                NSWindowButton::Zoom,
+                NSWindowButton::MiniaturizeButton,
+                NSWindowButton::CloseButton,
+                NSWindowButton::ZoomButton,
             ] {
                 if let Some(button) = window.standardWindowButton(*titlebar_button) {
                     button.setHidden(true);
@@ -613,7 +611,8 @@ fn new_window(
         }
 
         if !attrs.enabled_buttons.contains(WindowButtons::MAXIMIZE) {
-            if let Some(button) = window.standardWindowButton(NSWindowButton::Zoom) {
+            if let Some(button) = window.standardWindowButton(NSWindowButton::ZoomButton)
+            {
                 button.setEnabled(false);
             }
         }
@@ -1132,7 +1131,10 @@ impl WindowDelegate {
         // We edit the button directly instead of using `NSResizableWindowMask`,
         // since that mask also affect the resizability of the window (which is
         // controllable by other means in `winit`).
-        if let Some(button) = self.window().standardWindowButton(NSWindowButton::Zoom) {
+        if let Some(button) = self
+            .window()
+            .standardWindowButton(NSWindowButton::ZoomButton)
+        {
             button.setEnabled(buttons.contains(WindowButtons::MAXIMIZE));
         }
     }
@@ -1145,7 +1147,7 @@ impl WindowDelegate {
         }
         if self
             .window()
-            .standardWindowButton(NSWindowButton::Zoom)
+            .standardWindowButton(NSWindowButton::ZoomButton)
             .map(|b| b.isEnabled())
             .unwrap_or(true)
         {
@@ -1892,7 +1894,8 @@ impl WindowExtMacOS for WindowDelegate {
         if let Some(group) = self.window().tabGroup() {
             if let Some(windows) = unsafe { self.window().tabbedWindows() } {
                 if index < windows.len() {
-                    group.setSelectedWindow(Some(&windows[index]));
+                    let window = windows.objectAtIndex(index);
+                    group.setSelectedWindow(Some(&window));
                 }
             }
         }

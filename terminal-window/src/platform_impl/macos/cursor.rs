@@ -136,17 +136,17 @@ unsafe fn load_webkit_cursor(name: &NSString) -> Retained<NSCursor> {
         ]
     };
     let mut x = 0.0;
-    if let Some(n) = info.get(&*ns_string!("hotx")) {
+    if let Some(n) = info.objectForKey(&*ns_string!("hotx")) {
         if n.is_kind_of::<NSNumber>() {
-            let ptr: *const NSObject = n;
+            let ptr: *const NSObject = &*n;
             let ptr: *const NSNumber = ptr.cast();
             x = unsafe { &*ptr }.as_cgfloat()
         }
     }
     let mut y = 0.0;
-    if let Some(n) = info.get(&*ns_string!("hotx")) {
+    if let Some(n) = info.objectForKey(&*ns_string!("hoty")) {
         if n.is_kind_of::<NSNumber>() {
-            let ptr: *const NSObject = n;
+            let ptr: *const NSObject = &*n;
             let ptr: *const NSNumber = ptr.cast();
             y = unsafe { &*ptr }.as_cgfloat()
         }

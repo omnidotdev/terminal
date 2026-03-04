@@ -9,7 +9,7 @@
 #   TLS_CERT   - Path to TLS certificate PEM file (auto-generated if unset)
 #   TLS_KEY    - Path to TLS private key PEM file (auto-generated if unset)
 
-FROM rust:1.92-bookworm AS builder
+FROM rust:1.93-bookworm AS builder
 
 RUN rustup target add wasm32-unknown-unknown \
     && cargo install wasm-bindgen-cli --version 0.2.106

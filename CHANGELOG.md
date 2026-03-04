@@ -1,5 +1,11 @@
 # Omni Terminal
 
+## 0.2.2
+
+### Patch Changes
+
+- [`508fd31`](https://github.com/omnidotdev/terminal/commit/508fd319a5025519aaef2298fb347a0c0aa50447) Thanks [@coopbri](https://github.com/coopbri)! - Fix WASM frontend 404 on `omni-terminal serve` by building WASM artifacts in CI release workflow before compiling release binaries
+
 ## 0.2.1
 
 ### Patch Changes

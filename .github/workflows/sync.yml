@@ -25,7 +25,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwayland-dev libxkbcommon-dev
+          sudo apt-get install -y libfontconfig-dev libwayland-dev libxkbcommon-dev
 
       - name: Install dependencies
         run: bun install

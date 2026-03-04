@@ -75,7 +75,7 @@ image_rs = { package = "image", version = "0.25.5", default-features = false, fe
 regex = "1.12.3"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 serde = { version = "1.0.227", features = ["derive"] }
-wgpu = "28.0.0"
+wgpu = { version = "28.0.0", features = ["webgl"] }
 libc = "0.2.182"
 smol_str = "0.3.2"
 futures = "0.3.32"

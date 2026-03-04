@@ -151,6 +151,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     // Merged output channel: all sessions' PTY output flows through here
     let (merged_tx, mut merged_rx) = mpsc::unbounded_channel::<(SessionId, Vec<u8>)>();
 
+    // Exit signal channel: forwarders notify when a session's PTY output ends
+    let (exit_tx, mut exit_rx) = mpsc::unbounded_channel::<SessionId>();
+
     // Track active sessions and their forwarding tasks
     let mut session_tasks: HashMap<SessionId, tokio::task::JoinHandle<()>> =
         HashMap::new();
@@ -166,6 +169,18 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 }
             }
 
+            // Session exited: PTY output ended (shell exited)
+            Some(session_id) = exit_rx.recv() => {
+                session_tasks.remove(&session_id);
+                let msg = serde_json::json!({
+                    "type": "exited",
+                    "session_id": session_id.to_string(),
+                });
+                if ws_sender.send(Message::Text(msg.to_string().into())).await.is_err() {
+                    break;
+                }
+            }
+
             // Handle incoming WebSocket messages
             msg = ws_receiver.next() => {
                 match msg {
@@ -174,6 +189,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                             &text,
                             &manager,
                             &merged_tx,
+                            &exit_tx,
                             &mut session_tasks,
                             &mut ws_sender,
                         ).await {
@@ -218,11 +234,13 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     }
 }
 
-/// Forward a single session's PTY output into the merged channel
+/// Forward a single session's PTY output into the merged channel.
+/// Sends the session ID through `exit_tx` when the PTY output ends.
 fn spawn_output_forwarder(
     session_id: SessionId,
     mut rx: mpsc::UnboundedReceiver<Vec<u8>>,
     merged_tx: mpsc::UnboundedSender<(SessionId, Vec<u8>)>,
+    exit_tx: mpsc::UnboundedSender<SessionId>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         while let Some(data) = rx.recv().await {
@@ -230,6 +248,7 @@ fn spawn_output_forwarder(
                 break;
             }
         }
+        let _ = exit_tx.send(session_id);
     })
 }
 
@@ -237,6 +256,7 @@ async fn handle_control_message(
     text: &str,
     manager: &SessionManager,
     merged_tx: &mpsc::UnboundedSender<(SessionId, Vec<u8>)>,
+    exit_tx: &mpsc::UnboundedSender<SessionId>,
     session_tasks: &mut HashMap<SessionId, tokio::task::JoinHandle<()>>,
     ws_sender: &mut (impl SinkExt<Message, Error = axum::Error> + Unpin),
 ) -> Result<bool, String> {
@@ -255,7 +275,12 @@ async fn handle_control_message(
 
             let (session_id, rx) = manager.create_session(cols, rows)?;
 
-            let handle = spawn_output_forwarder(session_id, rx, merged_tx.clone());
+            let handle = spawn_output_forwarder(
+                session_id,
+                rx,
+                merged_tx.clone(),
+                exit_tx.clone(),
+            );
             session_tasks.insert(session_id, handle);
 
             let response = serde_json::json!({
@@ -292,7 +317,12 @@ async fn handle_control_message(
 
             let (rx, buffered) = manager.attach_session(&session_id)?;
 
-            let handle = spawn_output_forwarder(session_id, rx, merged_tx.clone());
+            let handle = spawn_output_forwarder(
+                session_id,
+                rx,
+                merged_tx.clone(),
+                exit_tx.clone(),
+            );
             session_tasks.insert(session_id, handle);
 
             // Send buffered output first

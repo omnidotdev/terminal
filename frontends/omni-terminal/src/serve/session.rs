@@ -151,6 +151,8 @@ impl SessionManager {
                     }
                 }
             }
+            // Drop the sender so the output forwarder detects end-of-output
+            output_clone.lock().unwrap().sender = None;
         });
 
         let session = Session {

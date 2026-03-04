@@ -524,7 +524,11 @@ impl RichTextBrush {
                             if is_dimensions_only {
                                 px += cached_advance * char_width;
                             } else {
-                                px += rte_layout.unwrap().dimensions.width * char_width;
+                                // Advance by cell width * number of glyphs for grid alignment
+                                let num_glyphs = cached_glyphs.len() as f32;
+                                px += rte_layout.unwrap().dimensions.width
+                                    * char_width
+                                    * num_glyphs;
                             }
                         }
                         CacheResult::ShapingOnly {

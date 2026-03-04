@@ -17,6 +17,20 @@ use web_sys::{HtmlCanvasElement, HtmlDivElement, HtmlElement, HtmlTextAreaElemen
 /// Height of the tab bar in CSS pixels
 const TAB_BAR_HEIGHT: u32 = 36;
 
+/// Detect iOS/iPadOS Safari where WebGPU has device-loss issues
+fn is_ios_safari() -> bool {
+    let window = match web_sys::window() {
+        Some(w) => w,
+        None => return false,
+    };
+    let ua = window.navigator().user_agent().unwrap_or_default();
+    // iOS: contains "iPhone" or "iPad". iPadOS 13+ sends desktop UA but
+    // still has "Macintosh" + touch support, detected via maxTouchPoints.
+    let is_ios = ua.contains("iPhone") || ua.contains("iPad");
+    let is_ipados = ua.contains("Macintosh") && window.navigator().max_touch_points() > 0;
+    is_ios || is_ipados
+}
+
 fn get_or_create_canvas(container: &HtmlElement) -> (HtmlCanvasElement, u32) {
     let window = web_sys::window().expect("no window");
     let document = window.document().expect("no document");
@@ -119,6 +133,7 @@ struct Tab {
     grid: TerminalGrid,
     parser: copa::Parser,
     title: String,
+    awaiting_restart: bool,
 }
 
 /// Manage multiple terminal tabs
@@ -135,6 +150,7 @@ impl TabManager {
             grid: TerminalGrid::new(cols, rows),
             parser: copa::Parser::new(),
             title: "Tab 1".to_string(),
+            awaiting_restart: false,
         };
         Self {
             tabs: vec![tab],
@@ -158,6 +174,7 @@ impl TabManager {
             grid: TerminalGrid::new(cols, rows),
             parser: copa::Parser::new(),
             title: format!("Tab {}", idx + 1),
+            awaiting_restart: false,
         };
         self.tabs.push(tab);
         idx
@@ -550,6 +567,32 @@ fn connect_ws(
                             }
                             log::info!("Attach failed, creating new session");
                         }
+
+                        // Session exited -- show restart prompt
+                        if msg_type.as_deref() == Some("exited") {
+                            if let Some(sid) =
+                                js_sys::Reflect::get(&msg, &"session_id".into())
+                                    .ok()
+                                    .and_then(|v| v.as_string())
+                            {
+                                if let Ok(uuid) = uuid::Uuid::parse_str(&sid) {
+                                    let session_bytes = *uuid.as_bytes();
+                                    let mut tabs_ref = tabs.borrow_mut();
+                                    if let Some(tab) =
+                                        tabs_ref.tabs.iter_mut().find(|t| {
+                                            t.session_id.as_ref() == Some(&session_bytes)
+                                        })
+                                    {
+                                        tab.session_id = None;
+                                        tab.awaiting_restart = true;
+                                        let prompt =
+                                            b"\r\n[Process exited. Press Enter to restart.]";
+                                        tab.parser.advance(&mut tab.grid, prompt);
+                                    }
+                                    log::info!("Session exited: {sid}");
+                                }
+                            }
+                        }
                     }
                     return;
                 }
@@ -711,21 +754,29 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
 
     let font_library = sugarloaf::font::FontLibrary::default();
 
-    let mut sugarloaf = match Sugarloaf::new_async(
-        sugarloaf_window,
-        SugarloafRenderer::default(),
-        &font_library,
-        layout,
-    )
-    .await
-    {
-        Ok(s) => s,
-        Err(e) => {
-            // Err contains a working instance with font warnings, not a GPU failure
-            log::warn!("sugarloaf init warnings: {:?}", e.errors);
-            e.instance
+    // Force WebGL on iOS/iPadOS Safari — Safari's WebGPU implementation
+    // has device-loss issues during glyph rendering
+    let renderer = if is_ios_safari() {
+        log::info!("iOS Safari detected, using WebGL backend");
+        SugarloafRenderer {
+            backend: wgpu::Backends::GL,
+            ..SugarloafRenderer::default()
         }
+    } else {
+        SugarloafRenderer::default()
     };
+
+    let mut sugarloaf =
+        match Sugarloaf::new_async(sugarloaf_window, renderer, &font_library, layout)
+            .await
+        {
+            Ok(s) => s,
+            Err(e) => {
+                // Err contains a working instance with font warnings, not a GPU failure
+                log::warn!("sugarloaf init warnings: {:?}", e.errors);
+                e.instance
+            }
+        };
 
     let rt_id = sugarloaf.create_rich_text();
 
@@ -786,10 +837,40 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
         let ws_state_shortcut = ws_state.clone();
 
         let is_composing_ref = is_composing.clone();
+        let tabs_restart = tabs.clone();
+        let ws_state_restart = ws_state.clone();
         let on_keydown = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(
             move |event: web_sys::KeyboardEvent| {
                 // Skip during IME composition
                 if *is_composing_ref.borrow() {
+                    return;
+                }
+
+                // Restart session on Enter when process has exited
+                if tabs_restart.borrow().active_tab().awaiting_restart {
+                    if event.key() == "Enter" {
+                        event.prevent_default();
+                        let (cols, rows) = {
+                            let mut tabs_ref = tabs_restart.borrow_mut();
+                            let active = tabs_ref.active_tab_mut();
+                            active.awaiting_restart = false;
+                            let cols = active.grid.cols;
+                            let rows = active.grid.rows;
+                            active.grid = TerminalGrid::new(cols, rows);
+                            active.parser = copa::Parser::new();
+                            (cols, rows)
+                        };
+                        let create_msg = format!(
+                            r#"{{"type":"create","cols":{},"rows":{}}}"#,
+                            cols, rows
+                        );
+                        let state = ws_state_restart.borrow();
+                        if let Some(ref ws) = state.ws {
+                            if ws.ready_state() == web_sys::WebSocket::OPEN {
+                                let _ = ws.send_with_str(&create_msg);
+                            }
+                        }
+                    }
                     return;
                 }
 
@@ -1344,6 +1425,34 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                     if text.is_empty() {
                         return;
                     }
+
+                    // Restart session on Enter when process has exited
+                    if tabs.borrow().active_tab().awaiting_restart {
+                        if text.contains('\n') || text.contains('\r') {
+                            let (cols, rows) = {
+                                let mut tabs_ref = tabs.borrow_mut();
+                                let active = tabs_ref.active_tab_mut();
+                                active.awaiting_restart = false;
+                                let cols = active.grid.cols;
+                                let rows = active.grid.rows;
+                                active.grid = TerminalGrid::new(cols, rows);
+                                active.parser = copa::Parser::new();
+                                (cols, rows)
+                            };
+                            let create_msg = format!(
+                                r#"{{"type":"create","cols":{},"rows":{}}}"#,
+                                cols, rows
+                            );
+                            let state = ws_state.borrow();
+                            if let Some(ref ws) = state.ws {
+                                if ws.ready_state() == web_sys::WebSocket::OPEN {
+                                    let _ = ws.send_with_str(&create_msg);
+                                }
+                            }
+                        }
+                        return;
+                    }
+
                     let tabs_ref = tabs.borrow();
                     let Some(sid) = tabs_ref.active_tab().session_id else {
                         return;

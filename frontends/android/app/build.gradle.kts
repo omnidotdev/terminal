@@ -45,7 +45,7 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("com.google.android.material:material:1.12.0")
+    implementation("com.google.android.material:material:1.13.0")
     implementation("androidx.webkit:webkit:1.15.0")
     implementation("androidx.preference:preference-ktx:1.2.1")
     implementation("org.tukaani:xz:1.12")

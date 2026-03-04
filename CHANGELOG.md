@@ -1,5 +1,11 @@
 # Omni Terminal
 
+## 0.2.1
+
+### Patch Changes
+
+- [`6a13bab`](https://github.com/omnidotdev/terminal/commit/6a13bab2c7ce5ef96e74e97dc01dd40e94cf95c1) Thanks [@coopbri](https://github.com/coopbri)! - Fix AUR PKGBUILD to build WASM frontend before main binary, resolving 404 on `omni-terminal serve`
+
 ## 0.2.0
 
 ### Minor Changes

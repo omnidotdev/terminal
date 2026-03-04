@@ -96,6 +96,18 @@ jobs:
           targets: ${{ matrix.target }}
       - name: Ensure target on project toolchain
         run: rustup target add ${{ matrix.target }}
+      - name: Add WASM target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install wasm-bindgen-cli
+        shell: bash
+        run: |
+          WASM_BINDGEN_VERSION=$(grep -A1 'name = "wasm-bindgen"' Cargo.lock | grep version | sed 's/.*"\(.*\)".*/\1/')
+          cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION"
+      - name: Build WASM frontend
+        shell: bash
+        run: |
+          cargo build -p omni-terminal-wasm --target wasm32-unknown-unknown --release
+          wasm-bindgen target/wasm32-unknown-unknown/release/omni_terminal_wasm.wasm --out-dir frontends/wasm/wasm --target web --no-typescript
 
       # macOS
       - name: Build

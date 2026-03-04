@@ -1,6 +1,5 @@
 ---
 "@omnidotdev/terminal": patch
-"omni-terminal-wasm": patch
 ---
 
 fix(wasm): process exit UX and iOS Safari rendering

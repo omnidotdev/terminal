@@ -1,6 +1,5 @@
 ---
 "@omnidotdev/terminal": patch
-"omni-terminal-wasm": patch
 ---
 
 fix(wasm): mobile browser support for remote terminal access

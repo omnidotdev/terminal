@@ -25,6 +25,10 @@ node_modules/
 # build artifacts
 frontends/android/scripts/.build/
 frontends/wasm/wasm/
+frontends/wasm/omni_terminal_wasm*
+
+# local TLS certs
+*.pem
 
 # worktrees
 .worktrees/

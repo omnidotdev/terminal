@@ -1,5 +1,27 @@
 # Omni Terminal
 
+## 0.2.3
+
+### Patch Changes
+
+- [`9ff8651`](https://github.com/omnidotdev/terminal/commit/9ff8651a580c45bdab1414292d541d5a4482df72) Thanks [@coopbri](https://github.com/coopbri)! - fix(wasm): mobile browser support for remote terminal access
+
+  - Fix terminal text wrapping at wrong column on high-DPI devices by removing DPR double-counting in cell dimension calculation
+  - Fix Android virtual keyboard not appearing by adding touchend focus handler and forwarding textarea input events to the PTY
+  - Fix iOS rendering by gracefully handling sugarloaf font warnings instead of discarding the working GPU instance
+  - Add visible panic overlay for mobile debugging (no console access on mobile browsers)
+  - Make hidden textarea full-size with proper styling to ensure mobile browsers treat it as focusable
+
+- [`0bece69`](https://github.com/omnidotdev/terminal/commit/0bece69c6c61958f1c03ad0015f2dc244dab8faf) Thanks [@coopbri](https://github.com/coopbri)! - fix(wasm): process exit UX and iOS Safari rendering
+
+  - Show "[Process exited. Press Enter to restart.]" when shell exits instead of leaving a frozen terminal
+  - Restart session on Enter after process exit (desktop keydown + mobile input)
+  - Server sends `exited` WebSocket message when PTY reader detects shell exit (EIO/EOF)
+  - Fix iOS Safari rendering by forcing WebGL backend (Safari's WebGPU has device-loss issues during glyph rendering)
+  - Enable wgpu `webgl` feature for WebGL2 fallback support on WASM targets
+  - Detect iOS/iPadOS via user agent and maxTouchPoints for backend selection
+  - Fix FullRender cache path advancing by one cell width instead of full run width
+
 ## 0.2.2
 
 ### Patch Changes

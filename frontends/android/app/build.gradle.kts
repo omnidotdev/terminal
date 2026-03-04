@@ -48,5 +48,5 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.preference:preference-ktx:1.2.1")
-    implementation("org.tukaani:xz:1.10")
+    implementation("org.tukaani:xz:1.12")
 }

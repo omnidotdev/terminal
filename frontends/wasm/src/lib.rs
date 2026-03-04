@@ -75,7 +75,7 @@ fn create_ime_elements(container: &HtmlElement) -> (HtmlTextAreaElement, HtmlDiv
     textarea
         .set_attribute(
             "style",
-            "width: 1px; height: 1px; opacity: 0; position: absolute; left: 0; top: 0; overflow: hidden; z-index: -1;",
+            "position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; color: transparent; background: transparent; border: none; outline: none; resize: none; z-index: -1; caret-color: transparent; font-size: 16px;",
         )
         .unwrap();
     textarea.set_attribute("autocapitalize", "off").unwrap();
@@ -650,7 +650,21 @@ fn ws_send_binary(ws_state: &RefCell<WsState>, session_id: &[u8; 16], payload: &
 /// Initialize a terminal inside the given container element
 #[wasm_bindgen]
 pub fn create_terminal(container_id: String, ws_url: String, font_size: f32) {
-    console_error_panic_hook::set_once();
+    // Show panics visually on mobile (no console access)
+    let container_id_hook = container_id.clone();
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = info.to_string();
+        log::error!("{msg}");
+        if let Some(window) = web_sys::window() {
+            if let Some(document) = window.document() {
+                if let Some(el) = document.get_element_by_id(&container_id_hook) {
+                    el.set_inner_html(&format!(
+                        "<pre style='color:#ff6b6b;padding:1em;font-size:14px;white-space:pre-wrap;word-break:break-word'>{msg}</pre>"
+                    ));
+                }
+            }
+        }
+    }));
     console_log::init_with_level(log::Level::Info).ok();
 
     wasm_bindgen_futures::spawn_local(async_main(container_id, ws_url, font_size));
@@ -697,21 +711,30 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
 
     let font_library = sugarloaf::font::FontLibrary::default();
 
-    let mut sugarloaf = Sugarloaf::new_async(
+    let mut sugarloaf = match Sugarloaf::new_async(
         sugarloaf_window,
         SugarloafRenderer::default(),
         &font_library,
         layout,
     )
     .await
-    .expect("Failed to create sugarloaf");
+    {
+        Ok(s) => s,
+        Err(e) => {
+            // Err contains a working instance with font warnings, not a GPU failure
+            log::warn!("sugarloaf init warnings: {:?}", e.errors);
+            e.instance
+        }
+    };
 
     let rt_id = sugarloaf.create_rich_text();
 
     // Calculate cell dimensions once (stable -- based on font size, not surface size)
     let dims = sugarloaf.get_rich_text_dimensions(&rt_id);
-    let cell_width = dims.width * dpr;
-    let cell_height = dims.height * dpr;
+    // Sugarloaf shapes at font_size * scale_factor, so dimensions are already
+    // in device pixels -- do not multiply by dpr again
+    let cell_width = dims.width;
+    let cell_height = dims.height;
 
     let cols = if cell_width > 0.0 {
         (width / cell_width).max(1.0) as usize
@@ -856,15 +879,29 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             .unwrap();
         on_keydown.forget();
 
-        // Focus textarea on canvas click
-        let textarea_for_focus = ime_textarea.clone();
+        // Focus textarea on canvas click (desktop) and touchend (mobile)
+        // NOTE: touchend without preventDefault preserves user activation,
+        // which Android requires to show the virtual keyboard
+        let textarea_for_click = ime_textarea.clone();
         let on_click = Closure::<dyn FnMut()>::new(move || {
-            textarea_for_focus.focus().unwrap();
+            let _ = textarea_for_click.focus();
         });
         canvas_element
             .add_event_listener_with_callback("click", on_click.as_ref().unchecked_ref())
             .unwrap();
         on_click.forget();
+
+        let textarea_for_touch = ime_textarea.clone();
+        let on_touchend = Closure::<dyn FnMut()>::new(move || {
+            let _ = textarea_for_touch.focus();
+        });
+        canvas_element
+            .add_event_listener_with_callback(
+                "touchend",
+                on_touchend.as_ref().unchecked_ref(),
+            )
+            .unwrap();
+        on_touchend.forget();
 
         // Paste handler -- send clipboard text as bracketed paste
         let on_paste = Closure::<dyn FnMut(web_sys::ClipboardEvent)>::new(
@@ -1290,15 +1327,30 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             on_contextmenu.forget();
         }
 
-        // Clear stale textarea content on non-composition input
+        // Forward textarea input to PTY (handles mobile virtual keyboards
+        // which use input events instead of keydown)
         {
             let is_composing = is_composing.clone();
             let textarea = ime_textarea.clone();
+            let ws_state = ws_state.clone();
+            let tabs = tabs.clone();
             let on_input = Closure::<dyn FnMut(web_sys::InputEvent)>::new(
                 move |_event: web_sys::InputEvent| {
-                    if !*is_composing.borrow() {
-                        textarea.set_value("");
+                    if *is_composing.borrow() {
+                        return;
                     }
+                    let text = textarea.value();
+                    textarea.set_value("");
+                    if text.is_empty() {
+                        return;
+                    }
+                    let tabs_ref = tabs.borrow();
+                    let Some(sid) = tabs_ref.active_tab().session_id else {
+                        return;
+                    };
+                    drop(tabs_ref);
+                    ws_send_binary(&ws_state, &sid, text.as_bytes());
+                    tabs.borrow_mut().active_tab_mut().grid.scroll_to_bottom();
                 },
             );
             textarea_target

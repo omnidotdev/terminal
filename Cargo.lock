@@ -776,7 +776,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copa"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "arrayvec",
  "criterion",
@@ -801,7 +801,7 @@ dependencies = [
 
 [[package]]
 name = "corcovado"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "bytes",
  "cfg-if 1.0.4",
@@ -1313,7 +1313,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2176,9 +2176,9 @@ dependencies = [
 
 [[package]]
 name = "jni"
-version = "0.22.2"
+version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "004cad2989693095826dade4735429d1c427e79df7cc4013a919d3a7719b884b"
+checksum = "295dc9997acda1562fdf8d299f56063c936443b60f078e63a5d8d3c34ef2642b"
 dependencies = [
  "cfg-if 1.0.4",
  "combine",
@@ -3352,7 +3352,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "ahash",
  "axum",
@@ -3400,11 +3400,11 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-android"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "android_logger",
  "copa",
- "jni 0.22.2",
+ "jni 0.22.3",
  "libc",
  "log",
  "ndk",
@@ -3424,7 +3424,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-wasm"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
@@ -4107,7 +4107,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4337,9 +4337,9 @@ checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
 name = "simd_cesu8"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19e75ccd3404ef387c23d4cf34a30d49eab8f2aeb17e5ad575aacad434170daf"
+checksum = "94f90157bb87cddf702797c5dadfa0be7d266cdf49e22da2fcaa32eff75b2c33"
 dependencies = [
  "rustc_version",
  "simdutf8",
@@ -4574,7 +4574,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sugarloaf"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "approx",
  "bytemuck",
@@ -4661,7 +4661,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "teletypewriter"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "corcovado",
  "dirs",
@@ -4695,7 +4695,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-backend"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "base64",
  "bitflags 2.11.0",
@@ -4728,7 +4728,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-emulator"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "copa",
  "sugarloaf",
@@ -4736,7 +4736,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-proc-macros"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4744,7 +4744,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-window"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "ahash",
  "atomic-waker",
@@ -5825,7 +5825,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

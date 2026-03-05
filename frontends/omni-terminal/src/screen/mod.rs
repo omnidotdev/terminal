@@ -574,6 +574,17 @@ impl Screen<'_> {
         self.sugarloaf
             .set_background_color(Some(self.renderer.dynamic_background.1));
 
+        // Force full re-render so cell backgrounds pick up the new opacity
+        for context_grid in self.context_manager.contexts_mut() {
+            for context in context_grid.contexts_mut().values_mut() {
+                context
+                    .context_mut()
+                    .renderable_content
+                    .pending_update
+                    .set_ui_damage(terminal_backend::event::TerminalDamage::Full);
+            }
+        }
+
         self.context_manager.set_window_opacity(new_opacity);
         self.render();
     }

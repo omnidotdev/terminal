@@ -187,12 +187,24 @@ impl Renderer {
             std::mem::swap(&mut background_color, &mut foreground_color);
         }
 
-        let background_color = if self.dynamic_background.2
+        let opacity = self.dynamic_background.1.a as f32;
+        let matches_dynamic_bg = self.dynamic_background.2
             && background_color[0] == self.dynamic_background.0[0]
             && background_color[1] == self.dynamic_background.0[1]
-            && background_color[2] == self.dynamic_background.0[2]
-        {
+            && background_color[2] == self.dynamic_background.0[2];
+        // Also treat cells matching the original theme background as "default"
+        // so TUI programs that set explicit bg matching the theme still track
+        // background changes via OSC 11
+        let matches_theme_bg = background_color[0] == self.named_colors.background.0[0]
+            && background_color[1] == self.named_colors.background.0[1]
+            && background_color[2] == self.named_colors.background.0[2];
+        let is_default_bg = matches_dynamic_bg || matches_theme_bg;
+        let background_color = if is_default_bg {
             None
+        } else if self.dynamic_background.2 && opacity < 1.0 {
+            let mut bg = background_color;
+            bg[3] = opacity;
+            Some(bg)
         } else {
             Some(background_color)
         };
@@ -660,14 +672,23 @@ impl Renderer {
             std::mem::swap(&mut background_color, &mut color);
         }
 
-        let has_dynamic_background = self.dynamic_background.2
+        let opacity = self.dynamic_background.1.a as f32;
+        let matches_dynamic_bg = self.dynamic_background.2
             && background_color[0] == self.dynamic_background.0[0]
             && background_color[1] == self.dynamic_background.0[1]
             && background_color[2] == self.dynamic_background.0[2];
+        let matches_theme_bg = background_color[0] == self.named_colors.background.0[0]
+            && background_color[1] == self.named_colors.background.0[1]
+            && background_color[2] == self.named_colors.background.0[2];
+        let has_dynamic_background = matches_dynamic_bg || matches_theme_bg;
         let background_color = if has_dynamic_background
             && (cursor.state.content != CursorShape::Block && is_active)
         {
             None
+        } else if self.dynamic_background.2 && opacity < 1.0 {
+            let mut bg = background_color;
+            bg[3] = opacity;
+            Some(bg)
         } else {
             Some(background_color)
         };
@@ -891,6 +912,45 @@ impl Renderer {
             sugarloaf.set_rich_text_font_size(&search_rich_text, 12.0);
             self.search.rich_text_id = Some(search_rich_text);
         }
+
+        // Apply background color change BEFORE cell rendering so cells
+        // use the updated dynamic_background for their bg color comparisons
+        let window_update = {
+            let current_context = context_manager.current_grid_mut().current_mut();
+            if let Some(bg_state) = current_context.renderable_content.background.take() {
+                use crate::context::renderable::BackgroundState;
+                match &bg_state {
+                    BackgroundState::Set(color) => {
+                        self.dynamic_background.0 = [
+                            color.r as f32,
+                            color.g as f32,
+                            color.b as f32,
+                            color.a as f32,
+                        ];
+                        let current_opacity = self.dynamic_background.1.a;
+                        let mut bg_color = *color;
+                        bg_color.a = current_opacity;
+                        self.dynamic_background.1 = bg_color;
+                        sugarloaf.set_background_color(Some(bg_color));
+                    }
+                    BackgroundState::Reset => {
+                        self.dynamic_background.0 = self.named_colors.background.0;
+                        self.dynamic_background.1 = self.named_colors.background.1;
+                        sugarloaf.set_background_color(None);
+                    }
+                }
+                // Force full damage so all cells re-render with the new background
+                current_context
+                    .renderable_content
+                    .pending_update
+                    .set_ui_damage(terminal_backend::event::TerminalDamage::Full);
+                Some(crate::context::renderable::WindowUpdate::Background(
+                    bg_state,
+                ))
+            } else {
+                None
+            }
+        };
 
         let grid = context_manager.current_grid_mut();
         let active_key = grid.current;
@@ -1222,38 +1282,6 @@ impl Renderer {
         }
 
         sugarloaf.set_objects(objects);
-
-        // Apply background color from current context if changed
-        let current_context = context_manager.current_grid_mut().current_mut();
-        let window_update = if let Some(bg_state) =
-            current_context.renderable_content.background.take()
-        {
-            use crate::context::renderable::BackgroundState;
-            match bg_state {
-                BackgroundState::Set(color) => {
-                    // Update dynamic_background so opacity changes use the current color
-                    self.dynamic_background.0 = [
-                        color.r as f32,
-                        color.g as f32,
-                        color.b as f32,
-                        color.a as f32,
-                    ];
-                    self.dynamic_background.1 = color;
-                    sugarloaf.set_background_color(Some(color));
-                }
-                BackgroundState::Reset => {
-                    // Restore dynamic_background to config defaults
-                    self.dynamic_background.0 = self.named_colors.background.0;
-                    self.dynamic_background.1 = self.named_colors.background.1;
-                    sugarloaf.set_background_color(None);
-                }
-            }
-            Some(crate::context::renderable::WindowUpdate::Background(
-                bg_state,
-            ))
-        } else {
-            None
-        };
 
         sugarloaf.render();
 

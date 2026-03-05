@@ -13,13 +13,58 @@ use crate::layout::{FragmentStyleDecoration, UnderlineShape};
 
 pub struct Compositor {
     pub batches: BatchManager,
+    pub bg_vertices: Vec<Vertex>,
 }
 
 impl Compositor {
     pub fn new() -> Self {
         Self {
             batches: BatchManager::new(),
+            bg_vertices: Vec::new(),
         }
+    }
+
+    /// Add a background rect that uses replace blending (no alpha accumulation)
+    #[inline]
+    pub fn add_bg_rect(&mut self, rect: &Rect, depth: f32, color: &[f32; 4]) {
+        let x = rect.x;
+        let y = rect.y;
+        let w = rect.width;
+        let h = rect.height;
+        let layers = [0i32, 0i32];
+        let uv_default = [0.0f32, 0.0, 1.0, 1.0];
+
+        let v0 = Vertex {
+            pos: [x, y, depth],
+            color: *color,
+            uv: [uv_default[0], uv_default[1]],
+            layers,
+        };
+        let v1 = Vertex {
+            pos: [x, y + h, depth],
+            color: *color,
+            uv: [uv_default[0], uv_default[3]],
+            layers,
+        };
+        let v2 = Vertex {
+            pos: [x + w, y + h, depth],
+            color: *color,
+            uv: [uv_default[2], uv_default[3]],
+            layers,
+        };
+        let v3 = Vertex {
+            pos: [x + w, y, depth],
+            color: *color,
+            uv: [uv_default[2], uv_default[1]],
+            layers,
+        };
+
+        self.bg_vertices.push(v0);
+        self.bg_vertices.push(v1);
+        self.bg_vertices.push(v2);
+        self.bg_vertices.push(v2);
+        self.bg_vertices.push(v3);
+        self.bg_vertices.push(v0);
     }
 
     /// Creates an underline decoration based on the style and rect
@@ -107,10 +152,12 @@ impl Compositor {
 
     pub fn begin(&mut self) {
         self.batches.reset();
+        self.bg_vertices.clear();
     }
 
-    pub fn finish(&mut self, vertices: &mut Vec<Vertex>) {
+    pub fn finish(&mut self, vertices: &mut Vec<Vertex>, bg_vertices: &mut Vec<Vertex>) {
         self.batches.build_display_list(vertices);
+        bg_vertices.append(&mut self.bg_vertices);
     }
 
     /// Standard draw_run method (for compatibility)
@@ -147,7 +194,7 @@ impl Compositor {
             if let Some(bg_color) = style.background_color {
                 let bg_rect =
                     Rect::new(rect.x, style.topline, rect.width, style.line_height);
-                self.batches.add_rect(&bg_rect, depth, &bg_color);
+                self.add_bg_rect(&bg_rect, depth, &bg_color);
             }
 
             if let Some(cursor) = style.cursor {
@@ -173,7 +220,7 @@ impl Compositor {
                                 rect.width - 2.0,
                                 font_height - 2.0,
                             );
-                            self.batches.add_rect(&inner_rect, depth, &bg_color);
+                            self.add_bg_rect(&inner_rect, depth, &bg_color);
                         }
                     }
                     crate::SugarCursor::Caret(cursor_color) => {
@@ -245,7 +292,7 @@ impl Compositor {
             if let Some(bg_color) = style.background_color {
                 let bg_rect =
                     Rect::new(rect.x, style.topline, rect.width, style.line_height);
-                self.batches.add_rect(&bg_rect, depth, &bg_color);
+                self.add_bg_rect(&bg_rect, depth, &bg_color);
             }
 
             if let Some(cursor) = style.cursor {
@@ -271,7 +318,7 @@ impl Compositor {
                                 rect.width - 2.0,
                                 font_height - 2.0,
                             );
-                            self.batches.add_rect(&inner_rect, depth, &bg_color);
+                            self.add_bg_rect(&inner_rect, depth, &bg_color);
                         }
                     }
                     crate::SugarCursor::Caret(cursor_color) => {

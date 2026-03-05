@@ -42,10 +42,14 @@ pub struct RichTextBrush {
     layout_bind_group_layout: wgpu::BindGroupLayout,
     transform: wgpu::Buffer,
     pipeline: wgpu::RenderPipeline,
+    bg_pipeline: wgpu::RenderPipeline,
     current_transform: [f32; 16],
     comp: Compositor,
     vertices: Vec<Vertex>,
+    bg_vertices: Vec<Vertex>,
+    bg_vertex_buffer: wgpu::Buffer,
     supported_vertex_buffer: usize,
+    supported_bg_vertex_buffer: usize,
     textures_version: usize,
     images: ImageCache,
     glyphs: GlyphCache,
@@ -244,8 +248,64 @@ impl RichTextBrush {
             multiview_mask: None,
         });
 
+        // Background pipeline uses replace blend to avoid alpha accumulation
+        // when drawing cell backgrounds over the window clear color
+        let bg_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                cache: None,
+                label: Some("rich_text::bg_pipeline"),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    module: &shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[wgpu::VertexBufferLayout {
+                        array_stride: mem::size_of::<Vertex>() as u64,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &wgpu::vertex_attr_array!(
+                            0 => Float32x3,
+                            1 => Float32x4,
+                            2 => Float32x2,
+                            3 => Sint32x2,
+                        ),
+                    }],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    module: &shader,
+                    entry_point: Some("fs_main"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: context.format,
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent::REPLACE,
+                            alpha: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: None,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    unclipped_depth: false,
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+            });
+
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("rich_text::Vertices Buffer"),
+            size: mem::size_of::<Vertex>() as u64 * supported_vertex_buffer as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let bg_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("rich_text::BG Vertices Buffer"),
             size: mem::size_of::<Vertex>() as u64 * supported_vertex_buffer as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -261,10 +321,14 @@ impl RichTextBrush {
             textures_version: 0,
             glyphs: GlyphCache::new(),
             vertices: vec![],
+            bg_vertices: vec![],
             transform,
             pipeline,
+            bg_pipeline,
             vertex_buffer,
+            bg_vertex_buffer,
             supported_vertex_buffer,
+            supported_bg_vertex_buffer: supported_vertex_buffer,
             current_transform,
         }
     }
@@ -278,6 +342,7 @@ impl RichTextBrush {
     ) {
         if state.rich_texts.is_empty() {
             self.vertices.clear();
+            self.bg_vertices.clear();
             return;
         }
 
@@ -319,8 +384,9 @@ impl RichTextBrush {
         }
 
         self.vertices.clear();
+        self.bg_vertices.clear();
         self.images.process_atlases(context);
-        self.comp.finish(&mut self.vertices);
+        self.comp.finish(&mut self.vertices, &mut self.bg_vertices);
     }
 
     #[inline]
@@ -788,9 +854,7 @@ impl RichTextBrush {
         ctx: &mut Context,
         rpass: &mut wgpu::RenderPass<'pass>,
     ) {
-        // let start = std::time::Instant::now();
-        // There's nothing to render
-        if self.vertices.is_empty() {
+        if self.vertices.is_empty() && self.bg_vertices.is_empty() {
             return;
         }
 
@@ -806,8 +870,6 @@ impl RichTextBrush {
 
         if self.vertices.len() > self.supported_vertex_buffer {
             self.vertex_buffer.destroy();
-
-            // Allocate 25% more buffer space to reduce frequent reallocations
             self.supported_vertex_buffer = (self.vertices.len() as f32 * 1.25) as usize;
             self.vertex_buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("sugarloaf::rich_text::Pipeline vertices"),
@@ -818,9 +880,27 @@ impl RichTextBrush {
             });
         }
 
+        if self.bg_vertices.len() > self.supported_bg_vertex_buffer {
+            self.bg_vertex_buffer.destroy();
+            self.supported_bg_vertex_buffer =
+                (self.bg_vertices.len() as f32 * 1.25) as usize;
+            self.bg_vertex_buffer = ctx.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("sugarloaf::rich_text::BG Pipeline vertices"),
+                size: mem::size_of::<Vertex>() as u64
+                    * self.supported_bg_vertex_buffer as u64,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+        }
+
         let vertices_bytes: &[u8] = bytemuck::cast_slice(&self.vertices);
         if !vertices_bytes.is_empty() {
             queue.write_buffer(&self.vertex_buffer, 0, vertices_bytes);
+        }
+
+        let bg_vertices_bytes: &[u8] = bytemuck::cast_slice(&self.bg_vertices);
+        if !bg_vertices_bytes.is_empty() {
+            queue.write_buffer(&self.bg_vertex_buffer, 0, bg_vertices_bytes);
         }
 
         if self.textures_version != self.images.entries.len() {
@@ -846,15 +926,26 @@ impl RichTextBrush {
                 });
         }
 
-        rpass.set_pipeline(&self.pipeline);
-        rpass.set_bind_group(0, &self.constant_bind_group, &[]);
-        rpass.set_bind_group(1, &self.layout_bind_group, &[]);
-        rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        // Draw background rects first with replace blend to avoid
+        // alpha accumulation over the window clear color
+        if !self.bg_vertices.is_empty() {
+            rpass.set_pipeline(&self.bg_pipeline);
+            rpass.set_bind_group(0, &self.constant_bind_group, &[]);
+            rpass.set_bind_group(1, &self.layout_bind_group, &[]);
+            rpass.set_vertex_buffer(0, self.bg_vertex_buffer.slice(..));
+            let bg_vertex_count = self.bg_vertices.len() as u32;
+            rpass.draw(0..bg_vertex_count, 0..1);
+        }
 
-        let vertex_count = self.vertices.len() as u32;
-        rpass.draw(0..vertex_count, 0..1);
-        // let duration = start.elapsed();
-        // println!("Time elapsed in rich_text::render is: {:?}", duration);
+        // Draw text and other elements with standard alpha blend
+        if !self.vertices.is_empty() {
+            rpass.set_pipeline(&self.pipeline);
+            rpass.set_bind_group(0, &self.constant_bind_group, &[]);
+            rpass.set_bind_group(1, &self.layout_bind_group, &[]);
+            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            let vertex_count = self.vertices.len() as u32;
+            rpass.draw(0..vertex_count, 0..1);
+        }
     }
 }
 

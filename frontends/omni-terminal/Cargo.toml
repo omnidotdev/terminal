@@ -23,8 +23,9 @@ wgpu = { workspace = true }
 terminal-backend = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = "1.4.1"
+cargo-husky = { version = "1", default-features = false, features = ["precommit-hook", "run-cargo-fmt", "run-cargo-clippy", "run-cargo-test"] }
 criterion = { workspace = true }
+pretty_assertions = "1.4.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 bitflags = { workspace = true }

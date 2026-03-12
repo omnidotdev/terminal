@@ -3,7 +3,7 @@ authors = ["Omni LLC <team@omni.dev>"]
 description = "Omni Terminal proc macros"
 repository = { workspace = true }
 name = "terminal-proc-macros"
-license = "MIT"
+license = "Apache-2.0"
 version = { workspace = true }
 edition = { workspace = true }
 

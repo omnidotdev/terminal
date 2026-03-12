@@ -1,7 +1,7 @@
 [package]
 name = "corcovado"
 version = { workspace = true }
-license = "MIT"
+license = "Apache-2.0"
 edition = "2015"
 authors = ["Omni LLC <team@omni.dev>"]
 description = "Non-blocking IO library"

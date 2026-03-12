@@ -29,7 +29,7 @@ resolver = "2"
 version = "0.2.4"
 authors = ["Omni LLC <team@omni.dev>"]
 edition = "2021"
-license = "MIT"
+license = "Apache-2.0"
 keywords = ["graphics", "terminal", "application"]
 # Minimal stable rust version (MSRV)
 rust-version = "1.92.0"

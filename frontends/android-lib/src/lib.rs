@@ -19,6 +19,17 @@ use tungstenite::Message;
 
 static TERMINAL_MANAGER: Mutex<Option<TerminalManager>> = Mutex::new(None);
 
+/// Sessions preserved across surface destruction (app minimized, etc.).
+/// When the GPU surface is torn down we move live sessions here so they
+/// survive until a new surface is created.
+static PRESERVED_SESSIONS: Mutex<Option<PreservedState>> = Mutex::new(None);
+
+struct PreservedState {
+    sessions: Vec<Session>,
+    active: usize,
+    shell_counter: usize,
+}
+
 /// Messages sent from JNI to the PTY/WebSocket thread.
 enum PtyCommand {
     /// Send raw bytes to the PTY (keyboard input).
@@ -1246,19 +1257,40 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_init(
 
     log::info!("Grid: {cols}x{rows} dims_confirmed={dims_confirmed}");
 
+    // Restore sessions preserved from a previous surface (app was minimized)
+    let preserved = PRESERVED_SESSIONS.lock().unwrap().take();
+
+    let (sessions, active, shell_counter) = if let Some(state) = preserved {
+        log::info!(
+            "Restoring {} preserved sessions (active={})",
+            state.sessions.len(),
+            state.active,
+        );
+        (state.sessions, state.active, state.shell_counter)
+    } else {
+        (Vec::new(), 0, 0)
+    };
+
     let mut mgr = TerminalManager {
         sugarloaf,
         rt_id,
-        sessions: Vec::new(),
-        active: 0,
+        sessions,
+        active,
         total_cols: cols,
         total_rows: rows,
         surface_width: width as f32,
         surface_height: height as f32,
         scale,
         dims_confirmed,
-        shell_counter: 0,
+        shell_counter,
     };
+
+    // Resize restored sessions to match the new surface dimensions
+    for session in &mut mgr.sessions {
+        session.grid.resize(cols, rows);
+        session.send_resize(cols, rows);
+        session.dirty = true;
+    }
 
     mgr.render_content();
 
@@ -1840,13 +1872,34 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getGridOffset
     0.0
 }
 
-/// Clean up native resources.
+/// Tear down the GPU surface but preserve sessions (for app minimize / surface loss).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_destroySurface(
+    _env: JNIEnv,
+    _class: JClass,
+) {
+    log::info!("Destroying surface (preserving sessions)");
+    let mut mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(m) = mgr.take() {
+        let state = PreservedState {
+            sessions: m.sessions,
+            active: m.active,
+            shell_counter: m.shell_counter,
+        };
+        *PRESERVED_SESSIONS.lock().unwrap() = Some(state);
+    }
+}
+
+/// Clean up all native resources (sessions + surface).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_destroy(
     _env: JNIEnv,
     _class: JClass,
 ) {
     log::info!("Destroying native terminal");
+    // Clear any preserved sessions
+    *PRESERVED_SESSIONS.lock().unwrap() = None;
+
     let mut mgr = TERMINAL_MANAGER.lock().unwrap();
     if let Some(ref mut m) = *mgr {
         for session in &m.sessions {

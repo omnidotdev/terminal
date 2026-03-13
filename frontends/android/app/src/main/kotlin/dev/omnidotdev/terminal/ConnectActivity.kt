@@ -17,6 +17,18 @@ import java.io.File
 class ConnectActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // If sessions are still running (app was backgrounded), skip straight
+        // to the terminal activity instead of showing the connect screen.
+        if (NativeTerminal.getSessionCount() > 0) {
+            startActivity(
+                Intent(this, NativeTerminalActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            )
+            finish()
+            return
+        }
+
         setContentView(R.layout.activity_connect)
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)

@@ -50,6 +50,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
     private var serviceStarted = false
     private var selecting = false
+    private var scrolling = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -536,6 +537,8 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                         android.widget.Toast.makeText(this, "Copied", android.widget.Toast.LENGTH_SHORT).show()
                     }
                     NativeTerminal.selectionClear()
+                } else if (scrolling) {
+                    scrolling = false
                 } else if (!scaleDetector.isInProgress) {
                     surfaceView.showKeyboard()
                 }
@@ -564,14 +567,19 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             val theme = TerminalPreferences.getTheme(this)
             applyTheme(theme)
 
-            // Create first session based on intent mode
-            val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
-            if (mode == "local") {
-                connectLocalOrProot()
-            } else {
-                serverUrl = intent.getStringExtra(ConnectActivity.EXTRA_SERVER_URL)
-                if (serverUrl != null) {
-                    NativeTerminal.connect(serverUrl!!)
+            // Check if sessions were restored from a previous surface
+            val restored = NativeTerminal.getSessionCount() > 0
+
+            if (!restored) {
+                // Create first session based on intent mode
+                val mode = intent.getStringExtra(ConnectActivity.EXTRA_MODE)
+                if (mode == "local") {
+                    connectLocalOrProot()
+                } else {
+                    serverUrl = intent.getStringExtra(ConnectActivity.EXTRA_SERVER_URL)
+                    if (serverUrl != null) {
+                        NativeTerminal.connect(serverUrl!!)
+                    }
                 }
             }
 
@@ -588,18 +596,21 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        renderHandler.removeCallbacks(renderRunnable)
         if (initialized) {
-            NativeTerminal.destroy()
+            NativeTerminal.destroySurface()
             initialized = false
         }
     }
 
     override fun onDestroy() {
-        stopTerminalService()
         renderHandler.removeCallbacks(renderRunnable)
-        if (initialized) {
-            NativeTerminal.destroy()
-            initialized = false
+        if (isFinishing) {
+            stopTerminalService()
+            if (initialized) {
+                NativeTerminal.destroy()
+                initialized = false
+            }
         }
         super.onDestroy()
     }
@@ -749,6 +760,8 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 NativeTerminal.selectionUpdate(col, row)
                 return true
             }
+
+            scrolling = true
 
             // Convert pixel distance to lines (font_size=18 * line_height=1.2 * density)
             val lineHeight = 18f * 1.2f * resources.displayMetrics.density

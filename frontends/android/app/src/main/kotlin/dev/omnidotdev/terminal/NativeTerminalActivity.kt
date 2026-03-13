@@ -25,6 +25,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.google.android.material.snackbar.Snackbar
+import io.sentry.Sentry
 
 class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private lateinit var root: FrameLayout
@@ -261,12 +263,13 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                         startTerminalService()
                     }
                 } catch (e: Exception) {
+                    Sentry.captureException(e)
                     runOnUiThread {
                         dialog.dismiss()
-                        android.widget.Toast.makeText(
-                            this,
+                        Snackbar.make(
+                            root,
                             getString(R.string.bootstrap_failed, e.message),
-                            android.widget.Toast.LENGTH_LONG,
+                            Snackbar.LENGTH_LONG,
                         ).show()
                     }
                 }
@@ -337,8 +340,11 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
         // Iterate in reverse so removal indices stay valid
         for (i in (count - 1) downTo 0) {
             if (!NativeTerminal.isSessionAlive(i)) {
-                // Keep exited session visible so user can read error output
+                val label = NativeTerminal.getSessionLabel(i)
                 closeSessionAt(i)
+                if (NativeTerminal.getSessionCount() > 0) {
+                    Snackbar.make(root, "Session \"$label\" ended", Snackbar.LENGTH_SHORT).show()
+                }
                 return // finish() may have been called; re-check next frame
             }
         }
@@ -397,12 +403,13 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                     android.widget.Toast.makeText(this, R.string.arch_install_done, android.widget.Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
+                Sentry.captureException(e)
                 runOnUiThread {
                     dialog.dismiss()
-                    android.widget.Toast.makeText(
-                        this,
+                    Snackbar.make(
+                        root,
                         getString(R.string.arch_install_failed, e.message),
-                        android.widget.Toast.LENGTH_LONG,
+                        Snackbar.LENGTH_LONG,
                     ).show()
                 }
             }

@@ -13,7 +13,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
+import io.sentry.Sentry
 import java.io.File
 
 class ConnectActivity : AppCompatActivity() {
@@ -53,7 +55,7 @@ class ConnectActivity : AppCompatActivity() {
         connectButton.setOnClickListener {
             val raw = urlInput.text?.toString()?.trim().orEmpty()
             if (raw.isEmpty()) {
-                Toast.makeText(this, R.string.error_empty_url, Toast.LENGTH_SHORT).show()
+                Snackbar.make(findViewById(android.R.id.content), R.string.error_empty_url, Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -117,12 +119,13 @@ class ConnectActivity : AppCompatActivity() {
                     )
                 }
             } catch (e: Exception) {
+                Sentry.captureException(e)
                 runOnUiThread {
                     dialog.dismiss()
-                    Toast.makeText(
-                        this,
+                    Snackbar.make(
+                        findViewById(android.R.id.content),
                         getString(R.string.bootstrap_failed, e.message),
-                        Toast.LENGTH_LONG,
+                        Snackbar.LENGTH_LONG,
                     ).show()
                 }
             }
@@ -150,7 +153,7 @@ class ConnectActivity : AppCompatActivity() {
             ) {
                 createStorageSymlinks()
             } else {
-                Toast.makeText(this, R.string.storage_denied, Toast.LENGTH_SHORT).show()
+                Snackbar.make(findViewById(android.R.id.content), R.string.storage_denied, Snackbar.LENGTH_SHORT).show()
             }
         }
     }

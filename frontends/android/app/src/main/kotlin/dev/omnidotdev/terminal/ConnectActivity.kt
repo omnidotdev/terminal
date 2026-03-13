@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import com.google.android.material.button.MaterialButton
@@ -217,7 +216,7 @@ class ConnectActivity : AppCompatActivity() {
             }
         }
 
-        Toast.makeText(this, R.string.storage_created, Toast.LENGTH_SHORT).show()
+        Snackbar.make(findViewById(android.R.id.content), R.string.storage_created, Snackbar.LENGTH_SHORT).show()
     }
 
     companion object {

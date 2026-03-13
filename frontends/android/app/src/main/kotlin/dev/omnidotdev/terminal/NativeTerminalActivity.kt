@@ -402,7 +402,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 }
                 runOnUiThread {
                     dialog.dismiss()
-                    android.widget.Toast.makeText(this, R.string.arch_install_done, android.widget.Toast.LENGTH_LONG).show()
+                    Snackbar.make(root, R.string.arch_install_done, Snackbar.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 Sentry.captureException(e)
@@ -549,7 +549,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                     if (text.isNotEmpty()) {
                         val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("terminal", text))
-                        android.widget.Toast.makeText(this, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+                        Snackbar.make(root, "Copied", Snackbar.LENGTH_SHORT).show()
                     }
                     NativeTerminal.selectionClear()
                 } else if (scrolling) {
@@ -676,7 +676,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                     .setMessage(R.string.arch_remove_confirm)
                     .setPositiveButton(android.R.string.ok) { _, _ ->
                         ProotEnvironment.remove(this)
-                        android.widget.Toast.makeText(this, R.string.arch_removed, android.widget.Toast.LENGTH_SHORT).show()
+                        Snackbar.make(root, R.string.arch_removed, Snackbar.LENGTH_SHORT).show()
                     }
                     .setNegativeButton(android.R.string.cancel, null)
                     .show()

@@ -221,7 +221,7 @@ jobs:
     name: Package macOS universal binary
     needs: [release, build]
     if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

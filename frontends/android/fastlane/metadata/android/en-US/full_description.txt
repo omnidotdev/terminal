@@ -1,0 +1,14 @@
+Omni Terminal is a GPU-accelerated terminal emulator for Android that brings a full Linux command-line experience to your device.
+
+Features:
+• Local Shell — Run commands directly on your device with a bundled shell environment (busybox-based)
+• Arch Linux — Install a complete Arch Linux ARM environment via PRoot, with pacman package manager
+• Remote Terminal — Connect to Omni Terminal servers over WebSocket for remote shell access
+• GPU Rendering — Smooth, fast terminal rendering powered by wgpu
+• Multi-Session — Multiple terminal tabs with independent sessions
+• Pinch to Zoom — Adjust font size with familiar gestures
+• Text Selection — Long-press to select and copy terminal output
+• Themes — Dark, Solarized Dark, and Light themes
+• Background Sessions — Terminal sessions persist when the app is minimized
+
+Built by Omni (omni.dev). Open source under the Apache 2.0 license.

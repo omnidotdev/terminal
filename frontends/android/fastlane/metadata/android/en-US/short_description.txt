@@ -1,0 +1,1 @@
+GPU-accelerated terminal emulator with local shell and Arch Linux support

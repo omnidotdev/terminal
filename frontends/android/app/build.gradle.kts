@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("io.sentry.android.gradle")
 }
 
 android {
@@ -13,6 +14,12 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        buildConfigField("String", "SENTRY_DSN", "\"${System.getenv("SENTRY_DSN") ?: ""}\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
@@ -44,7 +51,17 @@ kotlin {
     }
 }
 
+sentry {
+    org = "omnidotdev"
+    projectName = "omni-terminal-android"
+    uploadNativeSymbols = true
+    includeNativeSources = true
+    autoInstallation.enabled = true
+    includeSourceContext = true
+}
+
 dependencies {
+    implementation("io.sentry:sentry-android:8.14.0")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("com.google.android.material:material:1.13.0")

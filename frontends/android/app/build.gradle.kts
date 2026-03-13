@@ -56,7 +56,7 @@ sentry {
     projectName = "omni-terminal-android"
     uploadNativeSymbols = true
     includeNativeSources = true
-    autoInstallation.enabled = true
+    autoInstallation.enabled = false
     includeSourceContext = true
 }
 

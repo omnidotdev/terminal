@@ -41,6 +41,10 @@
     <string name="exit">Exit</string>
     <string name="website_url">terminal.omni.dev</string>
 
+    <string name="storage_rationale_title">Storage Access</string>
+    <string name="storage_rationale_body">Omni Terminal needs storage access to create shortcuts to your files (Downloads, Pictures, etc.) inside the terminal environment.\n\nThis lets you work with your files directly from the command line.</string>
+    <string name="button_continue">Continue</string>
+
     <string name="onboarding_title">Welcome to Omni Terminal</string>
     <string name="onboarding_body">A GPU-accelerated terminal emulator.\n\n• Local Shell — run commands directly on your device\n• Arch Linux — install a full Linux environment via PRoot\n• Remote — connect to an Omni Terminal server\n\nTap \"Local Shell\" to get started.</string>
     <string name="onboarding_dismiss">Get Started</string>

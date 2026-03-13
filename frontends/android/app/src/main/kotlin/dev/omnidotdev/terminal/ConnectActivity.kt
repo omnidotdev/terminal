@@ -135,9 +135,16 @@ class ConnectActivity : AppCompatActivity() {
     private fun setupStorage() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                intent.data = Uri.parse("package:$packageName")
-                startActivityForResult(intent, REQUEST_STORAGE)
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.storage_rationale_title)
+                    .setMessage(R.string.storage_rationale_body)
+                    .setPositiveButton(R.string.button_continue) { _, _ ->
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                        intent.data = Uri.parse("package:$packageName")
+                        startActivityForResult(intent, REQUEST_STORAGE)
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
                 return
             }
         }

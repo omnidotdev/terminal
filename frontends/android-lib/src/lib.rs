@@ -539,26 +539,7 @@ fn ws_thread_main(
             }
         };
 
-        // Upgrade to WebSocket, wrapping with TLS for wss:// URLs
-        macro_rules! ws_handshake {
-            ($stream:expr) => {
-                match tungstenite::client(parsed.as_str(), $stream) {
-                    Ok((ws, _response)) => ws,
-                    Err(e) => {
-                        log::error!("WebSocket handshake failed for {ws_url}: {e}");
-                        if attempt >= max_retries {
-                            let _ = out_tx.send(
-                                br#"{"type":"error","message":"WebSocket handshake failed"}"#
-                                    .to_vec(),
-                            );
-                        }
-                        None // Signal failure to the match below
-                    }
-                }
-            };
-        }
-
-        // Run connection + event loop, capturing whether it was a clean close
+        // Upgrade to WebSocket (with TLS for wss://), run event loop
         let clean_close = if use_tls {
             let _ = rustls::crypto::ring::default_provider().install_default();
             let tls_config = rustls::ClientConfig::builder()
@@ -647,20 +628,22 @@ fn ws_thread_main(
     log::info!("WebSocket thread exiting");
 }
 
+/// Run the WebSocket event loop. Return `true` for a clean (user-initiated)
+/// close, `false` for an unexpected disconnection that may warrant a retry.
 fn ws_event_loop<S: std::io::Read + std::io::Write>(
     ws: &mut tungstenite::WebSocket<S>,
     cols: usize,
     rows: usize,
     cmd_rx: &mpsc::Receiver<PtyCommand>,
     out_tx: &mpsc::Sender<Vec<u8>>,
-) {
+) -> bool {
     log::info!("WebSocket connected");
 
     // Send create session request
     let create_msg = format!(r#"{{"type":"create","cols":{cols},"rows":{rows}}}"#);
     if ws.send(Message::Text(create_msg.into())).is_err() {
         log::error!("Failed to send create message");
-        return;
+        return false;
     }
 
     loop {
@@ -669,19 +652,19 @@ fn ws_event_loop<S: std::io::Read + std::io::Write>(
             Ok(PtyCommand::Input(data)) => {
                 if ws.send(Message::Binary(data.into())).is_err() {
                     log::error!("WebSocket send failed");
-                    break;
+                    return false;
                 }
             }
             Ok(PtyCommand::Resize(json)) => {
                 if ws.send(Message::Text(json.into())).is_err() {
-                    break;
+                    return false;
                 }
             }
             Ok(PtyCommand::Disconnect) => {
                 let _ = ws.close(None);
-                break;
+                return true;
             }
-            Err(mpsc::TryRecvError::Disconnected) => break,
+            Err(mpsc::TryRecvError::Disconnected) => return true,
             Err(mpsc::TryRecvError::Empty) => {}
         }
 
@@ -695,7 +678,7 @@ fn ws_event_loop<S: std::io::Read + std::io::Write>(
             }
             Ok(Message::Close(_)) => {
                 log::info!("WebSocket closed by server");
-                break;
+                return false;
             }
             Ok(_) => {} // Ping/Pong handled internally
             Err(tungstenite::Error::Io(ref e))
@@ -706,7 +689,7 @@ fn ws_event_loop<S: std::io::Read + std::io::Write>(
             }
             Err(e) => {
                 log::error!("WebSocket error: {e}");
-                break;
+                return false;
             }
         }
     }

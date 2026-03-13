@@ -8,6 +8,21 @@ android {
     namespace = "dev.omnidotdev.terminal"
     compileSdk = 36
 
+    signingConfigs {
+        create("release") {
+            val keystorePropsFile = rootProject.file("keystore.properties")
+            if (keystorePropsFile.exists()) {
+                val keystoreProps = java.util.Properties().apply {
+                    load(keystorePropsFile.inputStream())
+                }
+                storeFile = file(keystoreProps["storeFile"] as String)
+                storePassword = keystoreProps["storePassword"] as String
+                keyAlias = keystoreProps["keyAlias"] as String
+                keyPassword = keystoreProps["keyPassword"] as String
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "dev.omnidotdev.terminal"
         minSdk = 26
@@ -30,6 +45,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

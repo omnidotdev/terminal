@@ -450,9 +450,10 @@ fn ws_thread_main(
     cmd_rx: &mpsc::Receiver<PtyCommand>,
     out_tx: &mpsc::Sender<Vec<u8>>,
 ) {
-    log::info!("WebSocket connecting to {ws_url}");
+    let max_retries: u32 = 3;
+    let mut attempt: u32 = 0;
 
-    // Parse the URL to extract host:port for manual TCP connect with timeout
+    // Parse the URL once (no need to re-parse on retries)
     let parsed = match url::Url::parse(ws_url) {
         Ok(u) => u,
         Err(e) => {
@@ -466,92 +467,182 @@ fn ws_thread_main(
     let default_port = if parsed.scheme() == "wss" { 443 } else { 80 };
     let port = parsed.port().unwrap_or(default_port);
     let addr = format!("{host}:{port}");
-
-    log::info!("Resolving {addr}");
-
-    // Resolve DNS first, then connect with timeout
-    use std::net::ToSocketAddrs;
-    let sock_addr = match addr.to_socket_addrs() {
-        Ok(mut addrs) => match addrs.next() {
-            Some(a) => a,
-            None => {
-                log::error!("No addresses found for {addr}");
-                let _ = out_tx.send(
-                    format!(r#"{{"type":"error","message":"Cannot resolve {host}"}}"#)
-                        .into_bytes(),
-                );
-                return;
-            }
-        },
-        Err(e) => {
-            log::error!("DNS resolution failed for {addr}: {e}");
-            let _ = out_tx.send(
-                format!(r#"{{"type":"error","message":"Cannot resolve {host}: {e}"}}"#)
-                    .into_bytes(),
-            );
-            return;
-        }
-    };
-
-    log::info!("Connecting to {sock_addr}");
-
-    let tcp_stream = match std::net::TcpStream::connect_timeout(
-        &sock_addr,
-        std::time::Duration::from_secs(5),
-    ) {
-        Ok(s) => s,
-        Err(e) => {
-            log::error!("TCP connect to {addr} failed: {e}");
-            let _ = out_tx.send(
-                format!(r#"{{"type":"error","message":"Connection failed: {e}"}}"#)
-                    .into_bytes(),
-            );
-            return;
-        }
-    };
-
-    // Upgrade to WebSocket, wrapping with TLS for wss:// URLs
     let use_tls = parsed.scheme() == "wss";
 
-    macro_rules! ws_handshake {
-        ($stream:expr) => {
-            match tungstenite::client(parsed.as_str(), $stream) {
-                Ok((ws, _response)) => ws,
+    loop {
+        attempt += 1;
+        log::info!("WebSocket connecting to {ws_url} (attempt {attempt}/{max_retries})");
+
+        // Resolve DNS
+        log::info!("Resolving {addr}");
+        use std::net::ToSocketAddrs;
+        let sock_addr = match addr.to_socket_addrs() {
+            Ok(mut addrs) => match addrs.next() {
+                Some(a) => a,
+                None => {
+                    log::error!("No addresses found for {addr}");
+                    if attempt >= max_retries {
+                        let _ = out_tx.send(
+                            format!(
+                                r#"{{"type":"error","message":"Cannot resolve {host}"}}"#
+                            )
+                            .into_bytes(),
+                        );
+                        break;
+                    }
+                    let delay = std::time::Duration::from_secs(1u64 << (attempt - 1));
+                    log::info!("Retrying in {}s", delay.as_secs());
+                    thread::sleep(delay);
+                    continue;
+                }
+            },
+            Err(e) => {
+                log::error!("DNS resolution failed for {addr}: {e}");
+                if attempt >= max_retries {
+                    let _ = out_tx.send(
+                        format!(
+                            r#"{{"type":"error","message":"Cannot resolve {host}: {e}"}}"#
+                        )
+                        .into_bytes(),
+                    );
+                    break;
+                }
+                let delay = std::time::Duration::from_secs(1u64 << (attempt - 1));
+                log::info!("Retrying in {}s", delay.as_secs());
+                thread::sleep(delay);
+                continue;
+            }
+        };
+
+        // TCP connect with timeout
+        log::info!("Connecting to {sock_addr}");
+        let tcp_stream = match std::net::TcpStream::connect_timeout(
+            &sock_addr,
+            std::time::Duration::from_secs(5),
+        ) {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("TCP connect to {addr} failed: {e}");
+                if attempt >= max_retries {
+                    let _ = out_tx.send(
+                        format!(
+                            r#"{{"type":"error","message":"Connection failed: {e}"}}"#
+                        )
+                        .into_bytes(),
+                    );
+                    break;
+                }
+                let delay = std::time::Duration::from_secs(1u64 << (attempt - 1));
+                log::info!("Retrying in {}s", delay.as_secs());
+                thread::sleep(delay);
+                continue;
+            }
+        };
+
+        // Upgrade to WebSocket, wrapping with TLS for wss:// URLs
+        macro_rules! ws_handshake {
+            ($stream:expr) => {
+                match tungstenite::client(parsed.as_str(), $stream) {
+                    Ok((ws, _response)) => ws,
+                    Err(e) => {
+                        log::error!("WebSocket handshake failed for {ws_url}: {e}");
+                        if attempt >= max_retries {
+                            let _ = out_tx.send(
+                                br#"{"type":"error","message":"WebSocket handshake failed"}"#
+                                    .to_vec(),
+                            );
+                        }
+                        None // Signal failure to the match below
+                    }
+                }
+            };
+        }
+
+        // Run connection + event loop, capturing whether it was a clean close
+        let clean_close = if use_tls {
+            let _ = rustls::crypto::ring::default_provider().install_default();
+            let tls_config = rustls::ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(std::sync::Arc::new(AcceptAnyCert))
+                .with_no_client_auth();
+            let connector = rustls::StreamOwned::new(
+                rustls::ClientConnection::new(
+                    std::sync::Arc::new(tls_config),
+                    host.as_str()
+                        .try_into()
+                        .unwrap_or_else(|_| "localhost".try_into().unwrap()),
+                )
+                .expect("failed to create TLS connection"),
+                tcp_stream,
+            );
+            match tungstenite::client(parsed.as_str(), connector) {
+                Ok((mut ws, _response)) => {
+                    let _ = ws.get_ref().sock.set_nonblocking(true);
+                    attempt = 0; // Reset on successful connection
+                    ws_event_loop(&mut ws, cols, rows, cmd_rx, out_tx)
+                }
                 Err(e) => {
                     log::error!("WebSocket handshake failed for {ws_url}: {e}");
-                    let _ = out_tx.send(
-                        br#"{"type":"error","message":"WebSocket handshake failed"}"#
-                            .to_vec(),
-                    );
-                    return;
+                    if attempt >= max_retries {
+                        let _ = out_tx.send(
+                            br#"{"type":"error","message":"WebSocket handshake failed"}"#
+                                .to_vec(),
+                        );
+                        break;
+                    }
+                    let delay = std::time::Duration::from_secs(1u64 << (attempt - 1));
+                    log::info!("Retrying in {}s", delay.as_secs());
+                    thread::sleep(delay);
+                    continue;
+                }
+            }
+        } else {
+            match tungstenite::client(parsed.as_str(), tcp_stream) {
+                Ok((mut ws, _response)) => {
+                    let _ = ws.get_ref().set_nonblocking(true);
+                    attempt = 0; // Reset on successful connection
+                    ws_event_loop(&mut ws, cols, rows, cmd_rx, out_tx)
+                }
+                Err(e) => {
+                    log::error!("WebSocket handshake failed for {ws_url}: {e}");
+                    if attempt >= max_retries {
+                        let _ = out_tx.send(
+                            br#"{"type":"error","message":"WebSocket handshake failed"}"#
+                                .to_vec(),
+                        );
+                        break;
+                    }
+                    let delay = std::time::Duration::from_secs(1u64 << (attempt - 1));
+                    log::info!("Retrying in {}s", delay.as_secs());
+                    thread::sleep(delay);
+                    continue;
                 }
             }
         };
-    }
 
-    if use_tls {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-        let tls_config = rustls::ClientConfig::builder()
-            .dangerous()
-            .with_custom_certificate_verifier(std::sync::Arc::new(AcceptAnyCert))
-            .with_no_client_auth();
-        let connector = rustls::StreamOwned::new(
-            rustls::ClientConnection::new(
-                std::sync::Arc::new(tls_config),
-                host.try_into()
-                    .unwrap_or_else(|_| "localhost".try_into().unwrap()),
-            )
-            .expect("failed to create TLS connection"),
-            tcp_stream,
+        // Clean close (user-initiated disconnect) — no retry
+        if clean_close {
+            break;
+        }
+
+        // Event loop ended with an error — retry if attempts remain
+        attempt += 1; // Count the failed session as an attempt
+        if attempt > max_retries {
+            log::error!("Max reconnection attempts reached");
+            let _ = out_tx.send(
+                br#"{"type":"error","message":"Connection lost after max retries"}"#
+                    .to_vec(),
+            );
+            break;
+        }
+
+        let delay = std::time::Duration::from_secs(1u64 << (attempt - 1));
+        log::info!(
+            "Connection lost, reconnecting in {}s (attempt {attempt}/{max_retries})",
+            delay.as_secs()
         );
-        let mut ws = ws_handshake!(connector);
-        let _ = ws.get_ref().sock.set_nonblocking(true);
-        ws_event_loop(&mut ws, cols, rows, cmd_rx, out_tx);
-    } else {
-        let mut ws = ws_handshake!(tcp_stream);
-        let _ = ws.get_ref().set_nonblocking(true);
-        ws_event_loop(&mut ws, cols, rows, cmd_rx, out_tx);
-    };
+        thread::sleep(delay);
+    }
 
     log::info!("WebSocket thread exiting");
 }

@@ -26,7 +26,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.google.android.material.snackbar.Snackbar
-import io.sentry.Sentry
+
 
 class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private lateinit var root: FrameLayout
@@ -265,7 +265,6 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                         startTerminalService()
                     }
                 } catch (e: Exception) {
-                    Sentry.captureException(e)
                     runOnUiThread {
                         dialog.dismiss()
                         Snackbar.make(
@@ -405,7 +404,6 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                     Snackbar.make(root, R.string.arch_install_done, Snackbar.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
-                Sentry.captureException(e)
                 runOnUiThread {
                     dialog.dismiss()
                     Snackbar.make(

@@ -14,7 +14,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
-import io.sentry.Sentry
+
 import java.io.File
 
 class ConnectActivity : AppCompatActivity() {
@@ -134,7 +134,6 @@ class ConnectActivity : AppCompatActivity() {
                     )
                 }
             } catch (e: Exception) {
-                Sentry.captureException(e)
                 runOnUiThread {
                     dialog.dismiss()
                     Snackbar.make(

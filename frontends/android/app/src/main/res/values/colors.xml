@@ -14,4 +14,7 @@
     <color name="terminal_surface">#141414</color>
     <color name="terminal_text">#E5E5E5</color>
     <color name="terminal_border">#2A2A2A</color>
+
+    <color name="text_primary">#E5E5E5</color>
+    <color name="text_secondary">#999999</color>
 </resources>

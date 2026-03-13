@@ -2,6 +2,7 @@ package dev.omnidotdev.terminal
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -11,10 +12,13 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import java.io.File
 
 class ConnectActivity : AppCompatActivity() {
+    private lateinit var prefs: SharedPreferences
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -31,7 +35,7 @@ class ConnectActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_connect)
 
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        prefs = PreferenceManager.getDefaultSharedPreferences(this)
         val urlInput = findViewById<TextInputEditText>(R.id.urlInput)
         val connectButton = findViewById<MaterialButton>(R.id.connectButton)
         val localButton = findViewById<MaterialButton>(R.id.localButton)
@@ -74,6 +78,10 @@ class ConnectActivity : AppCompatActivity() {
 
         findViewById<android.widget.TextView>(R.id.websiteLink).setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://terminal.omni.dev")))
+        }
+
+        if (!prefs.getBoolean(PREF_ONBOARDING_SHOWN, false)) {
+            showOnboarding()
         }
     }
 
@@ -147,6 +155,19 @@ class ConnectActivity : AppCompatActivity() {
         }
     }
 
+    private fun showOnboarding() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_onboarding, null)
+
+        MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_MaterialComponents_Dialog)
+            .setView(dialogView)
+            .setPositiveButton(R.string.onboarding_dismiss) { dialog, _ ->
+                prefs.edit().putBoolean(PREF_ONBOARDING_SHOWN, true).apply()
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
     private fun createStorageSymlinks() {
         val storageDir = File(filesDir, "home/storage")
         storageDir.mkdirs()
@@ -174,6 +195,7 @@ class ConnectActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val PREF_ONBOARDING_SHOWN = "onboarding_shown"
         const val PREF_SERVER_URL = "server_url"
         const val EXTRA_SERVER_URL = "server_url"
         const val EXTRA_MODE = "mode"

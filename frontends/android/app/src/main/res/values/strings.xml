@@ -40,4 +40,8 @@
     <string name="theme_light">Light</string>
     <string name="exit">Exit</string>
     <string name="website_url">terminal.omni.dev</string>
+
+    <string name="onboarding_title">Welcome to Omni Terminal</string>
+    <string name="onboarding_body">A GPU-accelerated terminal emulator.\n\n• Local Shell — run commands directly on your device\n• Arch Linux — install a full Linux environment via PRoot\n• Remote — connect to an Omni Terminal server\n\nTap \"Local Shell\" to get started.</string>
+    <string name="onboarding_dismiss">Get Started</string>
 </resources>

@@ -53,6 +53,8 @@ object NativeTerminal {
     external fun getCellWidth(): Float
     external fun getCellHeight(): Float
     external fun getGridOffsetX(): Float
+    external fun getCursorCol(): Int
+    external fun getCursorRow(): Int
 
     // Special key codes
     const val KEY_ENTER = 1

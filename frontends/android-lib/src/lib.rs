@@ -1872,6 +1872,36 @@ pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getGridOffset
     0.0
 }
 
+/// Get the cursor column of the active session.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getCursorCol(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jint {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        if let Some(session) = m.active_session() {
+            return session.grid.cursor_col as jint;
+        }
+    }
+    0
+}
+
+/// Get the cursor row of the active session.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_getCursorRow(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jint {
+    let mgr = TERMINAL_MANAGER.lock().unwrap();
+    if let Some(ref m) = *mgr {
+        if let Some(session) = m.active_session() {
+            return session.grid.cursor_row as jint;
+        }
+    }
+    0
+}
+
 /// Tear down the GPU surface but preserve sessions (for app minimize / surface loss).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_omnidotdev_terminal_NativeTerminal_destroySurface(

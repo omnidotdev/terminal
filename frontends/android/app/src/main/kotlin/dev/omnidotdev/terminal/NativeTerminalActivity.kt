@@ -15,6 +15,7 @@ import android.view.View
 import android.view.ViewGroup.LayoutParams
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.GridLayout
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -127,6 +128,17 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             // Toolbar: pad for nav bar when keyboard is hidden
             val toolbarBottom = if (imeVisible) 4 else 4 + systemInsets.bottom
             toolbar.setPadding(8, 4, 8, toolbarBottom)
+
+            // Resize terminal grid after layout so the surface dimensions are current
+            if (initialized) {
+                view.post {
+                    val w = surfaceView.width
+                    val h = surfaceView.height
+                    if (w > 0 && h > 0) {
+                        NativeTerminal.resize(w, h, resources.displayMetrics.density)
+                    }
+                }
+            }
 
             windowInsets
         }
@@ -399,89 +411,82 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun createToolbar(): LinearLayout {
-        val bar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        val wrapper = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xDD141414.toInt())
-            setPadding(8, 4, 8, 4)
+            setPadding(4, 4, 4, 4)
         }
 
-        val scroll = HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
+        val cols = 8
+        val grid = GridLayout(this).apply {
+            rowCount = 2
+            columnCount = cols
         }
 
-        val inner = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        // Row 0: ESC, /, |, -, ~, _, ↑, ⌫
+        data class Key(val label: String, val row: Int, val col: Int, val action: () -> Unit, val isModifier: Boolean = false)
+
+        val keys = listOf(
+            Key("ESC", 0, 0, { NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ESCAPE) }),
+            Key("/", 0, 1, { NativeTerminal.sendKey("/") }),
+            Key("|", 0, 2, { NativeTerminal.sendKey("|") }),
+            Key("-", 0, 3, { NativeTerminal.sendKey("-") }),
+            Key("~", 0, 4, { NativeTerminal.sendKey("~") }),
+            Key("_", 0, 5, { NativeTerminal.sendKey("_") }),
+            Key("\u2191", 0, 6, { NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_UP) }),
+            Key("\u232B", 0, 7, { NativeTerminal.sendSpecialKey(NativeTerminal.KEY_BACKSPACE) }),
+            // Row 1: TAB, CTRL, ALT, :, ←, ↓, →, ⚙
+            Key("TAB", 1, 0, { NativeTerminal.sendSpecialKey(NativeTerminal.KEY_TAB) }),
+            Key("CTRL", 1, 1, {}, isModifier = true),
+            Key("ALT", 1, 2, {}, isModifier = true),
+            Key(":", 1, 3, { NativeTerminal.sendKey(":") }),
+            Key("\u2190", 1, 4, { NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_LEFT) }),
+            Key("\u2193", 1, 5, { NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_DOWN) }),
+            Key("\u2192", 1, 6, { NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_RIGHT) }),
+            Key("\u2699", 1, 7, { showSettingsDialog() }),
+        )
+
+        for (key in keys) {
+            val button: TextView = if (key.isModifier) {
+                createModifierButton(key.label) { pressed ->
+                    when (key.label) {
+                        "CTRL" -> surfaceView.ctrlDown = pressed
+                        "ALT" -> surfaceView.altDown = pressed
+                    }
+                }
+            } else {
+                createGridButton(key.label, key.action)
+            }
+
+            val param = GridLayout.LayoutParams().apply {
+                width = 0
+                height = LayoutParams.WRAP_CONTENT
+                columnSpec = GridLayout.spec(key.col, 1, 1f)
+                rowSpec = GridLayout.spec(key.row, 1, 1f)
+                setMargins(2, 2, 2, 2)
+            }
+            button.layoutParams = param
+            grid.addView(button)
         }
 
-        // Modifier keys (toggleable)
-        inner.addView(createToggleButton("ESC") {
-            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ESCAPE)
-        })
-        inner.addView(createToggleButton("TAB") {
-            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_TAB)
-        })
-        inner.addView(createModifierButton("CTRL") { pressed ->
-            surfaceView.ctrlDown = pressed
-        })
-        inner.addView(createModifierButton("ALT") { pressed ->
-            surfaceView.altDown = pressed
-        })
+        wrapper.addView(grid, LinearLayout.LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            LayoutParams.WRAP_CONTENT,
+        ))
 
-        inner.addView(createSeparator())
-
-        // Arrow keys
-        inner.addView(createActionButton("\u2190") {
-            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_LEFT)
-        })
-        inner.addView(createActionButton("\u2191") {
-            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_UP)
-        })
-        inner.addView(createActionButton("\u2193") {
-            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_DOWN)
-        })
-        inner.addView(createActionButton("\u2192") {
-            NativeTerminal.sendSpecialKey(NativeTerminal.KEY_ARROW_RIGHT)
-        })
-
-        inner.addView(createSeparator())
-
-        // Common symbols
-        inner.addView(createActionButton("/") { NativeTerminal.sendKey("/") })
-        inner.addView(createActionButton("-") { NativeTerminal.sendKey("-") })
-        inner.addView(createActionButton("|") { NativeTerminal.sendKey("|") })
-        inner.addView(createActionButton("~") { NativeTerminal.sendKey("~") })
-
-        inner.addView(createSeparator())
-
-        // Disconnect / back
-        inner.addView(createActionButton("\u2716") { finish() })
-
-        // Settings
-        inner.addView(createActionButton("\u2699") { showSettingsDialog() })
-
-        scroll.addView(inner)
-        bar.addView(scroll)
-        return bar
+        return wrapper
     }
 
-    private fun createActionButton(label: String, onClick: () -> Unit): TextView {
+    private fun createGridButton(label: String, onClick: () -> Unit): TextView {
         return TextView(this).apply {
             text = label
             setTextColor(0xFFE5E5E5.toInt())
             setBackgroundResource(R.drawable.btn_terminal)
-            setPadding(24, 16, 24, 16)
-            textSize = 14f
+            setPadding(0, 16, 0, 16)
+            textSize = 13f
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                LayoutParams.WRAP_CONTENT,
-            ).apply { setMargins(4, 0, 4, 0) }
             setOnClickListener { onClick() }
         }
-    }
-
-    private fun createToggleButton(label: String, onClick: () -> Unit): TextView {
-        return createActionButton(label, onClick)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -490,13 +495,9 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             text = label
             setTextColor(0xFFE5E5E5.toInt())
             setBackgroundResource(R.drawable.btn_terminal)
-            setPadding(24, 16, 24, 16)
-            textSize = 14f
+            setPadding(0, 16, 0, 16)
+            textSize = 13f
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                LayoutParams.WRAP_CONTENT,
-            ).apply { setMargins(4, 0, 4, 0) }
 
             var active = false
             setOnClickListener {
@@ -509,15 +510,6 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                     setTextColor(0xFFE5E5E5.toInt())
                 }
                 onToggle(active)
-            }
-        }
-    }
-
-    private fun createSeparator(): View {
-        return View(this).apply {
-            setBackgroundColor(0xFF2A2A2A.toInt())
-            layoutParams = LinearLayout.LayoutParams(2, LayoutParams.MATCH_PARENT).apply {
-                setMargins(8, 8, 8, 8)
             }
         }
     }
@@ -670,6 +662,10 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             items.add(getString(R.string.arch_install_button_full))
             actions.add { installArchLinux() }
         }
+
+        // Exit
+        items.add(getString(R.string.exit))
+        actions.add { finish() }
 
         AlertDialog.Builder(this)
             .setTitle(R.string.settings)

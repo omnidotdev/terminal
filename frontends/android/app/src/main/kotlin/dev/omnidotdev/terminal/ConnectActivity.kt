@@ -52,6 +52,22 @@ class ConnectActivity : AppCompatActivity() {
         // Restore last used URL
         urlInput.setText(prefs.getString(PREF_SERVER_URL, ""))
 
+        // Handle deep link
+        intent?.data?.let { uri ->
+            when {
+                uri.scheme == "omni-terminal" && uri.host == "connect" -> {
+                    uri.getQueryParameter("url")?.let { serverUrl ->
+                        urlInput.setText(serverUrl)
+                    }
+                }
+                uri.host == "terminal.omni.dev" && uri.path?.startsWith("/connect") == true -> {
+                    uri.getQueryParameter("url")?.let { serverUrl ->
+                        urlInput.setText(serverUrl)
+                    }
+                }
+            }
+        }
+
         connectButton.setOnClickListener {
             val raw = urlInput.text?.toString()?.trim().orEmpty()
             if (raw.isEmpty()) {

@@ -37,6 +37,12 @@ class ConnectActivity : AppCompatActivity() {
         val localButton = findViewById<MaterialButton>(R.id.localButton)
         val storageButton = findViewById<MaterialButton>(R.id.storageButton)
 
+        // Hide storage button if symlinks are already set up
+        val storageDir = File(filesDir, "home/storage")
+        if (storageDir.exists() && storageDir.list()?.isNotEmpty() == true) {
+            storageButton.visibility = android.view.View.GONE
+        }
+
         // Restore last used URL
         urlInput.setText(prefs.getString(PREF_SERVER_URL, ""))
 
@@ -64,6 +70,10 @@ class ConnectActivity : AppCompatActivity() {
 
         storageButton.setOnClickListener {
             setupStorage()
+        }
+
+        findViewById<android.widget.TextView>(R.id.websiteLink).setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://terminal.omni.dev")))
         }
     }
 

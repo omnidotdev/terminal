@@ -89,4 +89,14 @@
         app:strokeWidth="1dp"
         style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
+    <TextView
+        android:id="@+id/websiteLink"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:fontFamily="monospace"
+        android:text="@string/website_url"
+        android:textColor="@color/terminal_accent"
+        android:textSize="13sp" />
+
 </LinearLayout>

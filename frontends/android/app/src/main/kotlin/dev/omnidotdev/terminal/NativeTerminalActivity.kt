@@ -84,6 +84,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
         // Terminal surface
         surfaceView = TerminalSurfaceView(this)
+        surfaceView.contentDescription = getString(R.string.cd_terminal_surface)
         surfaceView.holder.addCallback(this)
         container.addView(surfaceView, LinearLayout.LayoutParams(
             LayoutParams.MATCH_PARENT,
@@ -189,6 +190,7 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
             val tab = createTabButton(label) {
                 NativeTerminal.switchSession(i)
                 refreshTabBar()
+                surfaceView.announceForAccessibility("Switched to ${NativeTerminal.getSessionLabel(i)}")
             }
 
             if (i == active) {
@@ -463,6 +465,20 @@ class NativeTerminalActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 }
             } else {
                 createGridButton(key.label, key.action)
+            }
+
+            button.contentDescription = when (key.label) {
+                "CTRL" -> "Control modifier"
+                "ALT" -> "Alt modifier"
+                "ESC" -> "Escape key"
+                "TAB" -> "Tab key"
+                "\u2191" -> "Arrow up"
+                "\u2193" -> "Arrow down"
+                "\u2190" -> "Arrow left"
+                "\u2192" -> "Arrow right"
+                "\u232B" -> "Backspace"
+                "\u2699" -> "Settings"
+                else -> "${key.label} key"
             }
 
             val param = GridLayout.LayoutParams().apply {

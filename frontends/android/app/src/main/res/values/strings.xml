@@ -48,4 +48,11 @@
     <string name="onboarding_title">Welcome to Omni Terminal</string>
     <string name="onboarding_body">A GPU-accelerated terminal emulator.\n\n• Local Shell — run commands directly on your device\n• Arch Linux — install a full Linux environment via PRoot\n• Remote — connect to an Omni Terminal server\n\nTap \"Local Shell\" to get started.</string>
     <string name="onboarding_dismiss">Get Started</string>
+
+    <string name="cd_terminal_surface">Terminal output</string>
+    <string name="cd_url_input">Server URL</string>
+    <string name="cd_connect_button">Connect to remote server</string>
+    <string name="cd_local_button">Open local shell</string>
+    <string name="cd_storage_button">Set up storage access</string>
+    <string name="cd_website_link">Visit terminal.omni.dev</string>
 </resources>

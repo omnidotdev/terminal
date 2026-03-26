@@ -1,9 +1,8 @@
-target/
-node_modules/
-.claude/
-.worktrees/
-.git/
-frontends/android/
-frontends/android-lib/
-release/
+target
+.git
+.env*
+node_modules
+dist
+build
+.output
 *.log

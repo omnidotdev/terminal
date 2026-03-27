@@ -3,6 +3,9 @@
   "configVersion": 1,
   "workspaces": {
     "": {
+      "dependencies": {
+        "srvx": "^0.11.13",
+      },
       "devDependencies": {
         "@biomejs/biome": "^2.3.0",
         "@changesets/changelog-github": "^0.6.0",
@@ -12,7 +15,7 @@
     },
     "frontends/wasm": {
       "name": "@omnidotdev/terminal",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "devDependencies": {
         "typescript": "^5.9.3",
       },
@@ -232,6 +235,8 @@
     "spawndamnit": ["spawndamnit@3.0.1", "", { "dependencies": { "cross-spawn": "^7.0.5", "signal-exit": "^4.0.1" } }, "sha512-MmnduQUuHCoFckZoWnXsTg7JaiLBJrKFj9UI2MbRPGaJeVpsLcVBu6P/IGZovziM/YBsellCmsprgNA+w0CzVg=="],
 
     "sprintf-js": ["sprintf-js@1.0.3", "", {}, "sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g=="],
+
+    "srvx": ["srvx@0.11.13", "", { "bin": { "srvx": "bin/srvx.mjs" } }, "sha512-oknN6qduuMPafxKtHucUeG32Q963pjriA5g3/Bl05cwEsUe5VVbIU4qR9LrALHbipSCyBe+VmfDGGydqazDRkw=="],
 
     "strip-ansi": ["strip-ansi@6.0.1", "", { "dependencies": { "ansi-regex": "^5.0.1" } }, "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A=="],
 

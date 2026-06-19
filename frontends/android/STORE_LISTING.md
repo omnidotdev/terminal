@@ -9,7 +9,7 @@
   - Multi-tab view
   - Arch Linux environment
   - Pinch-to-zoom / text selection
-- [x] Privacy policy URL: https://omni.dev/privacy-policy
+- [x] Privacy policy URL: https://omni.dev/legal/privacy
 
 ## Store Listing
 - [x] Title (30 char max): "Omni Terminal" — see fastlane/

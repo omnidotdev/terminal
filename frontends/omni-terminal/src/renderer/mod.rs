@@ -54,6 +54,7 @@ pub struct Renderer {
     pub config_blinking_interval: u64,
     ignore_selection_fg_color: bool,
     pub search: Search,
+    pub rename: Search,
     #[allow(unused)]
     pub option_as_alt: String,
     #[allow(unused)]
@@ -123,6 +124,7 @@ impl Renderer {
             visual_bell_active: false,
             visual_bell_start: None,
             search: Search::default(),
+            rename: Search::default(),
             font_cache: FontCache::new(),
             font_context: font_context.clone(),
             char_cache: CharCache::new(),
@@ -140,6 +142,56 @@ impl Renderer {
     #[inline]
     pub fn set_active_search(&mut self, active_search: Option<String>) {
         self.search.active_search = active_search;
+    }
+
+    #[inline]
+    pub fn set_active_rename(&mut self, active_rename: Option<String>) {
+        self.rename.active_search = active_rename;
+    }
+
+    /// Draw a small label banner at the top-left of each labeled pane
+    #[inline]
+    fn draw_pane_banners(
+        &mut self,
+        sugarloaf: &mut Sugarloaf,
+        panes: &[([f32; 2], String)],
+        objects: &mut Vec<Object>,
+    ) {
+        for (position, label) in panes {
+            // Approximate banner width from the label length; the exact glyph
+            // metrics are not needed for a compact indicator
+            let char_count = label.chars().count().min(24) as f32;
+            let banner_width = char_count * 9.0 + 12.0;
+
+            objects.push(Object::Quad(Quad {
+                position: *position,
+                color: self.named_colors.tabs_active,
+                size: [banner_width, 20.0],
+                ..Quad::default()
+            }));
+
+            let banner = sugarloaf.create_temp_rich_text();
+            sugarloaf.set_rich_text_font_size(&banner, 12.0);
+            let content = sugarloaf.content();
+            content
+                .sel(banner)
+                .clear()
+                .new_line()
+                .add_text(
+                    label,
+                    FragmentStyle {
+                        color: self.named_colors.tabs_active_foreground,
+                        ..FragmentStyle::default()
+                    },
+                )
+                .build();
+
+            objects.push(Object::RichText(RichText {
+                id: banner,
+                position: [position[0] + 4.0, position[1] + 2.0],
+                lines: None,
+            }));
+        }
     }
 
     #[inline]
@@ -816,15 +868,48 @@ impl Renderer {
 
     #[inline]
     fn update_search_rich_text(&mut self, content: &mut Content) {
-        if let Some(active_search_content) = &self.search.active_search {
-            if let Some(search_rich_text) = self.search.rich_text_id {
+        let active = self.search.active_search.clone();
+        let id = self.search.rich_text_id;
+        self.update_prompt_rich_text(
+            content,
+            active,
+            id,
+            "Search: ",
+            "Search: type something...",
+        );
+    }
+
+    #[inline]
+    fn update_rename_rich_text(&mut self, content: &mut Content) {
+        let active = self.rename.active_search.clone();
+        let id = self.rename.rich_text_id;
+        self.update_prompt_rich_text(
+            content,
+            active,
+            id,
+            "Rename: ",
+            "Rename: type a name...",
+        );
+    }
+
+    #[inline]
+    fn update_prompt_rich_text(
+        &mut self,
+        content: &mut Content,
+        active_content: Option<String>,
+        rich_text_id: Option<usize>,
+        prompt: &str,
+        empty_hint: &str,
+    ) {
+        if let Some(active_search_content) = &active_content {
+            if let Some(search_rich_text) = rich_text_id {
                 if active_search_content.is_empty() {
                     content
                         .sel(search_rich_text)
                         .clear()
                         .new_line()
                         .add_text(
-                            &String::from("Search: type something..."),
+                            &String::from(empty_hint),
                             FragmentStyle {
                                 color: [
                                     self.named_colors.foreground[0],
@@ -842,7 +927,7 @@ impl Renderer {
                         ..FragmentStyle::default()
                     };
                     let line = content.sel(search_rich_text);
-                    line.clear().new_line().add_text("Search: ", style);
+                    line.clear().new_line().add_text(prompt, style);
 
                     // Collect characters that need font lookups
                     let mut font_lookups = Vec::new();
@@ -911,6 +996,14 @@ impl Renderer {
             let search_rich_text = sugarloaf.create_temp_rich_text();
             sugarloaf.set_rich_text_font_size(&search_rich_text, 12.0);
             self.search.rich_text_id = Some(search_rich_text);
+        }
+
+        // In case rich text for the rename prompt was not created
+        let has_rename = self.rename.active_search.is_some();
+        if has_rename && self.rename.rich_text_id.is_none() {
+            let rename_rich_text = sugarloaf.create_temp_rich_text();
+            sugarloaf.set_rich_text_font_size(&rename_rich_text, 12.0);
+            self.rename.rich_text_id = Some(rename_rich_text);
         }
 
         // Apply background color change BEFORE cell rendering so cells
@@ -1190,6 +1283,7 @@ impl Renderer {
         }
 
         self.update_search_rich_text(sugarloaf.content());
+        self.update_rename_rich_text(sugarloaf.content());
 
         let window_size = sugarloaf.window_size();
         let scale_factor = sugarloaf.scale_factor();
@@ -1199,7 +1293,7 @@ impl Renderer {
             (window_size.width, window_size.height, scale_factor),
             &self.named_colors,
             context_manager,
-            self.search.active_search.is_some(),
+            has_search || has_rename,
             &mut objects,
         );
 
@@ -1217,9 +1311,33 @@ impl Renderer {
             self.search.rich_text_id = None;
         }
 
+        if has_rename {
+            if let Some(rich_text_id) = self.rename.rich_text_id {
+                search::draw_search_bar(
+                    &mut objects,
+                    rich_text_id,
+                    &self.named_colors,
+                    (window_size.width, window_size.height, scale_factor),
+                );
+            }
+
+            self.rename.active_search = None;
+            self.rename.rich_text_id = None;
+        }
+
         // let _duration = start.elapsed();
         context_manager.extend_with_grid_objects(&mut objects);
         // let _duration = start.elapsed();
+
+        // Per-pane label banners: only when the tab is split, otherwise a
+        // single pane's label already shows in the tab title/bar
+        if context_manager.current_is_split() {
+            self.draw_pane_banners(
+                sugarloaf,
+                &context_manager.current_labeled_panes(),
+                &mut objects,
+            );
+        }
 
         // Update visual bell state and set overlay if needed
         let visual_bell_active = self.update_visual_bell();

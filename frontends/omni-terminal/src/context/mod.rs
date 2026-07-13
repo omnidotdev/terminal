@@ -677,6 +677,25 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
             .send_event(TerminalEvent::CreateConfigEditor, self.window_id);
     }
 
+    /// The user-defined label of the focused pane, if one is set
+    #[inline]
+    pub fn current_pane_label(&self) -> Option<String> {
+        self.contexts
+            .get(self.current_index)
+            .and_then(|grid| grid.current_label())
+    }
+
+    /// Set (or clear, with `None`) the user-defined label of the focused pane.
+    /// Clears the throttle so the tab title refreshes on the next cycle
+    #[inline]
+    pub fn set_current_pane_label(&mut self, label: Option<String>) {
+        let idx = self.current_index;
+        if let Some(grid) = self.contexts.get_mut(idx) {
+            grid.set_current_label(label);
+        }
+        self.titles.last_title_update = None;
+    }
+
     #[inline]
     pub fn select_route_from_current_grid(&mut self) {
         self.current_route = self.current().route_id;
@@ -685,6 +704,24 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     #[inline]
     pub fn extend_with_grid_objects(&self, target: &mut Vec<Object>) {
         self.contexts[self.current_index].extend_with_objects(target);
+    }
+
+    /// Whether the current tab is split into more than one pane
+    #[inline]
+    pub fn current_is_split(&self) -> bool {
+        self.contexts
+            .get(self.current_index)
+            .map(|grid| grid.len() > 1)
+            .unwrap_or(false)
+    }
+
+    /// Positions and labels of labeled panes in the current tab, for banners
+    #[inline]
+    pub fn current_labeled_panes(&self) -> Vec<([f32; 2], String)> {
+        self.contexts
+            .get(self.current_index)
+            .map(|grid| grid.labeled_panes())
+            .unwrap_or_default()
     }
 
     #[inline]
@@ -703,7 +740,12 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
             self.titles.last_title_update = Some(Instant::now());
             let mut id = String::default();
             for (i, context) in self.contexts.iter_mut().enumerate() {
-                let content = update_title(&self.config.title.content, context.current());
+                // The focused pane's user-defined label takes priority over the
+                // title template and is not overwritten by process/cwd/OSC changes
+                let content = match context.current_label() {
+                    Some(label) => label,
+                    None => update_title(&self.config.title.content, context.current()),
+                };
 
                 self.event_proxy
                     .send_event(TerminalEvent::Title(content.to_owned()), self.window_id);

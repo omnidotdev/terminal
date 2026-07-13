@@ -83,6 +83,8 @@ pub struct Screen<'screen> {
     pub mouse: Mouse,
     pub touchpurpose: TouchPurpose,
     pub search_state: SearchState,
+    /// When `Some`, the tab-rename prompt is active and holds its input buffer
+    pub rename_state: Option<String>,
     pub hint_state: HintState,
     pub renderer: Renderer,
     pub sugarloaf: Sugarloaf<'screen>,
@@ -258,6 +260,7 @@ impl Screen<'_> {
 
         Ok(Screen {
             search_state: SearchState::default(),
+            rename_state: None,
             hint_state: HintState::new(config.hints.alphabet.clone()),
             hints_config: config
                 .hints
@@ -699,6 +702,7 @@ impl Screen<'_> {
             if !mode.contains(Mode::REPORT_EVENT_TYPES)
                 || mode.contains(Mode::VI)
                 || self.search_active()
+                || self.rename_active()
                 || self.hint_state.is_active()
             {
                 return;
@@ -772,6 +776,12 @@ impl Screen<'_> {
             }
             self.update_hint_state();
             self.render();
+            return;
+        }
+
+        // While the rename prompt is open it captures all key input
+        if self.rename_active() {
+            self.rename_key(key);
             return;
         }
 
@@ -1127,6 +1137,9 @@ impl Screen<'_> {
                     }
                     Act::TabCreateNew => {
                         self.create_tab();
+                    }
+                    Act::RenameTab => {
+                        self.start_rename();
                     }
                     Act::TabCloseCurrent => {
                         self.close_tab();
@@ -2273,6 +2286,80 @@ impl Screen<'_> {
     }
 
     #[inline]
+    pub fn rename_active(&self) -> bool {
+        self.rename_state.is_some()
+    }
+
+    /// Open the rename prompt for the focused pane, prefilled with its label
+    fn start_rename(&mut self) {
+        let existing = self
+            .context_manager
+            .current_pane_label()
+            .unwrap_or_default();
+        self.rename_state = Some(existing);
+        self.render();
+    }
+
+    /// Commit the rename prompt: an empty value clears the label and reverts
+    /// the tab to its auto-derived title
+    fn confirm_rename(&mut self) {
+        if let Some(buffer) = self.rename_state.take() {
+            let trimmed = buffer.trim();
+            let label = if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            };
+            self.context_manager.set_current_pane_label(label);
+            // Refresh the tab bar immediately rather than on the next title tick
+            self.context_manager.update_titles();
+            // The reserved title strip shifts pane content, so force a full
+            // redraw to repaint panes at their new positions
+            self.context_manager
+                .current_mut()
+                .renderable_content
+                .pending_update
+                .set_ui_damage(terminal_backend::event::TerminalDamage::Full);
+        }
+        self.render();
+    }
+
+    fn cancel_rename(&mut self) {
+        self.rename_state = None;
+        self.render();
+    }
+
+    /// Route a key press to the active rename prompt
+    fn rename_key(&mut self, key: &terminal_window::event::KeyEvent) {
+        match key.logical_key.as_ref() {
+            Key::Named(NamedKey::Enter) => self.confirm_rename(),
+            Key::Named(NamedKey::Escape) => self.cancel_rename(),
+            Key::Named(NamedKey::Backspace) => {
+                if let Some(buffer) = self.rename_state.as_mut() {
+                    buffer.pop();
+                }
+                self.render();
+            }
+            _ => {
+                let text = key.text_with_all_modifiers().unwrap_or_default();
+                let mut changed = false;
+                for c in text.chars() {
+                    // Printable ASCII and unicode only, ignore control characters
+                    if (' '..='~').contains(&c) || c >= '\u{a0}' {
+                        if let Some(buffer) = self.rename_state.as_mut() {
+                            buffer.push(c);
+                            changed = true;
+                        }
+                    }
+                }
+                if changed {
+                    self.render();
+                }
+            }
+        }
+    }
+
+    #[inline]
     fn search_input(&mut self, c: char) {
         match self.search_state.history_index {
             Some(0) => (),
@@ -2745,6 +2832,17 @@ impl Screen<'_> {
                     .pending_update
                     .set_ui_damage(terminal_backend::event::TerminalDamage::Full);
             }
+        }
+
+        if let Some(buffer) = &self.rename_state {
+            self.renderer.set_active_rename(Some(buffer.clone()));
+
+            // Force a full UI redraw so the prompt bar repaints on each keystroke
+            let current = self.context_manager.current_mut();
+            current
+                .renderable_content
+                .pending_update
+                .set_ui_damage(terminal_backend::event::TerminalDamage::Full);
         }
 
         // let renderer_run_start = std::time::Instant::now();

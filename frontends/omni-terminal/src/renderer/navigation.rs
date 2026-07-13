@@ -47,6 +47,13 @@ impl ScreenNavigation {
 
         let titles = &context_manager.titles.titles;
 
+        // A single tab carrying a user-defined label reveals its bar even when
+        // `hide-if-single` is on, so the name is visible in-window. Only the
+        // text-rendering tab modes benefit (Bookmark draws dots, not text)
+        let reveal_single_label =
+            len == 1 && context_manager.current_pane_label().is_some();
+        let hide_if_single_tab = self.navigation.hide_if_single && !reveal_single_label;
+
         match self.navigation.mode {
             #[cfg(target_os = "macos")]
             NavigationMode::NativeTab => {}
@@ -69,7 +76,7 @@ impl ScreenNavigation {
                     len,
                     current,
                     position_y,
-                    self.navigation.hide_if_single,
+                    hide_if_single_tab,
                     dimensions,
                 );
             }
@@ -84,7 +91,7 @@ impl ScreenNavigation {
                     len,
                     current,
                     position_y,
-                    self.navigation.hide_if_single,
+                    hide_if_single_tab,
                     dimensions,
                 );
             }
@@ -215,8 +222,10 @@ impl ScreenNavigation {
             }
 
             let name_modifier = 90.;
-            if name.len() >= 14 {
-                name = name[0..14].to_string();
+            // Truncate by character, not byte, to avoid slicing a multibyte
+            // UTF-8 boundary (labels and titles may contain unicode)
+            if name.chars().count() > 14 {
+                name = name.chars().take(14).collect();
             }
 
             objects.push(Object::Quad(Quad {

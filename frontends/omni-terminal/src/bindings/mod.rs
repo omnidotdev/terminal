@@ -247,6 +247,7 @@ impl From<String> for Action {
             "resetopacity" => Some(Action::ResetOpacity),
             "createwindow" => Some(Action::WindowCreateNew),
             "createtab" => Some(Action::TabCreateNew),
+            "renametab" => Some(Action::RenameTab),
             "movecurrenttabtoprev" => Some(Action::MoveCurrentTabToPrev),
             "movecurrenttabtonext" => Some(Action::MoveCurrentTabToNext),
             "closetab" => Some(Action::TabCloseCurrent),
@@ -439,6 +440,9 @@ pub enum Action {
 
     /// Create a new Omni Terminal tab.
     TabCreateNew,
+
+    /// Prompt for a user-defined label for the current tab.
+    RenameTab,
 
     /// Move current tab to previous slot.
     MoveCurrentTabToPrev,
@@ -1046,6 +1050,7 @@ pub fn platform_key_bindings(
         key_bindings.extend(bindings!(
             KeyBinding;
             "t", ModifiersState::SUPER; Action::TabCreateNew;
+            "l", ModifiersState::SUPER | ModifiersState::SHIFT; Action::RenameTab;
             Key::Named(Tab), ModifiersState::CONTROL; Action::SelectNextTab;
             Key::Named(Tab), ModifiersState::CONTROL | ModifiersState::SHIFT; Action::SelectPrevTab;
             "w", ModifiersState::SUPER; Action::CloseCurrentSplitOrTab;
@@ -1134,6 +1139,7 @@ pub fn platform_key_bindings(
         key_bindings.extend(bindings!(
             KeyBinding;
             "t", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::TabCreateNew;
+            "l", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::RenameTab;
             Key::Named(Tab), ModifiersState::CONTROL; Action::SelectNextTab;
             Key::Named(Tab), ModifiersState::CONTROL | ModifiersState::SHIFT; Action::SelectPrevTab;
             "[", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::SelectPrevTab;
@@ -1208,6 +1214,7 @@ pub fn platform_key_bindings(
         key_bindings.extend(bindings!(
             KeyBinding;
             "t", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::TabCreateNew;
+            "l", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::RenameTab;
             Key::Named(Tab), ModifiersState::CONTROL; Action::SelectNextTab;
             Key::Named(Tab), ModifiersState::CONTROL | ModifiersState::SHIFT; Action::SelectPrevTab;
             "w", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::CloseCurrentSplitOrTab;

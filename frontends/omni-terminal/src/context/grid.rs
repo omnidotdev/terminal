@@ -55,6 +55,16 @@ fn compute(
     (visible_columns, visible_lines)
 }
 
+/// Height (in logical pixels) of the title strip reserved above a labeled
+/// pane, equal to one line of text
+#[inline]
+fn pane_title_strip_height(dimension: &ContextDimension) -> f32 {
+    if dimension.dimension.scale <= 0.0 {
+        return 0.0;
+    }
+    (dimension.dimension.height / dimension.dimension.scale) * dimension.line_height
+}
+
 #[inline]
 fn create_border(color: [f32; 4], position: [f32; 2], size: [f32; 2]) -> Object {
     Object::Quad(Quad {
@@ -94,6 +104,9 @@ pub struct ContextGridItem<T: EventListener> {
     down: Option<usize>,
     parent: Option<usize>,
     rich_text_object: Object,
+    /// User-defined label for this pane. When set, it overrides the
+    /// auto-derived title template and survives process/cwd changes
+    pub custom_label: Option<String>,
 }
 
 impl<T: terminal_backend::event::EventListener> ContextGridItem<T> {
@@ -110,6 +123,7 @@ impl<T: terminal_backend::event::EventListener> ContextGridItem<T> {
             down: None,
             parent: None,
             rich_text_object,
+            custom_label: None,
         }
     }
 }
@@ -315,6 +329,42 @@ impl<T: terminal_backend::event::EventListener> ContextGrid<T> {
     #[allow(unused)]
     pub fn current_key(&self) -> usize {
         self.current
+    }
+
+    /// The user-defined label of the focused pane, if one is set
+    #[inline]
+    pub fn current_label(&self) -> Option<String> {
+        self.inner
+            .get(&self.current)
+            .and_then(|item| item.custom_label.clone())
+    }
+
+    /// Set (or clear, with `None`) the user-defined label of the focused pane.
+    /// Re-lays out so the reserved title strip is added or removed immediately
+    #[inline]
+    pub fn set_current_label(&mut self, label: Option<String>) {
+        let key = self.current;
+        if let Some(item) = self.inner.get_mut(&key) {
+            item.custom_label = label;
+        }
+        self.calculate_positions();
+    }
+
+    /// Anchor position (the reserved top strip) and label of every pane in this
+    /// tab that carries a user-defined label, for rendering per-pane banners.
+    /// The strip sits one line above the shifted-down pane content
+    #[inline]
+    pub fn labeled_panes(&self) -> Vec<([f32; 2], String)> {
+        self.inner
+            .values()
+            .filter_map(|item| {
+                item.custom_label.as_ref().map(|label| {
+                    let strip = pane_title_strip_height(&item.val.dimension);
+                    let pos = item.position();
+                    ([pos[0], pos[1] - strip], label.clone())
+                })
+            })
+            .collect()
     }
 
     #[inline]
@@ -772,9 +822,20 @@ impl<T: terminal_backend::event::EventListener> ContextGrid<T> {
 
     /// Recursively calculate positions for grid items
     fn calculate_positions_recursive(&mut self, key: usize, margin: Delta<f32>) {
+        // A labeled pane in a split reserves its top line for a title strip,
+        // shifting content down by one line into the slack `compute` leaves at
+        // the pane bottom (no PTY resize; the allocated box is unchanged so
+        // stacked/side-by-side panes still lay out correctly)
+        let is_split = self.inner.len() > 1;
         if let Some(item) = self.inner.get_mut(&key) {
+            let strip = if is_split && item.custom_label.is_some() {
+                pane_title_strip_height(&item.val.dimension)
+            } else {
+                0.0
+            };
+
             // Set position for current item in the rich text object
-            item.set_position([margin.x, margin.top_y]);
+            item.set_position([margin.x, margin.top_y + strip]);
 
             // Calculate margin for down item
             let down_margin = Delta {
@@ -2069,6 +2130,39 @@ pub mod test {
                 lines: None,
             },)]
         );
+    }
+
+    #[test]
+    fn test_custom_label_defaults_none_and_is_settable() {
+        let context_dimension = ContextDimension::build(
+            1200.0,
+            800.0,
+            SugarDimensions {
+                scale: 2.,
+                width: 18.,
+                height: 9.,
+            },
+            1.0,
+            Delta::<f32>::default(),
+        );
+        let context =
+            create_mock_context(VoidListener {}, WindowId::from(0), 0, context_dimension);
+        let mut grid = ContextGrid::<VoidListener>::new(
+            context,
+            Delta::<f32>::default(),
+            [0., 0., 0., 0.],
+        );
+
+        // A freshly created pane has no user-defined label
+        assert_eq!(grid.current_label(), None);
+
+        // Setting a label on the focused pane sticks
+        grid.set_current_label(Some("deploy".to_string()));
+        assert_eq!(grid.current_label().as_deref(), Some("deploy"));
+
+        // Clearing reverts to the auto-derived title
+        grid.set_current_label(None);
+        assert_eq!(grid.current_label(), None);
     }
 
     #[test]

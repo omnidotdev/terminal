@@ -1212,10 +1212,20 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             let selecting = selecting.clone();
             let cw = cell_width;
             let ch = cell_height;
+            let canvas_for_up = canvas.clone();
             let on_mouseup = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
                 move |event: web_sys::MouseEvent| {
-                    let (col, row) =
-                        pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
+                    // Compute canvas-relative coords: this listener is on `window`
+                    // (so a release anywhere ends the selection), where
+                    // `offset_x/y` would be relative to whatever element is under
+                    // the pointer, not the canvas.
+                    let rect = canvas_for_up.get_bounding_client_rect();
+                    let (col, row) = pixel_to_cell(
+                        f64::from(event.client_x()) - rect.left(),
+                        f64::from(event.client_y()) - rect.top(),
+                        cw,
+                        ch,
+                    );
 
                     let button = x11_button(event.button());
                     let mods = mouse_modifiers(&event);
@@ -1253,7 +1263,8 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                     }
                 },
             );
-            canvas_element
+            web_sys::window()
+                .unwrap()
                 .add_event_listener_with_callback(
                     "mouseup",
                     on_mouseup.as_ref().unchecked_ref(),
@@ -1270,10 +1281,19 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
             let selecting = selecting.clone();
             let cw = cell_width;
             let ch = cell_height;
+            let canvas_for_move = canvas.clone();
             let on_mousemove = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
                 move |event: web_sys::MouseEvent| {
-                    let (col, row) =
-                        pixel_to_cell(event.offset_x(), event.offset_y(), cw, ch);
+                    // Canvas-relative coords: this listener is on `window` so a
+                    // drag that leaves the canvas still extends the selection;
+                    // `offset_x/y` would be relative to the wrong element there.
+                    let rect = canvas_for_move.get_bounding_client_rect();
+                    let (col, row) = pixel_to_cell(
+                        f64::from(event.client_x()) - rect.left(),
+                        f64::from(event.client_y()) - rect.top(),
+                        cw,
+                        ch,
+                    );
 
                     // Update text selection during drag
                     if *selecting.borrow() {
@@ -1328,7 +1348,8 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                     }
                 },
             );
-            canvas_element
+            web_sys::window()
+                .unwrap()
                 .add_event_listener_with_callback(
                     "mousemove",
                     on_mousemove.as_ref().unchecked_ref(),

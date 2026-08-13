@@ -1,5 +1,13 @@
 # Omni Terminal
 
+## 0.3.1
+
+### Patch Changes
+
+- [#55](https://github.com/omnidotdev/terminal/pull/55) [`244df53`](https://github.com/omnidotdev/terminal/commit/244df53e59f206f2b2e9f503a645fc89afaf1dc8) Thanks [@coopbri](https://github.com/coopbri)! - Fix long tab names overflowing into the next tab. Labels are now truncated to the tab's measured pixel width (rather than a fixed character count) and ellipsized, and the numeric prefix is counted against the same budget so it can no longer push the name past the tab edge.
+
+  Every tab now shows a numeric prefix, including the active one, so prefix widths are uniform across the tab bar. The active tab is distinguished by its color and highlight underline rather than a separate marker glyph.
+
 ## 0.3.0
 
 ### Minor Changes

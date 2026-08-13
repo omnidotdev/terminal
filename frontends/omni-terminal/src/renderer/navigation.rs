@@ -233,11 +233,10 @@ impl ScreenNavigation {
 
             let name_modifier = 90.;
 
-            let prefix = if is_current {
-                String::from("▲ ")
-            } else {
-                format!("{}.", i + 1)
-            };
+            // Every tab is numbered (active included) so the prefix width is
+            // uniform; the active tab is distinguished by its color and the
+            // highlight underline below, not by a separate marker glyph
+            let prefix = format!("{}.", i + 1);
 
             // Budget the whole label (prefix + name) to the tab's pixel width so
             // long names do not overflow into the next tab. The tab quad is

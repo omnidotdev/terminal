@@ -193,6 +193,16 @@ impl ScreenNavigation {
             tabs = Vec::from_iter(current - screen_limit..len);
         }
 
+        // Measure the monospace cell advance at the tab font size (14px) once so
+        // labels can be truncated to the tab's actual pixel width. A fixed
+        // character count cannot work here: cell width varies by font, so it
+        // overflows wide fonts and wastes space on narrow ones
+        let cell_width = {
+            let measure = sugarloaf.create_temp_rich_text();
+            sugarloaf.set_rich_text_font_size(&measure, 14.);
+            sugarloaf.get_rich_text_dimensions(&measure).width
+        };
+
         for i in tabs {
             let mut background_color = colors.bar;
             let mut foreground_color = colors.tabs_foreground;
@@ -222,10 +232,29 @@ impl ScreenNavigation {
             }
 
             let name_modifier = 90.;
-            // Truncate by character, not byte, to avoid slicing a multibyte
-            // UTF-8 boundary (labels and titles may contain unicode)
-            if name.chars().count() > 14 {
-                name = name.chars().take(14).collect();
+
+            // Every tab is numbered (active included) so the prefix width is
+            // uniform; the active tab is distinguished by its color and the
+            // highlight underline below, not by a separate marker glyph
+            let prefix = format!("{}.", i + 1);
+
+            // Budget the whole label (prefix + name) to the tab's pixel width so
+            // long names do not overflow into the next tab. The tab quad is
+            // 125px wide with a 4px left inset, so reserve a matching 4px right
+            // inset. Truncate by character, not byte, to avoid slicing a
+            // multibyte UTF-8 boundary (labels and titles may contain unicode)
+            let max_chars = if cell_width > 0. {
+                ((125. - 8.) / cell_width).floor() as usize
+            } else {
+                14
+            };
+            let name_budget = max_chars.saturating_sub(prefix.chars().count());
+            if name.chars().count() > name_budget {
+                name = name
+                    .chars()
+                    .take(name_budget.saturating_sub(1))
+                    .collect::<String>()
+                    + "…";
             }
 
             objects.push(Object::Quad(Quad {
@@ -251,11 +280,7 @@ impl ScreenNavigation {
                 }));
             }
 
-            let text = if is_current {
-                format!("▲ {name}")
-            } else {
-                format!("{}.{name}", i + 1)
-            };
+            let text = format!("{prefix}{name}");
 
             let tab = sugarloaf.create_temp_rich_text();
             sugarloaf.set_rich_text_font_size(&tab, 14.);

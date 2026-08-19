@@ -3,7 +3,7 @@
 
   <h1 align="center">Omni Terminal</h1>
 
-[Website](https://terminal.omni.dev) | [Docs](https://docs.omni.dev/armory/omni-terminal) | [Feedback](https://backfeed.omni.dev/workspaces/omni/projects/terminal) | [Discord](https://discord.gg/omnidotdev) | [X](https://x.com/omnidotdev) | [Threads](https://www.threads.com/@omnidotdev)
+[Website](https://terminal.omni.dev) | [Docs](https://docs.omni.dev/products/omni-terminal) | [Feedback](https://backfeed.omni.dev/workspaces/omni/projects/terminal) | [Discord](https://discord.gg/omnidotdev) | [X](https://x.com/omnidotdev) | [Threads](https://www.threads.com/@omnidotdev)
 
 </div>
 

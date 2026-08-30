@@ -1,5 +1,11 @@
 # Omni Terminal
 
+## 0.3.2
+
+### Patch Changes
+
+- [#59](https://github.com/omnidotdev/terminal/pull/59) [`c12a597`](https://github.com/omnidotdev/terminal/commit/c12a597b072f7853a510e161d82674630ecf3059) Thanks [@coopbri](https://github.com/coopbri)! - Repaint the active tab after a resize so the terminal is not left blank after a hidden-then-shown transition (e.g. an embedding page switching tabs away and back), and disable `wasm-opt` in the production build because `wasm-opt -O` (Binaryen v123) produced a module that validated but rendered blank at runtime for the wgpu path.
+
 ## 0.3.1
 
 ### Patch Changes

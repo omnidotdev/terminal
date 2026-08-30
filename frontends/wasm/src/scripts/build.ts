@@ -1,7 +1,5 @@
 import { $ } from "bun";
 
-import type { ShellError } from "bun";
-
 const { log, warn, error } = console;
 const WORKSPACE_ROOT = "../..";
 
@@ -18,20 +16,12 @@ const build = async () => {
   const wasmBindgen = `${home}/.cargo/bin/wasm-bindgen`;
   await $`${wasmBindgen} ${WORKSPACE_ROOT}/target/wasm32-unknown-unknown/release/omni_terminal_wasm.wasm --out-dir build --target web`;
 
-  // wasm-opt is optional (may not be installed). Bulk-memory/sign-ext/etc. are
-  // enabled by default in the wasm32 target LLVM emits, so wasm-opt must be told
-  // to accept them or its validator rejects memory.fill/copy (Binaryen >= v116).
-  try {
-    log("Optimizing WASM binary...");
-    await $`wasm-opt -O --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext --enable-mutable-globals --enable-reference-types build/omni_terminal_wasm_bg.wasm -o build/omni_terminal_wasm_bg.wasm`;
-  } catch (_e: unknown) {
-    const err = _e as ShellError;
-    if (err.stderr?.toString().includes("not found")) {
-      warn("wasm-opt not found, skipping optimization");
-    } else {
-      throw err;
-    }
-  }
+  // wasm-opt is intentionally DISABLED. `wasm-opt -O` (Binaryen v123) produces a
+  // module that passes validation but renders blank at runtime for this crate
+  // (the wgpu/WebGPU path); the release cargo build without it renders correctly
+  // and is only ~350KB larger. Re-enable only with a Binaryen config verified to
+  // render in a browser (test via `just web-serve`), never by size alone.
+  warn("wasm-opt disabled: -O corrupts the wgpu WASM at runtime (renders blank)");
 
   log("Compiling TypeScript...");
   await $`bunx tsc --noEmit false --declaration --emitDeclarationOnly --outDir build`;

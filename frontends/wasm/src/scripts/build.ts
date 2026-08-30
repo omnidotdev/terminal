@@ -18,10 +18,12 @@ const build = async () => {
   const wasmBindgen = `${home}/.cargo/bin/wasm-bindgen`;
   await $`${wasmBindgen} ${WORKSPACE_ROOT}/target/wasm32-unknown-unknown/release/omni_terminal_wasm.wasm --out-dir build --target web`;
 
-  // wasm-opt is optional (may not be installed)
+  // wasm-opt is optional (may not be installed). Bulk-memory/sign-ext/etc. are
+  // enabled by default in the wasm32 target LLVM emits, so wasm-opt must be told
+  // to accept them or its validator rejects memory.fill/copy (Binaryen >= v116).
   try {
     log("Optimizing WASM binary...");
-    await $`wasm-opt -O build/omni_terminal_wasm_bg.wasm -o build/omni_terminal_wasm_bg.wasm`;
+    await $`wasm-opt -O --enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext --enable-mutable-globals --enable-reference-types build/omni_terminal_wasm_bg.wasm -o build/omni_terminal_wasm_bg.wasm`;
   } catch (_e: unknown) {
     const err = _e as ShellError;
     if (err.stderr?.toString().includes("not found")) {

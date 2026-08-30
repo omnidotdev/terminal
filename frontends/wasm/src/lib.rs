@@ -1591,6 +1591,15 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                             }
                         }
                     }
+
+                    // set_width above clears the canvas. On a hidden -> shown
+                    // transition (e.g. the embedding dashboard switching its main
+                    // tab away from the shell and back) the visible tab's grid
+                    // dimensions are unchanged, so the resize branch above marks
+                    // nothing dirty and the render loop leaves the canvas blank
+                    // until the next keystroke or tab switch. Force a repaint of
+                    // the active tab so the prompt reappears immediately.
+                    tabs_ref.active_tab_mut().grid.dirty = true;
                 });
 
                 let timer_id = window

@@ -17,6 +17,16 @@ use web_sys::{HtmlCanvasElement, HtmlDivElement, HtmlElement, HtmlTextAreaElemen
 /// Height of the tab bar in CSS pixels
 const TAB_BAR_HEIGHT: u32 = 36;
 
+/// Breathing room reserved at the BOTTOM of the canvas, in CSS pixels. The canvas
+/// height reserves `TAB_BAR_HEIGHT` for the tab bar at the top but historically
+/// reserved nothing at the bottom, so the last terminal row (the prompt the user
+/// types on) sat flush against the container's bottom edge -- right under an
+/// embedder's status bar -- and read as clipped/hidden. Reserving a row's worth
+/// here keeps the prompt clear of the bottom edge. Row/column counts derive from
+/// the canvas height, so this flows through both the initial sizing and the
+/// ResizeObserver path automatically.
+const BOTTOM_INSET: u32 = 16;
+
 /// Detect iOS/iPadOS Safari where WebGPU has device-loss issues
 fn is_ios_safari() -> bool {
     let window = match web_sys::window() {
@@ -56,8 +66,8 @@ fn get_or_create_canvas(container: &HtmlElement) -> (HtmlCanvasElement, u32) {
         .set_attribute(
             "style",
             &format!(
-                "width: 100%; height: calc(100% - {}px); display: block;",
-                TAB_BAR_HEIGHT
+                "width: 100%; height: calc(100% - {}px - {}px); display: block;",
+                TAB_BAR_HEIGHT, BOTTOM_INSET
             ),
         )
         .unwrap();

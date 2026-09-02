@@ -27,6 +27,12 @@ const TAB_BAR_HEIGHT: u32 = 36;
 /// ResizeObserver path automatically.
 const BOTTOM_INSET: u32 = 16;
 
+/// Line-height multiplier applied to the terminal grid. The renderer advances
+/// each line by `cell_height * LINE_HEIGHT`, so the same factor must be applied
+/// when deriving the cell height used for row counts and pixel->cell math (see
+/// the note at `cell_height`).
+const LINE_HEIGHT: f32 = 1.2;
+
 /// Detect iOS/iPadOS Safari where WebGPU has device-loss issues
 fn is_ios_safari() -> bool {
     let window = match web_sys::window() {
@@ -773,7 +779,7 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
 
     let layout = RootStyle {
         font_size,
-        line_height: 1.2,
+        line_height: LINE_HEIGHT,
         scale_factor: dpr,
     };
 
@@ -810,7 +816,14 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
     // Sugarloaf shapes at font_size * scale_factor, so dimensions are already
     // in device pixels -- do not multiply by dpr again
     let cell_width = dims.width;
-    let cell_height = dims.height;
+    // `get_rich_text_dimensions` reports the UN-modded line height: its
+    // dimensions-only pass runs with no layout, so its `line_height_mod`
+    // defaults to 1.0, while the render pass advances each line by
+    // `cell_height * LINE_HEIGHT`. Apply the same multiplier here so the row
+    // count (and pixel->row hit-testing, which shares this value) matches what
+    // is actually drawn. Without it the grid packs ~1.2x too many rows and the
+    // bottom rows render below the canvas and get clipped.
+    let cell_height = dims.height * LINE_HEIGHT;
 
     let cols = if cell_width > 0.0 {
         (width / cell_width).max(1.0) as usize

@@ -782,7 +782,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copa"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "arrayvec",
  "criterion",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "corcovado"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bytes",
  "cfg-if 1.0.4",
@@ -1419,9 +1419,9 @@ dependencies = [
 
 [[package]]
 name = "font-types"
-version = "0.10.1"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39a654f404bbcbd48ea58c617c2993ee91d1cb63727a37bf2323a4edeed1b8c5"
+checksum = "e64eb721ca85a34323425f4041adc5d82704d3782d5f8f03793bc012419dce23"
 dependencies = [
  "bytemuck",
 ]
@@ -3309,7 +3309,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahash",
  "axum",
@@ -3358,7 +3358,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-android"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "android_logger",
  "copa",
@@ -3382,7 +3382,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-wasm"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
@@ -3403,9 +3403,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.21.3"
+version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "once_cell_polyfill"
@@ -3912,12 +3912,13 @@ dependencies = [
 
 [[package]]
 name = "read-fonts"
-version = "0.35.0"
+version = "0.43.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6717cf23b488adf64b9d711329542ba34de147df262370221940dfabc2c91358"
+checksum = "005c8acf251756c478b0bf402885bfd88a1476020c4c7e6060edc1aa68da38ea"
 dependencies = [
  "bytemuck",
  "font-types",
+ "once_cell",
 ]
 
 [[package]]
@@ -4301,9 +4302,9 @@ checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
 name = "skrifa"
-version = "0.37.0"
+version = "0.46.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c31071dedf532758ecf3fed987cdb4bd9509f900e026ab684b4ecb81ea49841"
+checksum = "d4febebda507fb889c545a37a135517769d1391941013561292897961d1887d6"
 dependencies = [
  "bytemuck",
  "read-fonts",
@@ -4522,7 +4523,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sugarloaf"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "approx",
  "bytemuck",
@@ -4609,7 +4610,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "teletypewriter"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "corcovado",
  "dirs",
@@ -4643,7 +4644,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-backend"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "base64",
  "bitflags 2.11.0",
@@ -4676,7 +4677,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-emulator"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "copa",
  "sugarloaf",
@@ -4684,7 +4685,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-proc-macros"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4692,7 +4693,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-window"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahash",
  "atomic-waker",

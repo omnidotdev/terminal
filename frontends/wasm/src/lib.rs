@@ -62,12 +62,27 @@ fn get_or_create_canvas(container: &HtmlElement) -> (HtmlCanvasElement, u32) {
         .set_attribute("data-raw-handle", &id.to_string())
         .unwrap();
 
+    // Reserve the tab bar's ACTUAL rendered height, not the nominal
+    // TAB_BAR_HEIGHT. The tab bar div sets `height: TAB_BAR_HEIGHT` under
+    // content-box sizing, so its 6px vertical padding + 1px bottom border add
+    // ~13px: it actually renders ~49px, not 36px. Hardcoding TAB_BAR_HEIGHT here
+    // under-reserved that space, so the canvas overflowed the container by ~13px
+    // and `overflow: hidden` clipped the bottom rows (the prompt / the bottom of
+    // long output was unreachable). Measuring the real height keeps this correct
+    // regardless of the tab bar's padding/border. Falls back to the nominal
+    // height if the element isn't laid out yet. `tab-bar` is created before this.
+    let tab_bar_h = document
+        .get_element_by_id("tab-bar")
+        .map(|el| el.unchecked_into::<HtmlElement>().offset_height())
+        .filter(|h| *h > 0)
+        .unwrap_or(TAB_BAR_HEIGHT as i32);
+
     canvas
         .set_attribute(
             "style",
             &format!(
                 "width: 100%; height: calc(100% - {}px - {}px); display: block;",
-                TAB_BAR_HEIGHT, BOTTOM_INSET
+                tab_bar_h, BOTTOM_INSET
             ),
         )
         .unwrap();

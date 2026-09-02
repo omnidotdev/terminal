@@ -782,7 +782,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copa"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "arrayvec",
  "criterion",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "corcovado"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bytes",
  "cfg-if 1.0.4",
@@ -2057,9 +2057,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.25.9"
+version = "0.25.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6506c6c10786659413faa717ceebcb8f70731c0a60cbae39795fdf114519c1a"
+checksum = "85ab80394333c02fe689eaf900ab500fbd0c2213da414687ebf995a65d5a6104"
 dependencies = [
  "bytemuck",
  "byteorder-lite",
@@ -2764,9 +2764,9 @@ dependencies = [
 
 [[package]]
 name = "moxcms"
-version = "0.7.11"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac9557c559cd6fc9867e122e20d2cbefc9ca29d80d027a8e39310920ed2f0a97"
+checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
 dependencies = [
  "num-traits",
  "pxfm",
@@ -3309,7 +3309,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahash",
  "axum",
@@ -3358,7 +3358,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-android"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "android_logger",
  "copa",
@@ -3382,7 +3382,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-wasm"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
@@ -4522,7 +4522,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sugarloaf"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "approx",
  "bytemuck",
@@ -4609,7 +4609,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "teletypewriter"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "corcovado",
  "dirs",
@@ -4643,7 +4643,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-backend"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "base64",
  "bitflags 2.11.0",
@@ -4676,7 +4676,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-emulator"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "copa",
  "sugarloaf",
@@ -4684,7 +4684,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-proc-macros"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4692,7 +4692,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-window"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahash",
  "atomic-waker",

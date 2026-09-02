@@ -782,7 +782,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copa"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "arrayvec",
  "criterion",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "corcovado"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bytes",
  "cfg-if 1.0.4",
@@ -1849,6 +1849,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2630,11 +2641,11 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
 name = "lru"
-version = "0.16.3"
+version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1dc47f592c06f33f8e3aea9591776ec7c9f9e4124778ff8a3c3b87159f7e593"
+checksum = "0d317b4b9eb398e6acce275758ec6125535505e7a146fb1a9b8bda2451b0ff4c"
 dependencies = [
- "hashbrown 0.16.1",
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
@@ -3309,7 +3320,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahash",
  "axum",
@@ -3358,7 +3369,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-android"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "android_logger",
  "copa",
@@ -3382,7 +3393,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-wasm"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
@@ -4522,7 +4533,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sugarloaf"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "approx",
  "bytemuck",
@@ -4609,7 +4620,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "teletypewriter"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "corcovado",
  "dirs",
@@ -4643,7 +4654,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-backend"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "base64",
  "bitflags 2.11.0",
@@ -4676,7 +4687,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-emulator"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "copa",
  "sugarloaf",
@@ -4684,7 +4695,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-proc-macros"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4692,7 +4703,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-window"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahash",
  "atomic-waker",

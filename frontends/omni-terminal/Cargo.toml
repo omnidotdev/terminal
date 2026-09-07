@@ -47,7 +47,7 @@ copa = { workspace = true }
 url = { workspace = true }
 smallvec = { workspace = true }
 terminal-window = { workspace = true }
-lru = "0.16.0"
+lru = "0.18.0"
 axum = { version = "0.8", features = ["ws"], optional = true }
 tokio = { version = "1", features = ["full"], optional = true }
 tokio-rustls = { version = "0.26", optional = true }

@@ -21,9 +21,9 @@ jobs:
       published: ${{ steps.changesets.outputs.published }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
@@ -32,7 +32,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libfontconfig-dev libwayland-dev libxkbcommon-dev
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: wasm32-unknown-unknown
       - name: Ensure wasm target on project toolchain
@@ -89,9 +89,9 @@ jobs:
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: ${{ matrix.target }}
       - name: Ensure target on project toolchain
@@ -115,7 +115,7 @@ jobs:
         run: cargo build --release -p omni-terminal --target ${{ matrix.target }}
       - name: Upload macOS binary
         if: startsWith(matrix.target, 'x86_64-apple-darwin') || startsWith(matrix.target, 'aarch64-apple-darwin')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macos-binary-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/omni-terminal
@@ -142,7 +142,7 @@ jobs:
           cp omni-terminal-x86_64-unknown-linux-gnu.tar.gz dist/
       - name: Upload Linux artifacts
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: linux-x86_64
           path: dist/*
@@ -189,7 +189,7 @@ jobs:
           mv omni-terminal-aarch64-unknown-linux-gnu.tar.gz ../../../
       - name: Upload Linux aarch64 artifact
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: linux-aarch64
           path: omni-terminal-aarch64-unknown-linux-gnu.tar.gz
@@ -212,7 +212,7 @@ jobs:
       #   run: signtool sign /fd SHA256 /f certificate.pfx target/wix/*.msi
       - name: Upload Windows artifact
         if: matrix.target == 'x86_64-pc-windows-msvc'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-x86_64
           path: target/wix/*.msi
@@ -224,14 +224,14 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Download macOS x86_64 binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: macos-binary-x86_64-apple-darwin
           path: macos-x86_64
       - name: Download macOS aarch64 binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: macos-binary-aarch64-apple-darwin
           path: macos-aarch64
@@ -284,7 +284,7 @@ jobs:
       - name: Package tarball
         run: tar -czvf omni-terminal-macos-universal.tar.gz omni-terminal
       - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macos-universal
           path: |
@@ -298,14 +298,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Get version
         id: version
         run: |
           VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts
       - name: List artifacts
@@ -326,7 +326,7 @@ jobs:
           echo "${BODY}" >> "$GITHUB_OUTPUT"
           echo "${EOF}" >> "$GITHUB_OUTPUT"
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}

@@ -539,20 +539,16 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
                             let _ = input_ref.set_selection_range(start_cu, start_cu);
                             return;
                         }
-                        if event.ctrl_key() && key.eq_ignore_ascii_case("a") {
-                            // Caret to start, overriding the browser select-all
-                            event.prevent_default();
-                            let _ = input_ref.set_selection_range(0, 0);
-                            return;
-                        }
                         if event.ctrl_key() && key.eq_ignore_ascii_case("e") {
                             // Caret to end
                             event.prevent_default();
                             let len = input_ref.value().encode_utf16().count() as u32;
                             let _ = input_ref.set_selection_range(len, len);
                         }
-                        // Everything else (printable typing, Backspace, arrows,
-                        // Home/End, native Ctrl+V paste) is left to the input
+                        // Everything else is left to the input: printable typing,
+                        // Backspace, arrows, Home/End, native Ctrl+V paste, and
+                        // Ctrl+A (the browser's select-all, which Home still
+                        // complements for cursor-to-start)
                     },
                 );
                 let target: &web_sys::EventTarget = input.as_ref();

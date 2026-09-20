@@ -1331,6 +1331,8 @@ impl Renderer {
             context_manager,
             has_search || has_rename,
             &mut objects,
+            &self.font_context,
+            &mut self.font_cache,
         );
 
         if has_search {

@@ -3331,6 +3331,7 @@ dependencies = [
  "image",
  "include_dir",
  "libc",
+ "line-editor",
  "lru",
  "notify",
  "objc-rs",

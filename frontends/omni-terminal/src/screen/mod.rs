@@ -36,6 +36,7 @@ use crate::renderer::{
 use crate::screen::hint::HintMatches;
 use crate::selection::{Selection, SelectionType};
 use core::fmt::Debug;
+use line_editor::LineEditor;
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 use std::cell::RefCell;
 use std::cmp::{max, min};
@@ -84,7 +85,7 @@ pub struct Screen<'screen> {
     pub touchpurpose: TouchPurpose,
     pub search_state: SearchState,
     /// When `Some`, the tab-rename prompt is active and holds its input buffer
-    pub rename_state: Option<String>,
+    pub rename_state: Option<LineEditor>,
     pub hint_state: HintState,
     pub renderer: Renderer,
     pub sugarloaf: Sugarloaf<'screen>,
@@ -781,7 +782,7 @@ impl Screen<'_> {
 
         // While the rename prompt is open it captures all key input
         if self.rename_active() {
-            self.rename_key(key);
+            self.rename_key(key, mods);
             return;
         }
 
@@ -2296,7 +2297,7 @@ impl Screen<'_> {
             .context_manager
             .current_pane_label()
             .unwrap_or_default();
-        self.rename_state = Some(existing);
+        self.rename_state = Some(LineEditor::new(existing));
         self.render();
     }
 
@@ -2304,7 +2305,7 @@ impl Screen<'_> {
     /// the tab to its auto-derived title
     fn confirm_rename(&mut self) {
         if let Some(buffer) = self.rename_state.take() {
-            let trimmed = buffer.trim();
+            let trimmed = buffer.text().trim();
             let label = if trimmed.is_empty() {
                 None
             } else {
@@ -2330,16 +2331,48 @@ impl Screen<'_> {
     }
 
     /// Route a key press to the active rename prompt
-    fn rename_key(&mut self, key: &terminal_window::event::KeyEvent) {
+    fn rename_key(
+        &mut self,
+        key: &terminal_window::event::KeyEvent,
+        mods: ModifiersState,
+    ) {
+        // Apply an editor op to the active buffer, then repaint the prompt
+        macro_rules! edit {
+            ($op:ident) => {{
+                if let Some(buffer) = self.rename_state.as_mut() {
+                    buffer.$op();
+                }
+                self.render();
+            }};
+        }
+
+        let ctrl = mods.control_key();
         match key.logical_key.as_ref() {
             Key::Named(NamedKey::Enter) => self.confirm_rename(),
             Key::Named(NamedKey::Escape) => self.cancel_rename(),
-            Key::Named(NamedKey::Backspace) => {
-                if let Some(buffer) = self.rename_state.as_mut() {
-                    buffer.pop();
+            Key::Character(c) if ctrl => match c {
+                "c" | "C" => self.cancel_rename(),
+                "v" | "V" => {
+                    // Read the clipboard before borrowing the buffer mutably
+                    let content =
+                        self.clipboard.borrow_mut().get(ClipboardType::Clipboard);
+                    if let Some(buffer) = self.rename_state.as_mut() {
+                        buffer.paste(&content);
+                    }
+                    self.render();
                 }
-                self.render();
-            }
+                "u" | "U" => edit!(kill_to_start),
+                "k" | "K" => edit!(kill_to_end),
+                "w" | "W" => edit!(delete_word_before),
+                "a" | "A" => edit!(move_start),
+                "e" | "E" => edit!(move_end),
+                _ => {}
+            },
+            Key::Named(NamedKey::Backspace) => edit!(backspace),
+            Key::Named(NamedKey::ArrowLeft) => edit!(move_left),
+            Key::Named(NamedKey::ArrowRight) => edit!(move_right),
+            Key::Named(NamedKey::Home) => edit!(move_start),
+            Key::Named(NamedKey::End) => edit!(move_end),
             _ => {
                 let text = key.text_with_all_modifiers().unwrap_or_default();
                 let mut changed = false;
@@ -2347,7 +2380,7 @@ impl Screen<'_> {
                     // Printable ASCII and unicode only, ignore control characters
                     if (' '..='~').contains(&c) || c >= '\u{a0}' {
                         if let Some(buffer) = self.rename_state.as_mut() {
-                            buffer.push(c);
+                            buffer.insert_char(c);
                             changed = true;
                         }
                     }
@@ -2835,7 +2868,8 @@ impl Screen<'_> {
         }
 
         if let Some(buffer) = &self.rename_state {
-            self.renderer.set_active_rename(Some(buffer.clone()));
+            self.renderer
+                .set_active_rename(Some(buffer.text().to_string()));
 
             // Force a full UI redraw so the prompt bar repaints on each keystroke
             let current = self.context_manager.current_mut();

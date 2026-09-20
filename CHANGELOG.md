@@ -1,5 +1,11 @@
 # Omni Terminal
 
+## 0.4.1
+
+### Patch Changes
+
+- [#67](https://github.com/omnidotdev/terminal/pull/67) [`2656a88`](https://github.com/omnidotdev/terminal/commit/2656a885ba027029a83e0a3611995737838fa599) Thanks [@coopbri](https://github.com/coopbri)! - Fix wide characters (emoji, CJK) in the WASM terminal. They previously advanced the cursor by only one column, desyncing the grid from the shell and mangling the prompt when an emoji was pasted or echoed. Wide characters now occupy two columns (a leading cell plus a spacer), the renderer sizes them correctly and skips the spacer, and selection copy skips it too.
+
 ## 0.4.0
 
 ### Minor Changes

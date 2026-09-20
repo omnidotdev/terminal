@@ -27,6 +27,9 @@ const TAB_BAR_HEIGHT: u32 = 36;
 /// ResizeObserver path automatically.
 const BOTTOM_INSET: u32 = 16;
 
+/// Fallback tab title used when neither a user rename nor a shell OSC title is set
+const DEFAULT_TAB_TITLE: &str = "terminal";
+
 /// Line-height multiplier applied to the terminal grid. The renderer advances
 /// each line by `cell_height * LINE_HEIGHT`, so the same factor must be applied
 /// when deriving the cell height used for row counts and pixel->cell math (see
@@ -164,7 +167,25 @@ struct Tab {
     grid: TerminalGrid,
     parser: copa::Parser,
     title: String,
+    custom_label: Option<String>,
     awaiting_restart: bool,
+}
+
+impl Tab {
+    /// Resolve the display name: user rename wins, then the shell's OSC title, then a fallback
+    fn display_title(&self) -> &str {
+        if let Some(label) = self.custom_label.as_deref() {
+            if !label.is_empty() {
+                return label;
+            }
+        }
+        if let Some(t) = self.grid.title.as_deref() {
+            if !t.is_empty() {
+                return t;
+            }
+        }
+        DEFAULT_TAB_TITLE
+    }
 }
 
 /// Manage multiple terminal tabs
@@ -180,7 +201,8 @@ impl TabManager {
             session_id: None,
             grid: TerminalGrid::new(cols, rows),
             parser: copa::Parser::new(),
-            title: "Tab 1".to_string(),
+            title: DEFAULT_TAB_TITLE.to_string(),
+            custom_label: None,
             awaiting_restart: false,
         };
         Self {
@@ -204,7 +226,8 @@ impl TabManager {
             session_id: None,
             grid: TerminalGrid::new(cols, rows),
             parser: copa::Parser::new(),
-            title: format!("Tab {}", idx + 1),
+            title: DEFAULT_TAB_TITLE.to_string(),
+            custom_label: None,
             awaiting_restart: false,
         };
         self.tabs.push(tab);
@@ -250,6 +273,19 @@ impl TabManager {
 
     fn tab_count(&self) -> usize {
         self.tabs.len()
+    }
+
+    /// Sync each tab's cached display title; returns true if any changed
+    fn sync_titles(&mut self) -> bool {
+        let mut changed = false;
+        for tab in &mut self.tabs {
+            let resolved = tab.display_title().to_string();
+            if tab.title != resolved {
+                tab.title = resolved;
+                changed = true;
+            }
+        }
+        changed
     }
 }
 
@@ -341,7 +377,7 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
     let active = tabs_ref.active;
 
     for i in 0..tab_count {
-        let title = &tabs_ref.tabs[i].title;
+        let title = tabs_ref.tabs[i].display_title();
         let is_active = i == active;
 
         // Tab button container
@@ -358,6 +394,19 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
                 ),
             )
             .unwrap();
+
+        // Tab ordinal, rendered as its own element so the number is never
+        // baked into the title string
+        let index: web_sys::HtmlSpanElement =
+            document.create_element("span").unwrap().unchecked_into();
+        index.set_text_content(Some(&format!("{}", i + 1)));
+        index
+            .set_attribute(
+                "style",
+                "color: #666; font-size: 11px; min-width: 10px; text-align: right;",
+            )
+            .unwrap();
+        tab_btn.append_child(&index).unwrap();
 
         // Tab label span
         let label: web_sys::HtmlSpanElement =
@@ -636,6 +685,11 @@ fn connect_ws(
                         let sid: [u8; 16] = data[..16].try_into().unwrap();
                         let pty_output = &data[16..];
                         tabs.borrow_mut().route_output(&sid, pty_output);
+                        // The shell may have emitted an OSC title with this output,
+                        // so refresh the tab bar when a resolved title changed
+                        if tabs.borrow_mut().sync_titles() {
+                            rebuild_tab_bar(&tabs, &ws_state);
+                        }
                     }
                 }
             },

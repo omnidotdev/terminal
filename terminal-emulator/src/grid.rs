@@ -1,4 +1,5 @@
 use copa::{Params, Perform};
+use unicode_width::UnicodeWidthChar;
 
 /// Terminal cell with character and style attributes
 #[derive(Clone, Debug)]
@@ -10,6 +11,9 @@ pub struct Cell {
     pub italic: bool,
     pub underline: bool,
     pub inverse: bool,
+    /// Display columns this cell occupies: 1 = normal, 2 = leading cell of a
+    /// wide (double-width) char, 0 = the continuation spacer after a wide char
+    pub width: u8,
 }
 
 impl Default for Cell {
@@ -22,6 +26,7 @@ impl Default for Cell {
             italic: false,
             underline: false,
             inverse: false,
+            width: 1,
         }
     }
 }
@@ -266,6 +271,9 @@ impl TerminalGrid {
 
             let line: String = row[col_start..col_end]
                 .iter()
+                // Skip the width-0 spacer that trails a wide char so copied text
+                // does not gain a spurious space after each emoji or CJK glyph
+                .filter(|c| c.width != 0)
                 .map(|c| c.c)
                 .collect::<String>()
                 .trim_end()
@@ -308,6 +316,7 @@ impl TerminalGrid {
             italic: self.cur_italic,
             underline: self.cur_underline,
             inverse: self.cur_inverse,
+            width: 1,
         }
     }
 
@@ -412,7 +421,16 @@ pub fn ansi_color(idx: u16) -> [f32; 4] {
 
 impl Perform for TerminalGrid {
     fn print(&mut self, c: char) {
-        if self.cursor_col >= self.cols {
+        // Display width: 2 for wide glyphs (emoji, CJK), 1 for normal, 0 for
+        // zero-width or combining marks (dropped, since a cell holds one char)
+        let w = UnicodeWidthChar::width(c).unwrap_or(0);
+        if w == 0 {
+            return;
+        }
+
+        // Wrap to the next row when the glyph does not fit in the columns that
+        // remain (a wide char cannot occupy the final column on its own)
+        if self.cursor_col + w > self.cols {
             self.cursor_col = 0;
             self.cursor_row += 1;
             if self.cursor_row > self.scroll_bottom {
@@ -422,8 +440,18 @@ impl Perform for TerminalGrid {
         }
 
         if self.cursor_row < self.rows && self.cursor_col < self.cols {
-            self.cells[self.cursor_row][self.cursor_col] = self.new_cell(c);
-            self.cursor_col += 1;
+            let mut cell = self.new_cell(c);
+            cell.width = w as u8;
+            self.cells[self.cursor_row][self.cursor_col] = cell;
+
+            // A wide char reserves a trailing width-0 spacer the renderer skips,
+            // keeping the grid's columns aligned with the shell and the display
+            if w == 2 && self.cursor_col + 1 < self.cols {
+                let mut spacer = self.new_cell(' ');
+                spacer.width = 0;
+                self.cells[self.cursor_row][self.cursor_col + 1] = spacer;
+            }
+            self.cursor_col += w;
         }
         self.dirty = true;
     }
@@ -816,6 +844,61 @@ impl TerminalGrid {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ascii_char_is_width_one() {
+        let mut grid = TerminalGrid::new(80, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, b"a");
+        assert_eq!(grid.cells[0][0].c, 'a');
+        assert_eq!(grid.cells[0][0].width, 1);
+        assert_eq!(grid.cursor_col, 1);
+    }
+
+    #[test]
+    fn wide_char_occupies_two_cells_and_advances_by_two() {
+        let mut grid = TerminalGrid::new(80, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, "🌈".as_bytes());
+        assert_eq!(grid.cells[0][0].c, '🌈');
+        assert_eq!(grid.cells[0][0].width, 2);
+        // the trailing cell is a width-0 spacer the renderer skips
+        assert_eq!(grid.cells[0][1].width, 0);
+        assert_eq!(grid.cursor_col, 2);
+    }
+
+    #[test]
+    fn narrow_char_after_wide_lands_at_correct_column() {
+        let mut grid = TerminalGrid::new(80, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, "🌈a".as_bytes());
+        assert_eq!(grid.cells[0][2].c, 'a');
+        assert_eq!(grid.cells[0][2].width, 1);
+        assert_eq!(grid.cursor_col, 3);
+    }
+
+    #[test]
+    fn selected_text_skips_wide_char_spacer() {
+        let mut grid = TerminalGrid::new(80, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, "🌈a".as_bytes());
+        grid.selection_begin(0, 0);
+        grid.selection_update(2, 0);
+        assert_eq!(grid.selected_text(), "🌈a");
+    }
+
+    #[test]
+    fn wide_char_wraps_when_one_column_remains() {
+        let mut grid = TerminalGrid::new(3, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, b"aa");
+        assert_eq!(grid.cursor_col, 2);
+        parser.advance(&mut grid, "🌈".as_bytes());
+        assert_eq!(grid.cursor_row, 1);
+        assert_eq!(grid.cells[1][0].c, '🌈');
+        assert_eq!(grid.cells[1][0].width, 2);
+        assert_eq!(grid.cursor_col, 2);
+    }
 
     #[test]
     fn osc_2_sets_window_title() {

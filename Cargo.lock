@@ -782,7 +782,7 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "copa"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "arrayvec",
  "criterion",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "corcovado"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "bytes",
  "cfg-if 1.0.4",
@@ -2591,7 +2591,7 @@ dependencies = [
 
 [[package]]
 name = "line-editor"
-version = "0.3.2"
+version = "0.4.0"
 
 [[package]]
 name = "linked-hash-map"
@@ -3313,7 +3313,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "ahash",
  "axum",
@@ -3363,7 +3363,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-android"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "android_logger",
  "copa",
@@ -3387,7 +3387,7 @@ dependencies = [
 
 [[package]]
 name = "omni-terminal-wasm"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
@@ -4527,7 +4527,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sugarloaf"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "approx",
  "bytemuck",
@@ -4614,7 +4614,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "teletypewriter"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "corcovado",
  "dirs",
@@ -4648,7 +4648,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-backend"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "base64",
  "bitflags 2.11.0",
@@ -4681,15 +4681,16 @@ dependencies = [
 
 [[package]]
 name = "terminal-emulator"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "copa",
  "sugarloaf",
+ "unicode-width-16",
 ]
 
 [[package]]
 name = "terminal-proc-macros"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4697,7 +4698,7 @@ dependencies = [
 
 [[package]]
 name = "terminal-window"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "ahash",
  "atomic-waker",

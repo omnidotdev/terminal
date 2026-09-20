@@ -8,6 +8,7 @@ members = [
     "terminal-backend",
     "terminal-emulator",
     "terminal-window",
+    "line-editor",
     "frontends/omni-terminal",
     "frontends/wasm",
     "frontends/android-lib",
@@ -21,6 +22,7 @@ default-members = [
     "terminal-backend",
     "terminal-emulator",
     "terminal-window",
+    "line-editor",
     "frontends/omni-terminal",
 ]
 resolver = "2"
@@ -47,6 +49,7 @@ terminal-backend = { path = "terminal-backend", version = "0.3.2", default-featu
 terminal-window = { path = "terminal-window", version = "0.3.2", default-features = false }
 terminal-emulator = { path = "terminal-emulator", version = "0.3.2" }
 sugarloaf = { path = "sugarloaf", version = "0.3.2" }
+line-editor = { path = "line-editor", version = "0.3.2" }
 
 # Own dependencies
 copa = { path = "copa", default-features = true, version = "0.3.2" }

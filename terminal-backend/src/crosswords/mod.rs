@@ -2028,7 +2028,14 @@ impl<U: EventListener> Handler for Crosswords<U> {
     }
 
     fn set_title(&mut self, title: Option<String>) {
-        self.title = title.unwrap_or_default();
+        let new_title = title.unwrap_or_default();
+        if new_title != self.title {
+            self.title = new_title;
+            // Notify the UI so the tab title updates immediately instead of
+            // waiting for the periodic poll
+            self.event_proxy
+                .send_event(TerminalEvent::UpdateTitles, self.window_id);
+        }
     }
 
     fn set_current_directory(&mut self, path: std::path::PathBuf) {

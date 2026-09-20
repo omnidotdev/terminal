@@ -38,6 +38,8 @@ use unicode_width::UnicodeWidthChar;
 pub struct Search {
     rich_text_id: Option<usize>,
     active_search: Option<String>,
+    // Byte index of the caret within active_search; only the rename prompt sets it
+    cursor: Option<usize>,
 }
 
 pub struct Renderer {
@@ -145,8 +147,13 @@ impl Renderer {
     }
 
     #[inline]
-    pub fn set_active_rename(&mut self, active_rename: Option<String>) {
+    pub fn set_active_rename(
+        &mut self,
+        active_rename: Option<String>,
+        cursor: Option<usize>,
+    ) {
         self.rename.active_search = active_rename;
+        self.rename.cursor = cursor;
     }
 
     /// Draw a small label banner at the top-left of each labeled pane
@@ -876,6 +883,7 @@ impl Renderer {
             id,
             "Search: ",
             "Search: type something...",
+            None,
         );
     }
 
@@ -883,12 +891,14 @@ impl Renderer {
     fn update_rename_rich_text(&mut self, content: &mut Content) {
         let active = self.rename.active_search.clone();
         let id = self.rename.rich_text_id;
+        let caret = self.rename.cursor;
         self.update_prompt_rich_text(
             content,
             active,
             id,
             "Rename: ",
             "Rename: type a name...",
+            caret,
         );
     }
 
@@ -900,6 +910,7 @@ impl Renderer {
         rich_text_id: Option<usize>,
         prompt: &str,
         empty_hint: &str,
+        caret: Option<usize>,
     ) {
         if let Some(active_search_content) = &active_content {
             if let Some(search_rich_text) = rich_text_id {
@@ -965,13 +976,38 @@ impl Renderer {
                         }
                     }
 
-                    // Render all characters
-                    for (char_style, character) in char_styles {
+                    // Render all characters, overlaying a reverse-video block
+                    // caret on the char at the editor's cursor byte offset
+                    let total_bytes = active_search_content.len();
+                    let mut byte_offset = 0;
+                    for (mut char_style, character) in char_styles {
+                        if caret == Some(byte_offset) {
+                            char_style.background_color =
+                                Some(self.named_colors.foreground);
+                            char_style.color = self.named_colors.background.0;
+                        }
                         line.add_text_on_line(
                             // Add on first line
                             1,
                             self.char_cache.get_str(character),
                             char_style,
+                        );
+                        byte_offset += character.len_utf8();
+                    }
+
+                    // A caret at the end of the text has no char under it, so
+                    // render an extra reversed cell to make it visible
+                    if caret == Some(total_bytes) {
+                        let mut caret_style = FragmentStyle {
+                            color: self.named_colors.background.0,
+                            background_color: Some(self.named_colors.foreground),
+                            ..FragmentStyle::default()
+                        };
+                        caret_style.width = 1.0;
+                        line.add_text_on_line(
+                            1,
+                            self.char_cache.get_str(' '),
+                            caret_style,
                         );
                     }
 
@@ -1295,6 +1331,8 @@ impl Renderer {
             context_manager,
             has_search || has_rename,
             &mut objects,
+            &self.font_context,
+            &mut self.font_cache,
         );
 
         if has_search {

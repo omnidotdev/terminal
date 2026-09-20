@@ -730,7 +730,10 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
     }
 
     pub fn update_titles(&mut self) {
-        let interval_time = Duration::from_secs(2);
+        // Short debounce so an OSC/process title change is reflected almost
+        // immediately (the emitter only fires this on an actual change) while
+        // still coalescing rapid bursts
+        let interval_time = Duration::from_millis(100);
         if self
             .titles
             .last_title_update

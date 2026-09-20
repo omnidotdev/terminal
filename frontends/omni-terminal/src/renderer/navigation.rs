@@ -1,10 +1,13 @@
 use crate::constants::*;
 use crate::context::title::ContextTitle;
+use crate::renderer::font_cache::FontCache;
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 use terminal_backend::config::colors::Colors;
 use terminal_backend::config::navigation::{Navigation, NavigationMode};
+use terminal_backend::sugarloaf::font::FontLibrary;
 use terminal_backend::sugarloaf::{FragmentStyle, Object, Quad, RichText, Sugarloaf};
+use unicode_width::UnicodeWidthChar;
 
 pub struct ScreenNavigation {
     pub navigation: Navigation,
@@ -26,6 +29,7 @@ impl ScreenNavigation {
     }
 
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     pub fn build_objects(
         &mut self,
         sugarloaf: &mut Sugarloaf,
@@ -36,6 +40,8 @@ impl ScreenNavigation {
         >,
         is_search_active: bool,
         objects: &mut Vec<Object>,
+        font_context: &FontLibrary,
+        font_cache: &mut FontCache,
     ) {
         // When search is active then BottomTab should not be rendered
         if is_search_active && self.navigation.mode == NavigationMode::BottomTab {
@@ -78,6 +84,8 @@ impl ScreenNavigation {
                     position_y,
                     hide_if_single_tab,
                     dimensions,
+                    font_context,
+                    font_cache,
                 );
             }
             NavigationMode::BottomTab => {
@@ -93,6 +101,8 @@ impl ScreenNavigation {
                     position_y,
                     hide_if_single_tab,
                     dimensions,
+                    font_context,
+                    font_cache,
                 );
             }
             // Minimal simply does not do anything
@@ -166,6 +176,8 @@ impl ScreenNavigation {
         position_y: f32,
         hide_if_single: bool,
         dimensions: (f32, f32, f32),
+        font_context: &FontLibrary,
+        font_cache: &mut FontCache,
     ) {
         if hide_if_single && len <= 1 {
             return;
@@ -236,7 +248,7 @@ impl ScreenNavigation {
             // Every tab is numbered (active included) so the prefix width is
             // uniform; the active tab is distinguished by its color and the
             // highlight underline below, not by a separate marker glyph
-            let prefix = format!("{}.", i + 1);
+            let prefix = format!("{} ", i + 1);
 
             // Budget the whole label (prefix + name) to the tab's pixel width so
             // long names do not overflow into the next tab. The tab quad is
@@ -280,24 +292,65 @@ impl ScreenNavigation {
                 }));
             }
 
-            let text = format!("{prefix}{name}");
+            // Dim the ordinal prefix so it reads as a secondary switching cue
+            // and the name stays visually primary
+            let prefix_color = [
+                foreground_color[0],
+                foreground_color[1],
+                foreground_color[2],
+                foreground_color[3] * 0.5,
+            ];
+
+            let name_style = FragmentStyle {
+                color: foreground_color,
+                ..FragmentStyle::default()
+            };
 
             let tab = sugarloaf.create_temp_rich_text();
             sugarloaf.set_rich_text_font_size(&tab, 14.);
             let content = sugarloaf.content();
 
             let tab_line = content.sel(tab);
-            tab_line
-                .clear()
-                .new_line()
-                .add_text(
-                    &text,
-                    FragmentStyle {
-                        color: foreground_color,
-                        ..FragmentStyle::default()
-                    },
-                )
-                .build();
+            tab_line.clear().new_line().add_text(
+                &prefix,
+                FragmentStyle {
+                    color: prefix_color,
+                    ..FragmentStyle::default()
+                },
+            );
+
+            // Resolve a font per character so the name renders emoji and other
+            // non-default glyphs instead of missing-glyph boxes, matching how the
+            // rename prompt draws its text
+            let mut buf = [0u8; 4];
+            for character in name.chars() {
+                let mut char_style = name_style;
+                if let Some((font_id, width)) =
+                    font_cache.get(&(character, char_style.font_attrs))
+                {
+                    char_style.font_id = *font_id;
+                    char_style.width = *width;
+                } else {
+                    let mut width = character.width().unwrap_or(1) as f32;
+                    if let Some((font_id, is_emoji)) = font_context
+                        .inner
+                        .read()
+                        .find_best_font_match(character, &char_style)
+                    {
+                        char_style.font_id = font_id;
+                        if is_emoji {
+                            width = 2.0;
+                        }
+                    }
+                    char_style.width = width;
+                    font_cache.insert(
+                        (character, char_style.font_attrs),
+                        (char_style.font_id, char_style.width),
+                    );
+                }
+                tab_line.add_text(character.encode_utf8(&mut buf), char_style);
+            }
+            tab_line.build();
 
             objects.push(Object::RichText(RichText {
                 id: tab,

@@ -79,6 +79,9 @@ pub struct TerminalGrid {
     // Selection state
     pub selection_start: Option<(usize, usize)>, // (col, row) in grid coordinates
     pub selection_end: Option<(usize, usize)>,
+
+    /// Title reported by the shell via OSC 0/1/2, if any
+    pub title: Option<String>,
 }
 
 impl TerminalGrid {
@@ -110,6 +113,7 @@ impl TerminalGrid {
             pending_writes: Vec::new(),
             selection_start: None,
             selection_end: None,
+            title: None,
         }
     }
 
@@ -672,8 +676,20 @@ impl Perform for TerminalGrid {
         }
     }
 
-    fn osc_dispatch(&mut self, _params: &[&[u8]], _bell_terminated: bool) {
-        // OSC sequences (title, colors, etc.) — not needed for basic terminal
+    fn osc_dispatch(&mut self, params: &[&[u8]], _bell_terminated: bool) {
+        // OSC 0 (icon+title), 1 (icon), 2 (title) carry the window/tab title
+        let Some(code) = params.first() else {
+            return;
+        };
+        if !matches!(*code, b"0" | b"1" | b"2") {
+            return;
+        }
+        if let Some(bytes) = params.get(1) {
+            if let Ok(s) = std::str::from_utf8(bytes) {
+                self.title = Some(s.to_string());
+                self.dirty = true;
+            }
+        }
     }
 }
 
@@ -794,5 +810,42 @@ impl TerminalGrid {
             self.pending_writes.push(((col + 33) & 0xFF) as u8);
             self.pending_writes.push(((row + 33) & 0xFF) as u8);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn osc_2_sets_window_title() {
+        let mut grid = TerminalGrid::new(80, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, b"\x1b]2;my title\x07");
+        assert_eq!(grid.title.as_deref(), Some("my title"));
+    }
+
+    #[test]
+    fn osc_0_sets_title() {
+        let mut grid = TerminalGrid::new(80, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, b"\x1b]0;hi\x07");
+        assert_eq!(grid.title.as_deref(), Some("hi"));
+    }
+
+    #[test]
+    fn osc_1_sets_icon_title() {
+        let mut grid = TerminalGrid::new(80, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, b"\x1b]1;icon name\x07");
+        assert_eq!(grid.title.as_deref(), Some("icon name"));
+    }
+
+    #[test]
+    fn osc_other_code_leaves_title_unset() {
+        let mut grid = TerminalGrid::new(80, 24);
+        let mut parser = copa::Parser::new();
+        parser.advance(&mut grid, b"\x1b]4;1;rgb:ff/00/00\x07");
+        assert_eq!(grid.title, None);
     }
 }

@@ -192,6 +192,8 @@ impl Tab {
 struct TabManager {
     tabs: Vec<Tab>,
     active: usize,
+    /// Index of the tab whose label is currently being edited inline, if any
+    renaming: Option<usize>,
 }
 
 impl TabManager {
@@ -208,7 +210,33 @@ impl TabManager {
         Self {
             tabs: vec![tab],
             active: 0,
+            renaming: None,
         }
+    }
+
+    /// Begin inline rename of the tab at index
+    fn start_rename(&mut self, idx: usize) {
+        if idx < self.tabs.len() {
+            self.renaming = Some(idx);
+        }
+    }
+
+    /// Abandon an in-progress rename without changing the label
+    fn cancel_rename(&mut self) {
+        self.renaming = None;
+    }
+
+    /// Commit a rename: empty/whitespace clears the label (reverts to OSC/fallback)
+    fn commit_rename(&mut self, idx: usize, text: &str) {
+        if let Some(tab) = self.tabs.get_mut(idx) {
+            let trimmed = text.trim();
+            tab.custom_label = if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            };
+        }
+        self.renaming = None;
     }
 
     fn active_tab(&self) -> &Tab {
@@ -379,6 +407,7 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
     for i in 0..tab_count {
         let title = tabs_ref.tabs[i].display_title();
         let is_active = i == active;
+        let is_renaming = tabs_ref.renaming == Some(i);
 
         // Tab button container
         let tab_btn: HtmlDivElement =
@@ -408,33 +437,200 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
             .unwrap();
         tab_btn.append_child(&index).unwrap();
 
-        // Tab label span
-        let label: web_sys::HtmlSpanElement =
-            document.create_element("span").unwrap().unchecked_into();
-        label.set_text_content(Some(title));
-
-        // Click on label/tab to switch
-        {
-            let tabs = tabs.clone();
-            let ws_state = ws_state.clone();
-            let on_click = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
-                move |event: web_sys::MouseEvent| {
-                    event.stop_propagation();
-                    tabs.borrow_mut().switch_to(i);
-                    rebuild_tab_bar(&tabs, &ws_state);
-                },
-            );
-            let target: &web_sys::EventTarget = label.as_ref();
-            target
-                .add_event_listener_with_callback(
-                    "click",
-                    on_click.as_ref().unchecked_ref(),
+        if is_renaming {
+            // Inline rename: an <input> replaces the label span while the
+            // ordinal index span is kept
+            let input: web_sys::HtmlInputElement =
+                document.create_element("input").unwrap().unchecked_into();
+            input.set_type("text");
+            input.set_value(title);
+            input
+                .set_attribute(
+                    "style",
+                    "background:#1a1a2e; color:#eee; border:1px solid #4a4a6e; border-radius:3px; font-family:monospace; font-size:12px; padding:1px 4px; width:120px;",
                 )
                 .unwrap();
-            on_click.forget();
-        }
 
-        tab_btn.append_child(&label).unwrap();
+            // Editing keys (Enter/Escape/readline motions); stop propagation so
+            // the global ime_textarea handler never also processes them
+            {
+                let tabs = tabs.clone();
+                let ws_state = ws_state.clone();
+                let input_ref = input.clone();
+                let on_keydown = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(
+                    move |event: web_sys::KeyboardEvent| {
+                        event.stop_propagation();
+                        let key = event.key();
+
+                        if key == "Enter" {
+                            event.prevent_default();
+                            let value = input_ref.value();
+                            tabs.borrow_mut().commit_rename(i, &value);
+                            rebuild_tab_bar(&tabs, &ws_state);
+                            return;
+                        }
+                        if key == "Escape"
+                            || (event.ctrl_key() && key.eq_ignore_ascii_case("c"))
+                        {
+                            event.prevent_default();
+                            tabs.borrow_mut().cancel_rename();
+                            rebuild_tab_bar(&tabs, &ws_state);
+                            return;
+                        }
+                        if event.ctrl_key() && key.eq_ignore_ascii_case("u") {
+                            // Kill to start of line
+                            event.prevent_default();
+                            let cursor =
+                                input_ref.selection_start().ok().flatten().unwrap_or(0);
+                            let _ = input_ref
+                                .set_range_text_with_start_and_end("", 0, cursor);
+                            let _ = input_ref.set_selection_range(0, 0);
+                            return;
+                        }
+                        if event.ctrl_key() && key.eq_ignore_ascii_case("k") {
+                            // Kill to end of line
+                            event.prevent_default();
+                            let cursor =
+                                input_ref.selection_start().ok().flatten().unwrap_or(0);
+                            let len = input_ref.value().encode_utf16().count() as u32;
+                            let _ = input_ref
+                                .set_range_text_with_start_and_end("", cursor, len);
+                            return;
+                        }
+                        if event.ctrl_key() && key.eq_ignore_ascii_case("w") {
+                            // Delete the word before the caret, matching the
+                            // line-editor crate's delete_word_before semantics
+                            event.prevent_default();
+                            let value = input_ref.value();
+                            let cursor = input_ref
+                                .selection_start()
+                                .ok()
+                                .flatten()
+                                .unwrap_or(0)
+                                as usize;
+                            let utf16: Vec<u16> = value.encode_utf16().collect();
+                            let cursor = cursor.min(utf16.len());
+                            let prefix = String::from_utf16_lossy(&utf16[..cursor]);
+                            let trimmed = prefix.trim_end_matches(' ');
+                            let start_byte =
+                                trimmed.rfind(' ').map(|i| i + 1).unwrap_or(0);
+                            let start_cu =
+                                prefix[..start_byte].encode_utf16().count() as u32;
+                            let _ = input_ref.set_range_text_with_start_and_end(
+                                "",
+                                start_cu,
+                                cursor as u32,
+                            );
+                            let _ = input_ref.set_selection_range(start_cu, start_cu);
+                            return;
+                        }
+                        if event.ctrl_key() && key.eq_ignore_ascii_case("a") {
+                            // Caret to start, overriding the browser select-all
+                            event.prevent_default();
+                            let _ = input_ref.set_selection_range(0, 0);
+                            return;
+                        }
+                        if event.ctrl_key() && key.eq_ignore_ascii_case("e") {
+                            // Caret to end
+                            event.prevent_default();
+                            let len = input_ref.value().encode_utf16().count() as u32;
+                            let _ = input_ref.set_selection_range(len, len);
+                        }
+                        // Everything else (printable typing, Backspace, arrows,
+                        // Home/End, native Ctrl+V paste) is left to the input
+                    },
+                );
+                let target: &web_sys::EventTarget = input.as_ref();
+                target
+                    .add_event_listener_with_callback(
+                        "keydown",
+                        on_keydown.as_ref().unchecked_ref(),
+                    )
+                    .unwrap();
+                on_keydown.forget();
+            }
+
+            // Blur commits, unless a keydown already committed/cancelled (which
+            // clears `renaming`), so we do not double-commit when Enter blurs
+            {
+                let tabs = tabs.clone();
+                let ws_state = ws_state.clone();
+                let input_ref = input.clone();
+                let on_blur = Closure::<dyn FnMut(web_sys::FocusEvent)>::new(
+                    move |_event: web_sys::FocusEvent| {
+                        if tabs.borrow().renaming != Some(i) {
+                            return;
+                        }
+                        let value = input_ref.value();
+                        tabs.borrow_mut().commit_rename(i, &value);
+                        rebuild_tab_bar(&tabs, &ws_state);
+                    },
+                );
+                let target: &web_sys::EventTarget = input.as_ref();
+                target
+                    .add_event_listener_with_callback(
+                        "blur",
+                        on_blur.as_ref().unchecked_ref(),
+                    )
+                    .unwrap();
+                on_blur.forget();
+            }
+
+            tab_btn.append_child(&input).unwrap();
+            // Focus and select-all AFTER the element is in the document so the
+            // first keystroke or paste replaces the seeded title
+            let _ = input.focus();
+            input.select();
+        } else {
+            // Tab label span
+            let label: web_sys::HtmlSpanElement =
+                document.create_element("span").unwrap().unchecked_into();
+            label.set_text_content(Some(title));
+
+            // Click on label/tab to switch
+            {
+                let tabs = tabs.clone();
+                let ws_state = ws_state.clone();
+                let on_click = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+                    move |event: web_sys::MouseEvent| {
+                        event.stop_propagation();
+                        tabs.borrow_mut().switch_to(i);
+                        rebuild_tab_bar(&tabs, &ws_state);
+                    },
+                );
+                let target: &web_sys::EventTarget = label.as_ref();
+                target
+                    .add_event_listener_with_callback(
+                        "click",
+                        on_click.as_ref().unchecked_ref(),
+                    )
+                    .unwrap();
+                on_click.forget();
+            }
+
+            // Double-click the label to start an inline rename
+            {
+                let tabs = tabs.clone();
+                let ws_state = ws_state.clone();
+                let on_dblclick = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+                    move |event: web_sys::MouseEvent| {
+                        event.stop_propagation();
+                        tabs.borrow_mut().start_rename(i);
+                        rebuild_tab_bar(&tabs, &ws_state);
+                    },
+                );
+                let target: &web_sys::EventTarget = label.as_ref();
+                target
+                    .add_event_listener_with_callback(
+                        "dblclick",
+                        on_dblclick.as_ref().unchecked_ref(),
+                    )
+                    .unwrap();
+                on_dblclick.forget();
+            }
+
+            tab_btn.append_child(&label).unwrap();
+        }
 
         // Close button (only if more than 1 tab)
         if tab_count > 1 {
@@ -481,6 +677,119 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
             on_close.forget();
 
             tab_btn.append_child(&close_btn).unwrap();
+        }
+
+        // Right-click: a minimal context menu with a single Rename entry
+        {
+            let tabs = tabs.clone();
+            let ws_state = ws_state.clone();
+            let on_contextmenu = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+                move |event: web_sys::MouseEvent| {
+                    event.prevent_default();
+                    event.stop_propagation();
+                    let document = web_sys::window().unwrap().document().unwrap();
+                    // Drop any menu left over from a previous right-click
+                    if let Some(existing) =
+                        document.get_element_by_id("tab-context-menu")
+                    {
+                        existing.remove();
+                    }
+
+                    let menu: HtmlDivElement =
+                        document.create_element("div").unwrap().unchecked_into();
+                    menu.set_id("tab-context-menu");
+                    menu.set_attribute(
+                        "style",
+                        &format!(
+                            "position:absolute; left:{}px; top:{}px; background:#1a1a2e; border:1px solid #4a4a6e; border-radius:4px; padding:4px 0; z-index:1000; font-family:monospace; font-size:12px; box-shadow:0 2px 8px rgba(0,0,0,0.4); user-select:none;",
+                            event.client_x(),
+                            event.client_y()
+                        ),
+                    )
+                    .unwrap();
+
+                    let item: HtmlDivElement =
+                        document.create_element("div").unwrap().unchecked_into();
+                    item.set_text_content(Some("Rename"));
+                    item.set_attribute(
+                        "style",
+                        "padding:4px 16px; cursor:pointer; color:#eee;",
+                    )
+                    .unwrap();
+
+                    {
+                        let tabs = tabs.clone();
+                        let ws_state = ws_state.clone();
+                        // mousedown (not click) so stop_propagation beats the
+                        // document dismiss listener below, and the item action
+                        // still fires before the menu is torn down
+                        let on_item = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+                            move |event: web_sys::MouseEvent| {
+                                event.stop_propagation();
+                                event.prevent_default();
+                                let document =
+                                    web_sys::window().unwrap().document().unwrap();
+                                if let Some(m) =
+                                    document.get_element_by_id("tab-context-menu")
+                                {
+                                    m.remove();
+                                }
+                                tabs.borrow_mut().start_rename(i);
+                                rebuild_tab_bar(&tabs, &ws_state);
+                            },
+                        );
+                        let target: &web_sys::EventTarget = item.as_ref();
+                        target
+                            .add_event_listener_with_callback(
+                                "mousedown",
+                                on_item.as_ref().unchecked_ref(),
+                            )
+                            .unwrap();
+                        on_item.forget();
+                    }
+
+                    menu.append_child(&item).unwrap();
+                    document.body().unwrap().append_child(&menu).unwrap();
+
+                    // Dismiss on the next mousedown anywhere else; `once` makes
+                    // the listener remove itself so nothing accumulates
+                    {
+                        let on_dismiss =
+                            Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+                                move |_event: web_sys::MouseEvent| {
+                                    let document = web_sys::window()
+                                        .unwrap()
+                                        .document()
+                                        .unwrap();
+                                    if let Some(m) = document
+                                        .get_element_by_id("tab-context-menu")
+                                    {
+                                        m.remove();
+                                    }
+                                },
+                            );
+                        let opts = web_sys::AddEventListenerOptions::new();
+                        opts.set_once(true);
+                        let doc_target: &web_sys::EventTarget = document.as_ref();
+                        doc_target
+                            .add_event_listener_with_callback_and_add_event_listener_options(
+                                "mousedown",
+                                on_dismiss.as_ref().unchecked_ref(),
+                                &opts,
+                            )
+                            .unwrap();
+                        on_dismiss.forget();
+                    }
+                },
+            );
+            let target: &web_sys::EventTarget = tab_btn.as_ref();
+            target
+                .add_event_listener_with_callback(
+                    "contextmenu",
+                    on_contextmenu.as_ref().unchecked_ref(),
+                )
+                .unwrap();
+            on_contextmenu.forget();
         }
 
         tab_bar.append_child(&tab_btn).unwrap();
@@ -686,8 +995,11 @@ fn connect_ws(
                         let pty_output = &data[16..];
                         tabs.borrow_mut().route_output(&sid, pty_output);
                         // The shell may have emitted an OSC title with this output,
-                        // so refresh the tab bar when a resolved title changed
-                        if tabs.borrow_mut().sync_titles() {
+                        // so refresh the tab bar when a resolved title changed.
+                        // Never rebuild while a rename input is open, or an
+                        // incoming OSC title would wipe the in-progress element
+                        let changed = tabs.borrow_mut().sync_titles();
+                        if changed && tabs.borrow().renaming.is_none() {
                             rebuild_tab_bar(&tabs, &ws_state);
                         }
                     }
@@ -963,6 +1275,18 @@ async fn async_main(container_id: String, ws_url: String, font_size: f32) {
                             }
                         }
                     }
+                    return;
+                }
+
+                // Ctrl+Shift+L: rename the active tab, matching the native app
+                if event.ctrl_key()
+                    && event.shift_key()
+                    && event.key().eq_ignore_ascii_case("l")
+                {
+                    event.prevent_default();
+                    let active = tabs_shortcut.borrow().active;
+                    tabs_shortcut.borrow_mut().start_rename(active);
+                    rebuild_tab_bar(&tabs_shortcut, &ws_state_shortcut);
                     return;
                 }
 

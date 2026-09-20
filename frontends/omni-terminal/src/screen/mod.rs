@@ -2896,8 +2896,10 @@ impl Screen<'_> {
         }
 
         if let Some(buffer) = &self.rename_state {
-            self.renderer
-                .set_active_rename(Some(buffer.text().to_string()));
+            self.renderer.set_active_rename(
+                Some(buffer.text().to_string()),
+                Some(buffer.cursor()),
+            );
 
             // Force a full UI redraw so the prompt bar repaints on each keystroke
             let current = self.context_manager.current_mut();

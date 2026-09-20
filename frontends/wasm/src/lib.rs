@@ -502,12 +502,9 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
                             // line-editor crate's delete_word_before semantics
                             event.prevent_default();
                             let value = input_ref.value();
-                            let cursor = input_ref
-                                .selection_start()
-                                .ok()
-                                .flatten()
-                                .unwrap_or(0)
-                                as usize;
+                            let cursor =
+                                input_ref.selection_start().ok().flatten().unwrap_or(0)
+                                    as usize;
                             let utf16: Vec<u16> = value.encode_utf16().collect();
                             let cursor = cursor.min(utf16.len());
                             let prefix = String::from_utf16_lossy(&utf16[..cursor]);
@@ -689,8 +686,7 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
                     event.stop_propagation();
                     let document = web_sys::window().unwrap().document().unwrap();
                     // Drop any menu left over from a previous right-click
-                    if let Some(existing) =
-                        document.get_element_by_id("tab-context-menu")
+                    if let Some(existing) = document.get_element_by_id("tab-context-menu")
                     {
                         existing.remove();
                     }
@@ -754,20 +750,17 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
                     // Dismiss on the next mousedown anywhere else; `once` makes
                     // the listener remove itself so nothing accumulates
                     {
-                        let on_dismiss =
-                            Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
-                                move |_event: web_sys::MouseEvent| {
-                                    let document = web_sys::window()
-                                        .unwrap()
-                                        .document()
-                                        .unwrap();
-                                    if let Some(m) = document
-                                        .get_element_by_id("tab-context-menu")
-                                    {
-                                        m.remove();
-                                    }
-                                },
-                            );
+                        let on_dismiss = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
+                            move |_event: web_sys::MouseEvent| {
+                                let document =
+                                    web_sys::window().unwrap().document().unwrap();
+                                if let Some(m) =
+                                    document.get_element_by_id("tab-context-menu")
+                                {
+                                    m.remove();
+                                }
+                            },
+                        );
                         let opts = web_sys::AddEventListenerOptions::new();
                         opts.set_once(true);
                         let doc_target: &web_sys::EventTarget = document.as_ref();

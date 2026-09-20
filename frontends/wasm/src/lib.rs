@@ -585,6 +585,7 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
             let label: web_sys::HtmlSpanElement =
                 document.create_element("span").unwrap().unchecked_into();
             label.set_text_content(Some(title));
+            label.set_id(&format!("tab-label-{}", i));
 
             // Click on label/tab to switch
             {
@@ -839,6 +840,20 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
     tab_bar.append_child(&add_btn).unwrap();
 }
 
+/// Update tab label texts in place, avoiding a full rebuild (and its per-tab
+/// closure allocation) when only the shell-reported title changed
+fn refresh_tab_titles(tabs: &Rc<RefCell<TabManager>>) {
+    let Some(document) = web_sys::window().and_then(|w| w.document()) else {
+        return;
+    };
+    let tabs_ref = tabs.borrow();
+    for i in 0..tabs_ref.tab_count() {
+        if let Some(label) = document.get_element_by_id(&format!("tab-label-{}", i)) {
+            label.set_text_content(Some(tabs_ref.tabs[i].display_title()));
+        }
+    }
+}
+
 /// Connect or reconnect the WebSocket with auto-reconnect on close/error
 fn connect_ws(
     ws_state: &Rc<RefCell<WsState>>,
@@ -995,7 +1010,7 @@ fn connect_ws(
                         // incoming OSC title would wipe the in-progress element
                         let changed = tabs.borrow_mut().sync_titles();
                         if changed && tabs.borrow().renaming.is_none() {
-                            rebuild_tab_bar(&tabs, &ws_state);
+                            refresh_tab_titles(&tabs);
                         }
                     }
                 }

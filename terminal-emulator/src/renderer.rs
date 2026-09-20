@@ -108,23 +108,39 @@ pub fn render_grid(sugarloaf: &mut Sugarloaf, grid: &TerminalGrid, rt_id: usize)
                     }
                 }
 
-                // Sub-split by font_id so non-ASCII glyphs (Nerd Font icons,
-                // emoji, CJK) resolve to the correct fallback font
-                let mut sub_start = run_start;
-                while sub_start < run_end {
-                    let ch = row[sub_start].c;
-                    let (font_id, is_emoji) = if ch.is_ascii() {
-                        (0, false)
+                // Sub-split by font_id (so Nerd Font icons, emoji and CJK pick
+                // the right fallback font) and by display width, skipping the
+                // width-0 spacer cells that trail wide chars so they are not
+                // drawn as extra glyphs
+                let mut sub = run_start;
+                while sub < run_end {
+                    if row[sub].width == 0 {
+                        sub += 1;
+                        continue;
+                    }
+                    let ch = row[sub].c;
+                    let wide = row[sub].width == 2;
+                    let font_id = if ch.is_ascii() {
+                        0
                     } else {
                         font_lib
                             .find_best_font_match(ch, &style)
-                            .unwrap_or((0, false))
+                            .map_or(0, |(id, _)| id)
                     };
 
-                    // Extend sub-run while consecutive chars share the same font
-                    let mut sub_end = sub_start + 1;
-                    while sub_end < run_end {
-                        let next_ch = row[sub_end].c;
+                    let mut text = String::new();
+                    text.push(ch);
+
+                    // Extend the run over cells that share the font and width,
+                    // stepping over spacers without emitting them
+                    let mut next = sub + 1;
+                    while next < run_end {
+                        if row[next].width == 0 {
+                            next += 1;
+                            continue;
+                        }
+                        let next_ch = row[next].c;
+                        let next_wide = row[next].width == 2;
                         let next_font_id = if next_ch.is_ascii() {
                             0
                         } else {
@@ -132,24 +148,22 @@ pub fn render_grid(sugarloaf: &mut Sugarloaf, grid: &TerminalGrid, rt_id: usize)
                                 .find_best_font_match(next_ch, &style)
                                 .map_or(0, |(id, _)| id)
                         };
-                        if next_font_id == font_id {
-                            sub_end += 1;
+                        if next_font_id == font_id && next_wide == wide {
+                            text.push(next_ch);
+                            next += 1;
                         } else {
                             break;
                         }
                     }
 
-                    let text: String =
-                        row[sub_start..sub_end].iter().map(|c| c.c).collect();
-
                     let mut sub_style = style;
                     sub_style.font_id = font_id;
-                    if is_emoji {
+                    if wide {
                         sub_style.width = 2.0;
                     }
 
                     content.add_text(&text, sub_style);
-                    sub_start = sub_end;
+                    sub = next;
                 }
 
                 run_start = run_end;

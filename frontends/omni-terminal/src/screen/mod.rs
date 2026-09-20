@@ -43,6 +43,7 @@ use std::cmp::{max, min};
 use std::error::Error;
 use std::ffi::OsStr;
 use std::rc::Rc;
+use std::time::Instant;
 use terminal_backend::clipboard::Clipboard;
 use terminal_backend::clipboard::ClipboardType;
 use terminal_backend::config::navigation::NavigationMode;
@@ -86,6 +87,8 @@ pub struct Screen<'screen> {
     pub search_state: SearchState,
     /// When `Some`, the tab-rename prompt is active and holds its input buffer
     pub rename_state: Option<LineEditor>,
+    /// Timestamp + tab index of the last tab-bar click, to detect a double-click that opens rename
+    last_tab_click: Option<(usize, Instant)>,
     pub hint_state: HintState,
     pub renderer: Renderer,
     pub sugarloaf: Sugarloaf<'screen>,
@@ -262,6 +265,7 @@ impl Screen<'_> {
         Ok(Screen {
             search_state: SearchState::default(),
             rename_state: None,
+            last_tab_click: None,
             hint_state: HintState::new(config.hints.alphabet.clone()),
             hints_config: config
                 .hints
@@ -321,18 +325,19 @@ impl Screen<'_> {
     // Returns true if a navigation tab was clicked and handled, so the caller
     // can skip further click processing (text selection, etc.).
     #[inline]
-    pub fn select_tab_based_on_mouse(&mut self) -> bool {
+    /// The tab index under the current mouse position, if the mouse is over a tab
+    fn tab_index_at_mouse(&self) -> Option<usize> {
         let nav_mode = self.renderer.navigation.navigation.mode;
         let hide_if_single = self.renderer.navigation.navigation.hide_if_single;
         let len = self.context_manager.len();
 
         if hide_if_single && len <= 1 {
-            return false;
+            return None;
         }
 
         // BottomTab bar is hidden when search is active
         if self.search_active() && nav_mode == NavigationMode::BottomTab {
-            return false;
+            return None;
         }
 
         let scale = self.sugarloaf.scale_factor();
@@ -347,11 +352,11 @@ impl Screen<'_> {
             NavigationMode::BottomTab => {
                 logical_y >= logical_height - PADDING_Y_BOTTOM_TABS
             }
-            _ => return false,
+            _ => return None,
         };
 
         if !in_tab_bar {
-            return false;
+            return None;
         }
 
         let current = self.context_manager.current_index();
@@ -376,16 +381,39 @@ impl Screen<'_> {
 
         // Reject clicks in the inter-tab gap
         if logical_x > tab_start_x + tab_visible_width {
-            return false;
+            return None;
         }
 
         let tab_index = start_tab + visual_index;
         if tab_index >= len {
-            return false;
+            return None;
         }
 
+        Some(tab_index)
+    }
+
+    pub fn select_tab_based_on_mouse(&mut self) -> bool {
+        let Some(tab_index) = self.tab_index_at_mouse() else {
+            return false;
+        };
+
+        // Select the tab first so rename targets the correct pane
         self.context_manager.select_tab(tab_index);
         self.cancel_search();
+
+        // A second click on the same tab within the threshold opens the rename prompt
+        let now = Instant::now();
+        let threshold = std::time::Duration::from_millis(300);
+        let is_double = matches!(
+            self.last_tab_click,
+            Some((idx, t)) if idx == tab_index && now.duration_since(t) < threshold
+        );
+        if is_double {
+            self.last_tab_click = None;
+            self.start_rename();
+        } else {
+            self.last_tab_click = Some((tab_index, now));
+        }
         true
     }
 

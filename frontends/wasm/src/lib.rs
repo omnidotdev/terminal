@@ -194,6 +194,10 @@ struct TabManager {
     active: usize,
     /// Index of the tab whose label is currently being edited inline, if any
     renaming: Option<usize>,
+    /// Tab index and timestamp (ms) of the last label click, to detect a
+    /// double-click that opens rename without relying on the DOM dblclick event
+    /// (a single click rebuilds the bar and would break dblclick targeting)
+    last_tab_click: Option<(usize, f64)>,
 }
 
 impl TabManager {
@@ -211,7 +215,19 @@ impl TabManager {
             tabs: vec![tab],
             active: 0,
             renaming: None,
+            last_tab_click: None,
         }
+    }
+
+    /// Register a click on tab `idx` at `now_ms`; returns true when it completes
+    /// a double-click within the threshold (which should open rename)
+    fn is_double_click(&mut self, idx: usize, now_ms: f64) -> bool {
+        let is_double = matches!(
+            self.last_tab_click,
+            Some((i, t)) if i == idx && now_ms - t < 400.0
+        );
+        self.last_tab_click = if is_double { None } else { Some((idx, now_ms)) };
+        is_double
     }
 
     /// Begin inline rename of the tab at index
@@ -587,14 +603,25 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
             label.set_text_content(Some(title));
             label.set_id(&format!("tab-label-{}", i));
 
-            // Click on label/tab to switch
+            // Click to switch; a second click on the same tab within the
+            // threshold opens an inline rename. The double-click is detected by
+            // timing (state lives in Rust) because a single click rebuilds the
+            // bar, which would break the DOM dblclick event's same-target rule
             {
                 let tabs = tabs.clone();
                 let ws_state = ws_state.clone();
                 let on_click = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
                     move |event: web_sys::MouseEvent| {
                         event.stop_propagation();
-                        tabs.borrow_mut().switch_to(i);
+                        let now = js_sys::Date::now();
+                        {
+                            let mut t = tabs.borrow_mut();
+                            if t.is_double_click(i, now) {
+                                t.start_rename(i);
+                            } else {
+                                t.switch_to(i);
+                            }
+                        }
                         rebuild_tab_bar(&tabs, &ws_state);
                     },
                 );
@@ -606,27 +633,6 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
                     )
                     .unwrap();
                 on_click.forget();
-            }
-
-            // Double-click the label to start an inline rename
-            {
-                let tabs = tabs.clone();
-                let ws_state = ws_state.clone();
-                let on_dblclick = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(
-                    move |event: web_sys::MouseEvent| {
-                        event.stop_propagation();
-                        tabs.borrow_mut().start_rename(i);
-                        rebuild_tab_bar(&tabs, &ws_state);
-                    },
-                );
-                let target: &web_sys::EventTarget = label.as_ref();
-                target
-                    .add_event_listener_with_callback(
-                        "dblclick",
-                        on_dblclick.as_ref().unchecked_ref(),
-                    )
-                    .unwrap();
-                on_dblclick.forget();
             }
 
             tab_btn.append_child(&label).unwrap();

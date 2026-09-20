@@ -8,6 +8,7 @@ members = [
     "terminal-backend",
     "terminal-emulator",
     "terminal-window",
+    "line-editor",
     "frontends/omni-terminal",
     "frontends/wasm",
     "frontends/android-lib",
@@ -21,6 +22,7 @@ default-members = [
     "terminal-backend",
     "terminal-emulator",
     "terminal-window",
+    "line-editor",
     "frontends/omni-terminal",
 ]
 resolver = "2"

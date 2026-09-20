@@ -588,10 +588,20 @@ fn rebuild_tab_bar(tabs: &Rc<RefCell<TabManager>>, ws_state: &Rc<RefCell<WsState
             }
 
             tab_btn.append_child(&input).unwrap();
-            // Focus and select-all AFTER the element is in the document so the
-            // first keystroke or paste replaces the seeded title
-            let _ = input.focus();
-            input.select();
+            // Focus and select-all on the NEXT frame, after the browser finishes
+            // processing the click that opened rename. Doing it synchronously
+            // here lets the click's default handling collapse the selection to a
+            // caret, so the field looks merely pre-filled instead of replace-ready
+            {
+                let input_for_focus = input.clone();
+                let cb = Closure::once_into_js(move || {
+                    let _ = input_for_focus.focus();
+                    input_for_focus.select();
+                });
+                let _ = web_sys::window()
+                    .unwrap()
+                    .request_animation_frame(cb.as_ref().unchecked_ref());
+            }
         } else {
             // Tab label span
             let label: web_sys::HtmlSpanElement =

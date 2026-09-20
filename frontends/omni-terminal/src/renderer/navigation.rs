@@ -280,7 +280,14 @@ impl ScreenNavigation {
                 }));
             }
 
-            let text = format!("{prefix}{name}");
+            // Dim the ordinal prefix so it reads as a secondary switching cue
+            // and the name stays visually primary
+            let prefix_color = [
+                foreground_color[0],
+                foreground_color[1],
+                foreground_color[2],
+                foreground_color[3] * 0.5,
+            ];
 
             let tab = sugarloaf.create_temp_rich_text();
             sugarloaf.set_rich_text_font_size(&tab, 14.);
@@ -291,7 +298,14 @@ impl ScreenNavigation {
                 .clear()
                 .new_line()
                 .add_text(
-                    &text,
+                    &prefix,
+                    FragmentStyle {
+                        color: prefix_color,
+                        ..FragmentStyle::default()
+                    },
+                )
+                .add_text(
+                    &name,
                     FragmentStyle {
                         color: foreground_color,
                         ..FragmentStyle::default()

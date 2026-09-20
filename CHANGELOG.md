@@ -1,5 +1,11 @@
 # Omni Terminal
 
+## 0.4.0
+
+### Minor Changes
+
+- [#65](https://github.com/omnidotdev/terminal/pull/65) [`794348a`](https://github.com/omnidotdev/terminal/commit/794348acbdf1fb8af1ee81d1824bb4f88c9036d9) Thanks [@coopbri](https://github.com/coopbri)! - Improve tab renaming and titles across both frontends. Tab names now derive from the shell's reported title (OSC 0/1/2) with the tab number rendered as a separate, dimmed element instead of baked into the name, and a manual rename pins the title until cleared. Titles update immediately when the shell changes them rather than on a slow poll. Renaming supports clipboard paste and readline-style editing (Ctrl+U/K/W/A/E, arrows, Home/End) via a shared editor. The WASM frontend gains inline rename (double-click, Ctrl+Shift+L, right-click) with the tab title updating live from the shell; the native frontend gains paste and readline editing in its rename prompt (with a visible caret) plus double-click to rename.
+
 ## 0.3.2
 
 ### Patch Changes

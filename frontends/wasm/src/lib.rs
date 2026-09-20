@@ -229,7 +229,9 @@ impl TabManager {
     /// Commit a rename: empty/whitespace clears the label (reverts to OSC/fallback)
     fn commit_rename(&mut self, idx: usize, text: &str) {
         if let Some(tab) = self.tabs.get_mut(idx) {
-            let trimmed = text.trim();
+            // Drop control characters so a pasted tab or newline cannot enter the label
+            let cleaned: String = text.chars().filter(|c| !c.is_control()).collect();
+            let trimmed = cleaned.trim();
             tab.custom_label = if trimmed.is_empty() {
                 None
             } else {
@@ -988,7 +990,7 @@ fn connect_ws(
                         let pty_output = &data[16..];
                         tabs.borrow_mut().route_output(&sid, pty_output);
                         // The shell may have emitted an OSC title with this output,
-                        // so refresh the tab bar when a resolved title changed.
+                        // so refresh the tab bar when a resolved title changed
                         // Never rebuild while a rename input is open, or an
                         // incoming OSC title would wipe the in-progress element
                         let changed = tabs.borrow_mut().sync_titles();

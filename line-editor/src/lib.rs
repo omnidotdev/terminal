@@ -1,5 +1,6 @@
 //! Single-line text editor with a cursor and readline-style operations
-//! shared by the terminal frontends' tab-rename inputs
+//! used by the native frontend's tab-rename input (the WASM frontend mirrors
+//! the same behavior directly on its DOM input)
 
 /// A single-line editable buffer with a byte-index cursor
 #[derive(Debug, Clone)]

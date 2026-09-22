@@ -301,6 +301,13 @@ action = "CreateWindow"
 *FocusPreviousPanel*
 	Focus previous split panel.
 
+*ResetTerminal*
+	Reset transient input and screen modes (mouse tracking, bracketed paste,
+	alternate screen) left dangling by a crashed or killed program, without
+	clearing scrollback. Use this if the terminal prints escape sequences on
+	mouse movement or is stuck on an alternate screen after a program exits.
+	Default: _Super+Shift+R_ on macOS, _Ctrl+Alt+R_ elsewhere.
+
 # SEE ALSO
 
 *omni-terminal*(1), *omni-terminal*(5)

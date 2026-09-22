@@ -239,6 +239,7 @@ impl From<String> for Action {
                 Some(Action::Search(SearchAction::SearchHistoryPrevious))
             }
             "clearhistory" => Some(Action::ClearHistory),
+            "resetterminal" => Some(Action::ResetTerminal),
             "resetfontsize" => Some(Action::ResetFontSize),
             "increasefontsize" => Some(Action::IncreaseFontSize),
             "decreasefontsize" => Some(Action::DecreaseFontSize),
@@ -407,6 +408,13 @@ pub enum Action {
 
     /// Clear the display buffer(s) to remove history.
     ClearHistory,
+
+    /// Reset the transient input and screen modes (mouse tracking, bracketed
+    /// paste, alternate screen) that a crashed or killed foreground program can
+    /// leave dangling. Non-destructive: keeps scrollback, grid contents and vi
+    /// mode. This is the recovery for the "mouse reports on hover" garbage a TUI
+    /// leaves behind when it dies without emitting the disable sequences.
+    ResetTerminal,
 
     /// Hide the Omni Terminal window.
     #[allow(dead_code)]
@@ -1023,6 +1031,7 @@ pub fn platform_key_bindings(
         "k", ModifiersState::SUPER, ~BindingMode::VI, ~BindingMode::SEARCH;
             Action::Esc("\x0c".into());
         "k", ModifiersState::SUPER, ~BindingMode::VI;  Action::ClearHistory;
+        "r", ModifiersState::SUPER | ModifiersState::SHIFT, ~BindingMode::VI, ~BindingMode::SEARCH; Action::ResetTerminal;
         "v", ModifiersState::SUPER, ~BindingMode::VI; Action::Paste;
         "f", ModifiersState::CONTROL | ModifiersState::SUPER; Action::ToggleFullscreen;
         "c", ModifiersState::SUPER; Action::Copy;
@@ -1122,6 +1131,8 @@ pub fn platform_key_bindings(
         "-", ModifiersState::CONTROL | ModifiersState::ALT; Action::DecreaseOpacity;
         "n", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::WindowCreateNew;
         ",", ModifiersState::CONTROL | ModifiersState::SHIFT; Action::ConfigEditor;
+        // Ctrl+Shift+R is SplitRight, so recovery uses Ctrl+Alt+R here
+        "r", ModifiersState::CONTROL | ModifiersState::ALT, ~BindingMode::VI, ~BindingMode::SEARCH; Action::ResetTerminal;
 
         // Search
         "f", ModifiersState::CONTROL | ModifiersState::SHIFT, ~BindingMode::SEARCH; Action::SearchForward;
@@ -1197,6 +1208,8 @@ pub fn platform_key_bindings(
         // upstream: raphamorim/rio#220
         Key::Named(Backspace), ModifiersState::CONTROL, ~BindingMode::VI; Action::Esc("\u{0017}".into());
         Key::Named(Space), ModifiersState::CONTROL | ModifiersState::SHIFT; Action::ToggleViMode;
+        // Ctrl+Shift+R is SplitRight, so recovery uses Ctrl+Alt+R here
+        "r", ModifiersState::CONTROL | ModifiersState::ALT, ~BindingMode::VI, ~BindingMode::SEARCH; Action::ResetTerminal;
 
         // Search
         "f", ModifiersState::CONTROL | ModifiersState::SHIFT, ~BindingMode::SEARCH; Action::SearchForward;

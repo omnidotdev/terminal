@@ -661,6 +661,31 @@ impl<U: EventListener> Crosswords<U> {
             .send_event(TerminalEvent::CloseTerminal(self.route_id), self.window_id);
     }
 
+    /// Reset the transient input and screen modes a foreground application can
+    /// leave dangling when it exits without restoring them: mouse tracking,
+    /// bracketed paste, and the alternate screen. A program that crashes or is
+    /// killed never emits the matching DECRST sequences (e.g. `\e[?1003l`), and
+    /// a terminal emulator cannot observe a grandchild of its shell exiting to
+    /// undo them on its behalf, so this is exposed as a user-triggered recovery
+    /// for the "mouse reports on hover / stuck alternate screen" state such a
+    /// child leaves behind. Unlike [`Crosswords::reset_state`] this keeps the
+    /// scrollback and the primary grid contents, and it preserves vi mode
+    #[inline]
+    pub fn reset_input_modes(&mut self) {
+        // Return to the primary screen if the child left us on the alternate one
+        if self.mode.contains(Mode::ALT_SCREEN) {
+            std::mem::swap(&mut self.grid, &mut self.inactive_grid);
+        }
+
+        // Drop the dead child's transient private modes (mouse tracking,
+        // bracketed paste, alt screen, app cursor/keypad) while preserving vi
+        // mode, then restore the default baseline the same way reset_state does
+        self.mode &= Mode::VI;
+        self.mode.insert(Mode::default());
+
+        self.mark_fully_damaged();
+    }
+
     pub fn resize<S: Dimensions>(&mut self, size: S) {
         let old_cols = self.grid.columns();
         let old_lines = self.grid.screen_lines();
@@ -3388,6 +3413,58 @@ mod tests {
                 "Old command should be cleared"
             );
         }
+    }
+
+    #[test]
+    fn reset_input_modes_clears_mouse_and_paste_but_preserves_vi() {
+        let size = CrosswordsSize::new(80, 24);
+        let window_id = crate::event::WindowId::from(0);
+        let mut cw =
+            Crosswords::new(size, CursorShape::Block, VoidListener {}, window_id, 0);
+
+        // A TUI enables all-motion mouse tracking, SGR mouse reporting and
+        // bracketed paste, then dies without disabling any of it
+        let mut processor: crate::performer::handler::Processor =
+            crate::performer::handler::Processor::new();
+        processor.advance(&mut cw, b"\x1b[?1003h\x1b[?1006h\x1b[?2004h");
+
+        assert!(cw.mode.contains(Mode::MOUSE_MOTION));
+        assert!(cw.mode.contains(Mode::SGR_MOUSE));
+        assert!(cw.mode.contains(Mode::BRACKETED_PASTE));
+
+        // The user had toggled vi mode on before triggering the recovery
+        cw.mode.insert(Mode::VI);
+
+        cw.reset_input_modes();
+
+        // The dead child's transient modes are gone
+        assert!(!cw.mode.contains(Mode::MOUSE_MOTION));
+        assert!(!cw.mode.contains(Mode::SGR_MOUSE));
+        assert!(!cw.mode.contains(Mode::BRACKETED_PASTE));
+        // vi mode is a viewer-side mode, not something a child set, so it stays
+        assert!(cw.mode.contains(Mode::VI));
+        // baseline defaults are restored
+        assert!(cw.mode.contains(Mode::SHOW_CURSOR));
+        assert!(cw.mode.contains(Mode::LINE_WRAP));
+    }
+
+    #[test]
+    fn reset_input_modes_returns_from_alt_screen() {
+        let size = CrosswordsSize::new(80, 24);
+        let window_id = crate::event::WindowId::from(0);
+        let mut cw =
+            Crosswords::new(size, CursorShape::Block, VoidListener {}, window_id, 0);
+
+        let mut processor: crate::performer::handler::Processor =
+            crate::performer::handler::Processor::new();
+        // Enter the alternate screen (as a full-screen TUI would)
+        processor.advance(&mut cw, b"\x1b[?1049h");
+        assert!(cw.mode.contains(Mode::ALT_SCREEN));
+
+        cw.reset_input_modes();
+
+        // Recovery returns to the primary screen
+        assert!(!cw.mode.contains(Mode::ALT_SCREEN));
     }
 
     #[test]

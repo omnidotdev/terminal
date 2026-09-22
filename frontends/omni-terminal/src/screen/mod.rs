@@ -1293,6 +1293,13 @@ impl Screen<'_> {
                         drop(terminal);
                         self.render();
                     }
+                    Act::ResetTerminal => {
+                        let mut terminal =
+                            self.context_manager.current_mut().terminal.lock();
+                        terminal.reset_input_modes();
+                        drop(terminal);
+                        self.render();
+                    }
                     Act::ToggleFullscreen => self.context_manager.toggle_full_screen(),
                     Act::Minimize => {
                         self.context_manager.minimize();

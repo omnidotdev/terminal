@@ -1,5 +1,11 @@
 # Omni Terminal
 
+## 0.4.2
+
+### Patch Changes
+
+- [`6dee3b7`](https://github.com/omnidotdev/terminal/commit/6dee3b76de9c745ded9c853d491d35d8f46a5cd6) Thanks [@coopbri](https://github.com/coopbri)! - Add a Reset Terminal action to recover from a crashed or killed program that left mouse tracking, bracketed paste, or the alternate screen enabled (for example, escape sequences printing on mouse movement at the shell prompt). It clears those modes without touching scrollback or vi mode, is bound to Cmd+Shift+R on macOS and Ctrl+Alt+R elsewhere, and is configurable via the "resetterminal" keybinding action.
+
 ## 0.4.1
 
 ### Patch Changes

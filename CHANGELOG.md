@@ -1,5 +1,11 @@
 # Omni Terminal
 
+## 0.4.3
+
+### Patch Changes
+
+- [#70](https://github.com/omnidotdev/terminal/pull/70) [`1ee0c46`](https://github.com/omnidotdev/terminal/commit/1ee0c461caa6cd81bdd46786ab97e46c3f5a1eda) Thanks [@coopbri](https://github.com/coopbri)! - Fix Backspace clearing the whole name when renaming a tab. The rename field opens with the existing name selected so typing replaces it, but the selection is not drawn, so Backspace wiping everything was confusing. Backspace now drops the selection and deletes a single character; typing or pasting still replaces the name, and Ctrl+U still clears it.
+
 ## 0.4.2
 
 ### Patch Changes

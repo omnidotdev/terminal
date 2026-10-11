@@ -67,10 +67,10 @@ impl LineEditor {
     }
 
     pub fn backspace(&mut self) {
-        if self.all_selected {
-            self.take_selection();
-            return;
-        }
+        // Backspace reads as "edit this name", so drop the select-all state and
+        // fall through to deleting a single char rather than wiping the whole
+        // (invisibly selected) buffer
+        self.all_selected = false;
         if self.cursor == 0 {
             return;
         }
@@ -187,11 +187,15 @@ mod tests {
     }
 
     #[test]
-    fn backspace_while_all_selected_clears_all() {
+    fn backspace_while_all_selected_deletes_one_trailing_char() {
+        // Backspace means "edit this name", not "replace it": drop the
+        // select-all state and delete a single character, rather than wiping
+        // the whole (invisibly selected) buffer
         let mut e = LineEditor::new("abc");
         e.backspace();
-        assert_eq!(e.text(), "");
-        assert_eq!(e.cursor(), 0);
+        assert_eq!(e.text(), "ab");
+        assert_eq!(e.cursor(), 2);
+        assert!(!e.all_selected());
     }
 
     #[test]

@@ -55,6 +55,10 @@ jobs:
           commit: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Changesets prefers OIDC trusted publishing when NPM_TOKEN is absent
+          # from the env; npm now rejects that path, so expose the token here to
+          # force token auth (the account is tfa auth-only, so writes need no OTP)
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Get version
         id: version

@@ -625,6 +625,7 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                 }
             }
             TerminalEventType::Terminal(TerminalEvent::ClipboardLoad(
+                route_id,
                 clipboard_type,
                 format,
             )) => {
@@ -637,13 +638,13 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                                 .get(clipboard_type)
                                 .as_str(),
                         );
-                        route
-                            .window
-                            .screen
-                            .ctx_mut()
-                            .current_mut()
-                            .messenger
-                            .send_bytes(text.into_bytes());
+                        // Deliver to the terminal that requested the paste, not
+                        // whichever tab happens to be focused
+                        if let Some(item) =
+                            route.window.screen.ctx_mut().find_route_mut(route_id)
+                        {
+                            item.context_mut().messenger.send_bytes(text.into_bytes());
+                        }
                     }
                 }
             }
@@ -660,63 +661,69 @@ impl ApplicationHandler<EventPayload> for Application<'_> {
                     }
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::PtyWrite(text)) => {
+            TerminalEventType::Terminal(TerminalEvent::PtyWrite(route_id, text)) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
-                    route
-                        .window
-                        .screen
-                        .ctx_mut()
-                        .current_mut()
-                        .messenger
-                        .send_bytes(text.into_bytes());
+                    // Write the reply back to the terminal that issued the query,
+                    // which may be a background tab, never the focused one
+                    if let Some(item) =
+                        route.window.screen.ctx_mut().find_route_mut(route_id)
+                    {
+                        item.context_mut().messenger.send_bytes(text.into_bytes());
+                    }
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::TextAreaSizeRequest(format)) => {
+            TerminalEventType::Terminal(TerminalEvent::TextAreaSizeRequest(
+                route_id,
+                format,
+            )) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
-                    let dimension =
-                        route.window.screen.context_manager.current().dimension;
-                    let text =
-                        format(crate::renderer::utils::terminal_dimensions(&dimension));
-                    route
-                        .window
-                        .screen
-                        .ctx_mut()
-                        .current_mut()
-                        .messenger
-                        .send_bytes(text.into_bytes());
+                    // Report the size of the terminal that asked, and write the
+                    // reply back to it rather than to the focused tab
+                    if let Some(item) =
+                        route.window.screen.ctx_mut().find_route_mut(route_id)
+                    {
+                        let dimension = item.context().dimension;
+                        let text = format(crate::renderer::utils::terminal_dimensions(
+                            &dimension,
+                        ));
+                        item.context_mut().messenger.send_bytes(text.into_bytes());
+                    }
                 }
             }
-            TerminalEventType::Terminal(TerminalEvent::ColorRequest(index, format)) => {
+            TerminalEventType::Terminal(TerminalEvent::ColorRequest(
+                route_id,
+                index,
+                format,
+            )) => {
                 if let Some(route) = self.router.routes.get_mut(&window_id) {
-                    let terminal = route
-                        .window
-                        .screen
-                        .context_manager
-                        .current()
-                        .terminal
-                        .lock();
-                    let color: ColorRgb = match terminal.colors()[index] {
-                        Some(color) => ColorRgb::from_color_arr(color),
-                        // Ignore cursor color requests unless it was changed.
-                        None if index
-                            == crate::crosswords::NamedColor::Cursor as usize =>
-                        {
-                            return
-                        }
-                        None => ColorRgb::from_color_arr(
-                            route.window.screen.renderer.colors[index],
-                        ),
-                    };
+                    // Fallback color from the window renderer, read before the
+                    // mutable borrow of the screen below
+                    let renderer_color = ColorRgb::from_color_arr(
+                        route.window.screen.renderer.colors[index],
+                    );
+                    // Read the colors of the terminal that asked, and write the
+                    // reply back to it rather than to the focused tab
+                    if let Some(item) =
+                        route.window.screen.ctx_mut().find_route_mut(route_id)
+                    {
+                        let color: ColorRgb = {
+                            let terminal = item.context().terminal.lock();
+                            match terminal.colors()[index] {
+                                Some(color) => ColorRgb::from_color_arr(color),
+                                // Ignore cursor color requests unless it was changed.
+                                None if index
+                                    == crate::crosswords::NamedColor::Cursor as usize =>
+                                {
+                                    return
+                                }
+                                None => renderer_color,
+                            }
+                        };
 
-                    drop(terminal);
-
-                    route
-                        .window
-                        .screen
-                        .ctx_mut()
-                        .current_mut()
-                        .messenger
-                        .send_bytes(format(color).into_bytes());
+                        item.context_mut()
+                            .messenger
+                            .send_bytes(format(color).into_bytes());
+                    }
                 }
             }
             TerminalEventType::Terminal(TerminalEvent::CreateWindow) => {

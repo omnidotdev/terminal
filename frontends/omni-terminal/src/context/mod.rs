@@ -775,6 +775,20 @@ impl<T: EventListener + Clone + std::marker::Send + 'static> ContextManager<T> {
         self.contexts[self.current_index].get_mut(route_id)
     }
 
+    /// Find a context by its route id across every tab, not just the focused
+    /// one. Terminal query replies (DA, XTVERSION, keyboard mode, DSR) must be
+    /// written back to the terminal that issued the query even when it lives in
+    /// a background tab, otherwise the reply leaks into the focused tab's PTY
+    #[inline]
+    pub fn find_route_mut(&mut self, route_id: usize) -> Option<&mut ContextGridItem<T>> {
+        for grid in self.contexts.iter_mut() {
+            if let Some(item) = grid.get_mut(route_id) {
+                return Some(item);
+            }
+        }
+        None
+    }
+
     #[inline]
     pub fn contexts_mut(
         &mut self,
@@ -1432,6 +1446,34 @@ pub mod test {
 
         assert_eq!(context_manager.len(), 3);
         assert_eq!(context_manager.capacity, 3);
+    }
+
+    #[test]
+    fn find_route_mut_resolves_a_background_tabs_route() {
+        let window_id: WindowId = WindowId::from(0);
+
+        let mut context_manager =
+            ContextManager::start_with_capacity(8, VoidListener {}, window_id).unwrap();
+
+        // Open a second tab (becomes current), note its route, then focus tab 0
+        // again so the second tab is in the background
+        context_manager.add_context(true, 0);
+        let background_route = context_manager.contexts[1].current().route_id;
+        context_manager.set_current(0);
+        assert_eq!(context_manager.current_index, 0);
+
+        // The active-tab-scoped lookup cannot reach a background tab's route,
+        // which is why PtyWrite replies were landing in the focused tab
+        assert!(
+            context_manager.get_mut(background_route).is_none(),
+            "active-tab get_mut must not resolve a background tab's route"
+        );
+
+        // The cross-tab lookup delivers to the terminal that produced the reply
+        let item = context_manager
+            .find_route_mut(background_route)
+            .expect("find_route_mut should locate a background tab's route");
+        assert_eq!(item.context().route_id, background_route);
     }
 
     #[test]

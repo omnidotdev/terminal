@@ -113,7 +113,11 @@ pub enum TerminalEvent {
     ///
     /// The attached function is a formatter which will correctly transform the clipboard content
     /// into the expected escape sequence format.
+    ///
+    /// The leading usize is the originating route id, so the reply reaches the
+    /// terminal that issued the query rather than whichever tab is focused.
     ClipboardLoad(
+        usize,
         ClipboardType,
         Arc<dyn Fn(&str) -> String + Sync + Send + 'static>,
     ),
@@ -122,16 +126,29 @@ pub enum TerminalEvent {
     ///
     /// The attached function is a formatter which will correctly transform the RGB color into the
     /// expected escape sequence format.
+    ///
+    /// The leading usize is the originating route id (see PtyWrite); the second
+    /// is the color index.
     ColorRequest(
+        usize,
         usize,
         Arc<dyn Fn(ColorRgb) -> String + Sync + Send + 'static>,
     ),
 
-    /// Write some text to the PTY.
-    PtyWrite(String),
+    /// Write some text to the PTY of the terminal that produced it.
+    ///
+    /// The usize is the originating route id, so query replies (DA, XTVERSION,
+    /// keyboard mode, DSR) reach the terminal that issued the query rather than
+    /// whichever tab happens to be focused.
+    PtyWrite(usize, String),
 
     /// Request to write the text area size.
-    TextAreaSizeRequest(Arc<dyn Fn(WinsizeBuilder) -> String + Sync + Send + 'static>),
+    ///
+    /// The usize is the originating route id (see PtyWrite).
+    TextAreaSizeRequest(
+        usize,
+        Arc<dyn Fn(WinsizeBuilder) -> String + Sync + Send + 'static>,
+    ),
 
     /// Cursor blinking state has changed.
     CursorBlinkingChange,
@@ -171,10 +188,18 @@ impl Debug for TerminalEvent {
             TerminalEvent::ClipboardStore(ty, text) => {
                 write!(f, "ClipboardStore({ty:?}, {text})")
             }
-            TerminalEvent::ClipboardLoad(ty, _) => write!(f, "ClipboardLoad({ty:?})"),
-            TerminalEvent::TextAreaSizeRequest(_) => write!(f, "TextAreaSizeRequest"),
-            TerminalEvent::ColorRequest(index, _) => write!(f, "ColorRequest({index})"),
-            TerminalEvent::PtyWrite(text) => write!(f, "PtyWrite({text})"),
+            TerminalEvent::ClipboardLoad(route_id, ty, _) => {
+                write!(f, "ClipboardLoad({route_id}, {ty:?})")
+            }
+            TerminalEvent::TextAreaSizeRequest(route_id, _) => {
+                write!(f, "TextAreaSizeRequest({route_id})")
+            }
+            TerminalEvent::ColorRequest(route_id, index, _) => {
+                write!(f, "ColorRequest({route_id}, {index})")
+            }
+            TerminalEvent::PtyWrite(route_id, text) => {
+                write!(f, "PtyWrite({route_id}, {text})")
+            }
             TerminalEvent::Title(title) => write!(f, "Title({title})"),
             TerminalEvent::TitleWithSubtitle(title, subtitle) => {
                 write!(f, "TitleWithSubtitle({title}, {subtitle})")

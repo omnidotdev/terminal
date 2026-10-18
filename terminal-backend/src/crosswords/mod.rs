@@ -1462,7 +1462,10 @@ impl<U: EventListener> Handler for Crosswords<U> {
         };
 
         self.event_proxy.send_event(
-            TerminalEvent::PtyWrite(format!("\x1b[{};{}$y", mode.raw(), state as u8,)),
+            TerminalEvent::PtyWrite(
+                self.route_id,
+                format!("\x1b[{};{}$y", mode.raw(), state as u8,),
+            ),
             self.window_id,
         );
     }
@@ -1670,7 +1673,10 @@ impl<U: EventListener> Handler for Crosswords<U> {
         };
 
         self.event_proxy.send_event(
-            TerminalEvent::PtyWrite(format!("\x1b[?{};{}$y", mode.raw(), state as u8,)),
+            TerminalEvent::PtyWrite(
+                self.route_id,
+                format!("\x1b[?{};{}$y", mode.raw(), state as u8,),
+            ),
             self.window_id,
         );
     }
@@ -1685,6 +1691,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         let terminator = terminator.to_owned();
         self.event_proxy.send_event(
             TerminalEvent::ColorRequest(
+                self.route_id,
                 index,
                 Arc::new(move |color| {
                     format!(
@@ -2236,15 +2243,19 @@ impl<U: EventListener> Handler for Crosswords<U> {
             None => {
                 trace!("Reporting primary device attributes");
                 let text = String::from("\x1b[?62;4;6;22c");
-                self.event_proxy
-                    .send_event(TerminalEvent::PtyWrite(text), self.window_id);
+                self.event_proxy.send_event(
+                    TerminalEvent::PtyWrite(self.route_id, text),
+                    self.window_id,
+                );
             }
             Some('>') => {
                 trace!("Reporting secondary device attributes");
                 let version = version_number(env!("CARGO_PKG_VERSION"));
                 let text = format!("\x1b[>0;{version};1c");
-                self.event_proxy
-                    .send_event(TerminalEvent::PtyWrite(text), self.window_id);
+                self.event_proxy.send_event(
+                    TerminalEvent::PtyWrite(self.route_id, text),
+                    self.window_id,
+                );
             }
             _ => debug!("Unsupported device attributes intermediate"),
         }
@@ -2256,7 +2267,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         let version = env!("CARGO_PKG_VERSION");
         let text = format!("\x1bP>|OmniTerminal {version}\x1b\\");
         self.event_proxy
-            .send_event(TerminalEvent::PtyWrite(text), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(self.route_id, text), self.window_id);
     }
 
     #[inline]
@@ -2264,7 +2275,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         let current_mode = self.keyboard_mode_stack[self.keyboard_mode_idx];
         let text = format!("\x1b[?{current_mode}u");
         self.event_proxy
-            .send_event(TerminalEvent::PtyWrite(text), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(self.route_id, text), self.window_id);
     }
 
     #[inline]
@@ -2319,14 +2330,18 @@ impl<U: EventListener> Handler for Crosswords<U> {
         match arg {
             5 => {
                 let text = String::from("\x1b[0n");
-                self.event_proxy
-                    .send_event(TerminalEvent::PtyWrite(text), self.window_id);
+                self.event_proxy.send_event(
+                    TerminalEvent::PtyWrite(self.route_id, text),
+                    self.window_id,
+                );
             }
             6 => {
                 let pos = self.grid.cursor.pos;
                 let text = format!("\x1b[{};{}R", pos.row + 1, pos.col + 1);
-                self.event_proxy
-                    .send_event(TerminalEvent::PtyWrite(text), self.window_id);
+                self.event_proxy.send_event(
+                    TerminalEvent::PtyWrite(self.route_id, text),
+                    self.window_id,
+                );
             }
             _ => debug!("unknown device status query: {}", arg),
         };
@@ -2517,6 +2532,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
 
         self.event_proxy.send_event(
             TerminalEvent::ClipboardLoad(
+                self.route_id,
                 clipboard_type,
                 Arc::new(move |text| {
                     let base64 = general_purpose::STANDARD.encode(text);
@@ -2660,11 +2676,14 @@ impl<U: EventListener> Handler for Crosswords<U> {
     fn text_area_size_pixels(&mut self) {
         debug!("text_area_size_pixels");
         self.event_proxy.send_event(
-            TerminalEvent::TextAreaSizeRequest(Arc::new(move |window_size| {
-                let height = window_size.height;
-                let width = window_size.width;
-                format!("\x1b[4;{height};{width}t")
-            })),
+            TerminalEvent::TextAreaSizeRequest(
+                self.route_id,
+                Arc::new(move |window_size| {
+                    let height = window_size.height;
+                    let width = window_size.width;
+                    format!("\x1b[4;{height};{width}t")
+                }),
+            ),
             self.window_id,
         );
     }
@@ -2678,7 +2697,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         );
         debug!("cells_size_pixels {:?}", text);
         self.event_proxy
-            .send_event(TerminalEvent::PtyWrite(text), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(self.route_id, text), self.window_id);
     }
 
     #[inline]
@@ -2690,7 +2709,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         );
         debug!("text_area_size_chars {:?}", text);
         self.event_proxy
-            .send_event(TerminalEvent::PtyWrite(text), self.window_id);
+            .send_event(TerminalEvent::PtyWrite(self.route_id, text), self.window_id);
     }
 
     #[inline]
@@ -2750,8 +2769,9 @@ impl<U: EventListener> Handler for Crosswords<U> {
                 match pa {
                     1 => {
                         self.event_proxy.send_event(
-                            TerminalEvent::TextAreaSizeRequest(Arc::new(
-                                move |window_size| {
+                            TerminalEvent::TextAreaSizeRequest(
+                                self.route_id,
+                                Arc::new(move |window_size| {
                                     let width = window_size.width;
                                     let height = window_size.height;
                                     let graphic_dimensions = [
@@ -2767,8 +2787,8 @@ impl<U: EventListener> Handler for Crosswords<U> {
 
                                     let (ps, pv) = (0, &graphic_dimensions[..]);
                                     generate_response(pi, ps, pv)
-                                },
-                            )),
+                                }),
+                            ),
                             self.window_id,
                         );
                         return;
@@ -2790,7 +2810,7 @@ impl<U: EventListener> Handler for Crosswords<U> {
         };
 
         self.event_proxy.send_event(
-            TerminalEvent::PtyWrite(generate_response(pi, ps, pv)),
+            TerminalEvent::PtyWrite(self.route_id, generate_response(pi, ps, pv)),
             self.window_id,
         );
     }
@@ -3029,8 +3049,10 @@ impl<U: EventListener> Handler for Crosswords<U> {
 
     #[inline]
     fn xtgettcap_response(&mut self, response: String) {
-        self.event_proxy
-            .send_event(TerminalEvent::PtyWrite(response), self.window_id);
+        self.event_proxy.send_event(
+            TerminalEvent::PtyWrite(self.route_id, response),
+            self.window_id,
+        );
     }
 }
 
@@ -4061,7 +4083,9 @@ mod tests {
         let listener = TestListener {
             events: events.clone(),
         };
-        let mut term = Crosswords::new(size, CursorShape::Block, listener, window_id, 0);
+        let route_id = 42;
+        let mut term =
+            Crosswords::new(size, CursorShape::Block, listener, window_id, route_id);
 
         // Call report_version using Handler trait
         Handler::report_version(&mut term);
@@ -4070,9 +4094,14 @@ mod tests {
         let captured_events = events.borrow();
         assert_eq!(captured_events.len(), 1, "Should have sent one event");
 
-        // Verify the event is PtyWrite with the correct format
+        // Verify the event is PtyWrite tagged with the originating route id and
+        // the correct format
         match &captured_events[0] {
-            TerminalEvent::PtyWrite(text) => {
+            TerminalEvent::PtyWrite(event_route_id, text) => {
+                assert_eq!(
+                    *event_route_id, route_id,
+                    "PtyWrite must carry the route id of the terminal that produced it"
+                );
                 // Expected format: DCS > | OmniTerminal {version} ST
                 // DCS = \x1bP, ST = \x1b\\
                 assert!(

@@ -1968,9 +1968,17 @@ impl Screen<'_> {
 
         // Find all matches in this line and check if point is within any of them
         for mat in regex.find_iter(line_text) {
-            let start_col = terminal_backend::crosswords::pos::Column(mat.start());
-            let end_col =
-                terminal_backend::crosswords::pos::Column(mat.end().saturating_sub(1));
+            // `mat.start()`/`mat.end()` are byte offsets into `line_text`, but the
+            // grid is indexed by column. `line_text` was built one char per column,
+            // so the column is the char index, not the byte offset. Converting is
+            // required or multi-byte characters (emoji, CJK, powerline glyphs) push
+            // the offset past the column count and panic when it indexes the grid
+            let start_idx = line_text[..mat.start()].chars().count();
+            let match_cols = mat.as_str().chars().count();
+            let start_col = terminal_backend::crosswords::pos::Column(start_idx);
+            let end_col = terminal_backend::crosswords::pos::Column(
+                start_idx + match_cols.saturating_sub(1),
+            );
 
             // Check if the point is within this match
             if point.col >= start_col && point.col <= end_col {

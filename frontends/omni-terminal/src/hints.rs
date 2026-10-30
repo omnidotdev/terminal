@@ -223,7 +223,12 @@ impl HintState {
 
             // Find all matches in this line
             for mat in regex.find_iter(&line_text) {
-                let start_col = Column(mat.start());
+                // `mat.start()` is a byte offset into `line_text`, but the grid is
+                // indexed by column. `line_text` holds one char per column, so the
+                // column is the char index. Without converting, multi-byte characters
+                // (emoji, CJK, powerline glyphs) push the column past the grid width
+                let start_idx = line_text[..mat.start()].chars().count();
+                let start_col = Column(start_idx);
                 let mut match_text = mat.as_str().to_string();
 
                 // Apply post-processing if enabled
@@ -232,7 +237,8 @@ impl HintState {
                 }
 
                 // Calculate the correct end position based on the processed text length
-                let end_col = Column(mat.start() + match_text.len().saturating_sub(1));
+                let end_col =
+                    Column(start_idx + match_text.chars().count().saturating_sub(1));
 
                 let hint_match = HintMatch {
                     text: match_text,
@@ -593,5 +599,60 @@ mod tests {
             test_keys.len(),
             "Label should be completed with single character"
         );
+    }
+
+    /// Regression test: a URL preceded by a multi-byte character must be matched
+    /// at the correct grid column, not at the regex byte offset. Before the fix,
+    /// `mat.start()` (a byte offset) was used directly as a column, so any
+    /// multi-byte character on the line (emoji, CJK, powerline glyph) shifted the
+    /// reported columns past the real cells and could index the grid out of bounds
+    /// (the Alt-hover hyperlink crash).
+    #[test]
+    fn regex_match_columns_account_for_multibyte_chars() {
+        use terminal_backend::ansi::CursorShape;
+        use terminal_backend::crosswords::{Crosswords, CrosswordsSize};
+        use terminal_backend::event::{VoidListener, WindowId};
+
+        let size = CrosswordsSize::new(15, 5);
+        let mut cw = Crosswords::new(
+            size,
+            CursorShape::Block,
+            VoidListener {},
+            WindowId::from(0),
+            0,
+        );
+
+        // Line 0: "é http://ab.cd" where 'é' (U+00E9) is two bytes but one column.
+        // The URL therefore starts at column 2, but at byte offset 3.
+        let line: Vec<char> = "é http://ab.cd".chars().collect();
+        for (col, ch) in line.iter().enumerate() {
+            cw.grid[Line(0)][Column(col)].c = *ch;
+        }
+
+        let hint = Rc::new(Hint {
+            regex: Some(r"https?://[^\s]+".to_string()),
+            hyperlinks: false,
+            post_processing: true,
+            persist: false,
+            action: HintAction::Action {
+                action: HintInternalAction::Copy,
+            },
+            mouse: Default::default(),
+            binding: None,
+        });
+
+        let mut state = HintState::new("abc".to_string());
+        state.start(hint);
+        state.update_matches(&cw);
+
+        let matches = state.matches();
+        assert_eq!(matches.len(), 1, "expected exactly one URL match");
+        let m = &matches[0];
+        // 'h' is at column 2 (not byte offset 3).
+        assert_eq!(m.start, Pos::new(Line(0), Column(2)), "start column");
+        // "http://ab.cd" spans 12 columns, ending at column 13.
+        assert_eq!(m.end, Pos::new(Line(0), Column(13)), "end column");
+        // The end column must stay within the grid width.
+        assert!(m.end.col.0 < 15, "end column must be within grid bounds");
     }
 }

@@ -35,12 +35,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
       - name: Ensure wasm target on project toolchain
         run: rustup target add wasm32-unknown-unknown
+      - name: Determine wasm-bindgen version
+        id: wasm-bindgen
+        run: echo "version=$(grep -A1 'name = "wasm-bindgen"' Cargo.lock | grep version | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
       - name: Install wasm-bindgen-cli
-        run: |
-          WASM_BINDGEN_VERSION=$(grep -A1 'name = "wasm-bindgen"' Cargo.lock | grep version | sed 's/.*"\(.*\)".*/\1/')
-          cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION"
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@${{ steps.wasm-bindgen.outputs.version }}
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@latest
       - name: Install dependencies
@@ -98,15 +102,21 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
       - name: Ensure target on project toolchain
         run: rustup target add ${{ matrix.target }}
       - name: Add WASM target
         run: rustup target add wasm32-unknown-unknown
-      - name: Install wasm-bindgen-cli
+      - name: Determine wasm-bindgen version
+        id: wasm-bindgen
         shell: bash
-        run: |
-          WASM_BINDGEN_VERSION=$(grep -A1 'name = "wasm-bindgen"' Cargo.lock | grep version | sed 's/.*"\(.*\)".*/\1/')
-          cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION"
+        run: echo "version=$(grep -A1 'name = "wasm-bindgen"' Cargo.lock | grep version | sed 's/.*"\(.*\)".*/\1/')" >> "$GITHUB_OUTPUT"
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@${{ steps.wasm-bindgen.outputs.version }}
       - name: Build WASM frontend
         shell: bash
         run: |

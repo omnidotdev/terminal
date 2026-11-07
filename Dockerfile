@@ -9,7 +9,7 @@
 #   TLS_CERT   - Path to TLS certificate PEM file (auto-generated if unset)
 #   TLS_KEY    - Path to TLS private key PEM file (auto-generated if unset)
 
-FROM rust:1.93-bookworm AS builder
+FROM rust:1.93-bookworm@sha256:7c4ae649a84014c467d79319bbf17ce2632ae8b8be123ac2fb2ea5be46823f31 AS builder
 
 RUN rustup target add wasm32-unknown-unknown \
     && cargo install wasm-bindgen-cli --version 0.2.106
@@ -26,7 +26,7 @@ RUN cargo build -p omni-terminal-wasm --target wasm32-unknown-unknown --release 
 RUN cargo build -p web-server --release
 
 # Runtime image
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \

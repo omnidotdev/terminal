@@ -34,7 +34,7 @@ wayland-csd-adwaita-notitle = ["sctk-adwaita"]
 cfg_aliases = "0.2.0"
 
 [target.'cfg(target_os = "macos")'.build-dependencies]
-bindgen = "0.72.1"
+bindgen = "0.73.0"
 
 [dependencies]
 bitflags = { workspace = true }
@@ -166,10 +166,10 @@ rustix = { version = "1.1.4", default-features = false, features = [
     "thread",
     "process",
 ] }
-sctk = { package = "smithay-client-toolkit", version = "0.20.0", default-features = false, features = [
+sctk = { package = "smithay-client-toolkit", version = "0.21.0", default-features = false, features = [
     "calloop",
 ], optional = true }
-sctk-adwaita = { version = "0.11.0", default-features = false, optional = true }
+sctk-adwaita = { version = "0.12.0", default-features = false, optional = true }
 wayland-backend = { version = "0.3.10", default-features = false, features = [
     "client_system",
 ], optional = true }
@@ -181,7 +181,7 @@ wayland-protocols-plasma = { version = "0.3.8", features = [
     "client",
 ], optional = true }
 x11-dl = { version = "2.19.1", optional = true }
-x11rb = { version = "0.13.0", default-features = false, features = [
+x11rb = { version = "0.14.0", default-features = false, features = [
     "allow-unsafe-code",
     "cursor",
     "dl-libxcb",
@@ -193,8 +193,8 @@ x11rb = { version = "0.13.0", default-features = false, features = [
 xkbcommon-dl = "0.4.2"
 
 [target.'cfg(target_os = "redox")'.dependencies]
-orbclient = { version = "0.3.47", default-features = false }
-redox_syscall = "0.7.3"
+orbclient = { version = "0.4.0", default-features = false }
+redox_syscall = "0.9.0"
 
 [target.'cfg(target_family = "wasm")'.dependencies.web_sys]
 package = "web-sys"

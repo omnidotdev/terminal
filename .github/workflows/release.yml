@@ -21,11 +21,11 @@ jobs:
       published: ${{ steps.changesets.outputs.published }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "22"
+          node-version: "26"
           registry-url: "https://registry.npmjs.org"
       - name: Install system dependencies
         run: |
@@ -51,7 +51,7 @@ jobs:
         run: bun i
       - name: Create release PR or publish package
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
           version: bun run version && cargo update --workspace && git add Cargo.toml Cargo.lock
           publish: bun release
@@ -97,7 +97,7 @@ jobs:
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -129,7 +129,7 @@ jobs:
         run: cargo build --release -p omni-terminal --target ${{ matrix.target }}
       - name: Upload macOS binary
         if: startsWith(matrix.target, 'x86_64-apple-darwin') || startsWith(matrix.target, 'aarch64-apple-darwin')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: macos-binary-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/omni-terminal
@@ -156,7 +156,7 @@ jobs:
           cp omni-terminal-x86_64-unknown-linux-gnu.tar.gz dist/
       - name: Upload Linux artifacts
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-x86_64
           path: dist/*
@@ -203,7 +203,7 @@ jobs:
           mv omni-terminal-aarch64-unknown-linux-gnu.tar.gz ../../../
       - name: Upload Linux aarch64 artifact
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux-aarch64
           path: omni-terminal-aarch64-unknown-linux-gnu.tar.gz
@@ -226,7 +226,7 @@ jobs:
       #   run: signtool sign /fd SHA256 /f certificate.pfx target/wix/*.msi
       - name: Upload Windows artifact
         if: matrix.target == 'x86_64-pc-windows-msvc'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows-x86_64
           path: target/wix/*.msi
@@ -235,17 +235,17 @@ jobs:
     name: Package macOS universal binary
     needs: [release, build]
     if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: macos-14
+    runs-on: macos-26
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Download macOS x86_64 binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: macos-binary-x86_64-apple-darwin
           path: macos-x86_64
       - name: Download macOS aarch64 binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: macos-binary-aarch64-apple-darwin
           path: macos-aarch64
@@ -298,7 +298,7 @@ jobs:
       - name: Package tarball
         run: tar -czvf omni-terminal-macos-universal.tar.gz omni-terminal
       - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: macos-universal
           path: |
@@ -312,14 +312,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Get version
         id: version
         run: |
           VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: artifacts
       - name: List artifacts
@@ -340,7 +340,7 @@ jobs:
           echo "${BODY}" >> "$GITHUB_OUTPUT"
           echo "${EOF}" >> "$GITHUB_OUTPUT"
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}

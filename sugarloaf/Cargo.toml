@@ -39,14 +39,14 @@ tracing = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 image_rs = { workspace = true }
 unicode-width = { workspace = true }
-guillotiere = "0.6.2"
+guillotiere = "0.7.0"
 rustc-hash = { workspace = true }
 raw-window-handle = { workspace = true }
 parking_lot = { workspace = true }
 dashmap = { workspace = true }
 approx = "0.5.1"
 lru = "0.16.0"
-skrifa = "0.37.0"
+skrifa = "0.50.0"
 halfbrown = "0.4.0"
 half = "2.6.0"
 num-traits = "0.2.19"
@@ -57,7 +57,7 @@ futures = { workspace = true }
 thiserror = "2.0.18"
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
-librashader = { version = "0.10.1", default-features = false, features = ["runtime-wgpu", "stable", "presets"] }
+librashader = { version = "0.12.0", default-features = false, features = ["runtime-wgpu", "stable", "presets"] }
 font-kit = "0.14.3"
 walkdir = "2.5.0"
 

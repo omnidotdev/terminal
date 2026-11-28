@@ -10,7 +10,7 @@ authors = { workspace = true }
 
 [dependencies]
 libc = { workspace = true }
-dirs = "6.0.0"
+dirs = "7.0.0"
 corcovado = { workspace = true }
 tracing = { workspace = true }
 
